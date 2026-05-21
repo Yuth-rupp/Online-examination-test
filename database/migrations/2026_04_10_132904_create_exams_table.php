@@ -6,26 +6,23 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    /**
-     * Run the migrations.
-     */
     public function up(): void
-{
-    Schema::create('exams', function (Blueprint $table) {
-        $table->id('exam_id'); // Matches your schema [cite: 28]
-        $table->string('title'); 
-        $table->string('course_id'); 
-        $table->integer('duration'); 
-        $table->text('instructions')->nullable();
-        $table->float('pass_mark');
-        $table->string('status')->default('active');
-        $table->timestamps();
-    });
-}
+    {
+        Schema::create('exams', function (Blueprint $table) {
+            $table->uuid('exam_id')->primary(); // UUID Primary Key matching exam.php
+            $table->string('title');
+            $table->foreignId('course_id')->constrained('courses')->onDelete('cascade');
+            $table->foreignId('created_by')->constrained('users', 'user_id')->onDelete('cascade');
+            $table->integer('duration'); // In minutes
+            $table->decimal('pass_mark', 5, 2);
+            $table->text('instructions')->nullable();
+            $table->string('status')->default('draft');
+            $table->dateTime('start_time')->nullable();
+            $table->dateTime('end_time')->nullable();
+            $table->timestamps();
+        });
+    }
 
-    /**
-     * Reverse the migrations.
-     */
     public function down(): void
     {
         Schema::dropIfExists('exams');

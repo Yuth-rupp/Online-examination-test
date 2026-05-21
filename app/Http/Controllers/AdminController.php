@@ -2,90 +2,84 @@
 
 namespace App\Http\Controllers;
 
-use App\Http\Controllers\Controller; // ✅ THIS FIXES THE ERROR
+use App\Http\Controllers\Controller;
 use App\Models\User;
-use App\Models\Course;
-use App\Models\Exam;
-use App\Models\QuestionBank;
-use App\Models\Report;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Auth;
 
-class AdminController extends Controller
+class AuthController extends Controller
 {
-    // ✅ Get dashboard summary
-    public function dashboard()
+    // 🔐 USER REGISTRATION
+    public function register(Request $request)
     {
+        $data = $request->validate([
+            'full_name' => 'required|string|max:255',
+            'email'     => 'required|email|unique:users,email',
+            'password'  => 'required|string|min:6',
+            'role'      => 'nullable|string|in:admin,teacher,student',
+        ]);
+
+        $user = User::create([
+            'full_name'     => $data['full_name'],
+            'email'         => $data['email'],
+            'password_hash' => Hash::make($data['password']), // Maps to your custom column
+            'role'          => $data['role'] ?? 'student',
+            'status'        => 'active',
+        ]);
+
+        // Generate Sanctum API token cleanly using your custom user_id structure
+        $token = $user->createToken('auth_token')->plainTextToken;
+
         return response()->json([
-            'users' => User::count(),
-            'courses' => Course::count(),
-            'exams' => Exam::count(),
-            'question_banks' => QuestionBank::count(),
-        ]);
+            'user'         => $user,
+            'access_token' => $token,
+            'token_type'   => 'Bearer',
+        ], 201);
     }
 
-    // ✅ Get all users
-    public function users()
-    {
-        return response()->json(User::latest()->get());
-    }
-
-    // ✅ Create user
-    public function createUser(Request $request)
+    // 🔑 USER LOGIN
+    public function login(Request $request)
     {
         $data = $request->validate([
-            'name' => 'required|string',
-            'email' => 'required|email|unique:users',
-            'password' => 'required|min:6',
-            'role' => 'required|string',
+            'email'    => 'required|email',
+            'password' => 'required|string',
         ]);
 
-        $data['password'] = bcrypt($data['password']);
+        // 🌟 CRUCIAL: Fetch user manually by email because Laravel attempts to search 'password' instead of 'password_hash'
+        $user = User::where('email', $data['email'])->first();
 
-        $user = User::create($data);
+        // Check if user exists and match the incoming text password against your password_hash column
+        if (!$user || !Hash::check($data['password'], $user->password_hash)) {
+            return response()->json([
+                'message' => 'Invalid login credentials'
+            ], 401);
+        }
 
-        return response()->json($user, 201);
-    }
+        // Generate token upon verified authentication
+        $token = $user->createToken('auth_token')->plainTextToken;
 
-    // ✅ Delete user
-    public function deleteUser($id)
-    {
-        $user = User::findOrFail($id);
-        $user->delete();
-
-        return response()->json(['message' => 'User deleted']);
-    }
-
-    // ✅ Get all courses
-    public function courses()
-    {
-        return response()->json(Course::with('institution')->get());
-    }
-
-    // ✅ Create course
-    public function createCourse(Request $request)
-    {
-        $data = $request->validate([
-            'name' => 'required',
-            'code' => 'required',
-            'institution_id' => 'required|exists:institutions,id',
+        return response()->json([
+            'user'         => $user,
+            'access_token' => $token,
+            'token_type'   => 'Bearer',
         ]);
-
-        $course = Course::create($data);
-
-        return response()->json($course, 201);
     }
 
-    // ✅ Get all exams
-    public function exams()
+    // 🚪 USER LOGOUT
+    public function logout(Request $request)
     {
-        return response()->json(
-            Exam::with(['course', 'creator'])->get()
-        );
+        // Revoke the token that was used to gain access to this route
+        $request->user()->currentAccessToken()->delete();
+
+        return response()->json([
+            'message' => 'Logged out successfully'
+        ]);
     }
 
-    // ✅ Get reports
-    public function reports()
+    // 👤 GET LOGGED IN USER PROFILE
+    public function profile(Request $request)
     {
-        return response()->json(Report::latest()->get());
+        return response()->json($request->user());
     }
 }

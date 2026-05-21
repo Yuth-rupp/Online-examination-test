@@ -34,6 +34,6 @@ class Exam extends Model
     // 5. Define the relationship to the Course
     public function course()
     {
-        return $this->belongsTo(Course::class, 'course_id');
+        return $this->belongsTo(Course::class, 'course_id', 'id');
     }
 }

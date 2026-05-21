@@ -4,8 +4,8 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use App\Models\Institution;
-use App\Models\User;
+use App\Models\Institution; // 👈 Already there
+use App\Models\User;        // 🌟 ADD THIS MISSING LINE HERE 🌟
 
 class Report extends Model
 {
@@ -26,11 +26,13 @@ class Report extends Model
         'period_end' => 'date'
     ];
 
-    public function institution() {
+    public function institution() 
+    {
         return $this->belongsTo(Institution::class);
     }
 
-    public function creator() {
-        return $this->belongsTo(User::class, 'generated_by');
+    public function creator() 
+    {
+        return $this->belongsTo(User::class, 'generated_by', 'user_id');
     }
 }
