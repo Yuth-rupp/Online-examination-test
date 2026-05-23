@@ -3,89 +3,65 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Models\User;
 use Illuminate\Http\Request;
+use App\Models\User;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Auth;
 
 class AuthController extends Controller
 {
-    /**
-     * Handle User Registration
-     */
     public function register(Request $request)
     {
         $data = $request->validate([
-            'full_name' => 'required|string', 
-            'email' => 'required|email|unique:users',
-            'password' => 'required|min:6',
-            'role' => 'required|string',
+            'first_name' => 'required|string|max:255',
+            'last_name'  => 'required|string|max:255',
+            'email'      => 'required|string|email|max:255|unique:users,email',
+            'password'   => 'required|string|min:8',
+            'role'       => 'required|string',
         ]);
+
+        $fullName = $data['first_name'] . ' ' . $data['last_name'];
 
         $user = User::create([
-            'full_name' => $data['full_name'], 
-            'email' => $data['email'],
-            // Ensure your User model allows 'password_hash' in $fillable
-            'password_hash' => Hash::make($data['password']), 
-            'role' => $data['role'],
-            'status' => 'active', 
+            'full_name' => $fullName,
+            'email'     => $data['email'],
+            'password'  => Hash::make($data['password']),
+            'role'      => $data['role'],
+            'status'    => 'active',
         ]);
 
-        // Create token immediately so user is logged in after register
-        $token = $user->createToken('auth_token')->plainTextToken;
+        Auth::guard('web')->login($user);
 
-        return response()->json([
-            'message' => 'User registered successfully',
-            'access_token' => $token,
-            'token_type' => 'Bearer',
-            'user' => $user
-        ], 201);
+        return redirect()->route('teacher.dashboard')->with('success', 'Welcome to your dashboard!');
     }
 
-    /**
-     * Handle User Login
-     */
     public function login(Request $request)
     {
-        $request->validate([
-            'email' => 'required|email',
-            'password' => 'required',
+        $credentials = $request->validate([
+            'email'    => 'required|string|email',
+            'password' => 'required|string',
         ]);
 
-        $user = User::where('email', $request->email)->first();
+        if (Auth::guard('web')->attempt($credentials)) {
+            $request->session()->regenerate();
+            $user = Auth::guard('web')->user();
 
-        // Use Hash::check to compare raw password with password_hash column
-        if (!$user || !Hash::check($request->password, $user->password_hash)) {
-            return response()->json([
-                'message' => 'Invalid credentials'
-            ], 401);
+            if ($user->role === 'teacher') {
+                return redirect()->route('teacher.dashboard');
+            }
+            return redirect()->intended('/user');
         }
 
-        $token = $user->createToken('auth_token')->plainTextToken;
-
-        return response()->json([
-            'message' => 'Login successful',
-            'access_token' => $token,
-            'token_type' => 'Bearer',
-            'user' => [
-                'user_id' => $user->user_id, // Ensure primary key is correct
-                'full_name' => $user->full_name,
-                'email' => $user->email,
-                'role' => $user->role,
-            ]
-        ]);
+        return redirect()->back()->with('error', 'The provided credentials do not match our records.');
     }
 
-    /**
-     * Handle User Logout
-     */
     public function logout(Request $request)
     {
-        // Deletes the token currently being used
-        $request->user()->currentAccessToken()->delete();
+        Auth::guard('web')->logout();
 
-        return response()->json([
-            'message' => 'Logged out successfully'
-        ]);
+        $request->session()->invalidate();
+        $request->session()->regenerateToken();
+
+        return redirect()->route('login.page')->with('success', 'Logged out securely.');
     }
 }

@@ -4,9 +4,6 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use App\Models\Exam;
-use App\Models\User;
-use App\Models\Submission;
 
 class ExamSession extends Model
 {
@@ -24,14 +21,15 @@ class ExamSession extends Model
     ];
 
     public function exam() {
-        return $this->belongsTo(Exam::class);
+        // Maps the session tracking point back to your custom exam UUID primary column
+        return $this->belongsTo(Exam::class, 'exam_id', 'exam_id');
     }
 
     public function user() {
-        return $this->belongsTo(User::class);
+        return $this->belongsTo(User::class, 'user_id', 'user_id');
     }
 
     public function submission() {
-        return $this->hasOne(Submission::class, 'session_id');
+        return $this->hasOne(Submission::class, 'session_id', 'id');
     }
 }

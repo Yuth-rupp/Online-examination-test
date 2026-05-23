@@ -4,9 +4,6 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use App\Models\Exam;
-use App\Models\QuestionBank;
-use App\Models\Answer;
 
 class Question extends Model
 {
@@ -20,17 +17,19 @@ class Question extends Model
     protected $casts = [
         'options'        => 'array',
         'correct_answer' => 'array',
+        'marks'          => 'decimal:2',
     ];
 
     public function exam() {
-        return $this->belongsTo(Exam::class);
+        // Tells Laravel that the foreign key and owner key are both 'exam_id'
+        return $this->belongsTo(Exam::class, 'exam_id', 'exam_id');
     }
 
     public function questionBank() {
-        return $this->belongsTo(QuestionBank::class);
+        return $this->belongsTo(QuestionBank::class, 'question_bank_id', 'id');
     }
 
     public function answers() {
-        return $this->hasMany(Answer::class);
+        return $this->hasMany(Answer::class, 'question_id', 'id');
     }
 }

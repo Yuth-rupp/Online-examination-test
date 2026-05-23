@@ -4,10 +4,6 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use App\Models\Institution;
-use App\Models\User;
-use App\Models\Exam;
-use App\Models\Enrollment;
 
 class Course extends Model
 {
@@ -18,18 +14,19 @@ class Course extends Model
     ];
 
     public function institution() {
-        return $this->belongsTo(Institution::class);
+        return $this->belongsTo(Institution::class, 'institution_id', 'id');
     }
 
     public function teacher() {
-        return $this->belongsTo(User::class, 'teacher_id');
+        // Maps 'teacher_id' column to 'user_id' primary key column on the users table
+        return $this->belongsTo(User::class, 'teacher_id', 'user_id');
     }
 
     public function exams() {
-        return $this->hasMany(Exam::class);
+        return $this->hasMany(Exam::class, 'course_id', 'id');
     }
 
     public function enrollments() {
-        return $this->hasMany(Enrollment::class);
+        return $this->hasMany(Enrollment::class, 'course_id', 'id');
     }
 }

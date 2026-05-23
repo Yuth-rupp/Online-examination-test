@@ -4,10 +4,6 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use App\Models\Exam;
-use App\Models\User;
-use App\Models\ExamSession;
-use App\Models\Answer;
 
 class Submission extends Model
 {
@@ -24,25 +20,27 @@ class Submission extends Model
         'submitted_at' => 'datetime',
         'graded_at'    => 'datetime',
         'is_passed'    => 'boolean',
+        'total_score'  => 'decimal:2',
+        'percentage'   => 'decimal:2',
     ];
 
     public function exam() {
-        return $this->belongsTo(Exam::class);
+        return $this->belongsTo(Exam::class, 'exam_id', 'exam_id');
     }
 
     public function user() {
-        return $this->belongsTo(User::class);
+        return $this->belongsTo(User::class, 'user_id', 'user_id');
     }
 
     public function grader() {
-        return $this->belongsTo(User::class, 'graded_by');
+        return $this->belongsTo(User::class, 'graded_by', 'user_id');
     }
 
     public function session() {
-        return $this->belongsTo(ExamSession::class);
+        return $this->belongsTo(ExamSession::class, 'session_id', 'id');
     }
 
     public function answers() {
-        return $this->hasMany(Answer::class);
+        return $this->hasMany(Answer::class, 'submission_id', 'id');
     }
 }

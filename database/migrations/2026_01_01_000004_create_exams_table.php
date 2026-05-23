@@ -9,11 +9,11 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('exams', function (Blueprint $table) {
-            $table->uuid('exam_id')->primary(); // UUID Primary Key matching exam.php
+            $table->uuid('exam_id')->primary(); 
             $table->string('title');
             $table->foreignId('course_id')->constrained('courses')->onDelete('cascade');
             $table->foreignId('created_by')->constrained('users', 'user_id')->onDelete('cascade');
-            $table->integer('duration'); // In minutes
+            $table->integer('duration'); 
             $table->decimal('pass_mark', 5, 2);
             $table->text('instructions')->nullable();
             $table->string('status')->default('draft');
