@@ -4,7 +4,7 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
-return new class extends Migration
+class CreateInstitutionsTable extends Migration
 {
     /**
      * Run the migrations.
@@ -12,11 +12,13 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('institutions', function (Blueprint $table) {
-            $table->id(); // This creates an auto-incrementing 'id' column
+            $table->id(); 
             $table->string('name');
-            $table->string('domain')->unique()->nullable();
-            $table->string('status')->default('active');
-            $table->timestamps();
+            $table->string('domain')->nullable();
+            $table->string('logo')->nullable();
+            $table->boolean('is_active')->default(true);
+            $table->json('settings')->nullable(); 
+            $table->timestamps(); 
         });
     }
 
@@ -27,4 +29,4 @@ return new class extends Migration
     {
         Schema::dropIfExists('institutions');
     }
-};
+}

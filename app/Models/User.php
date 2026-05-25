@@ -15,12 +15,12 @@ class User extends Authenticatable
 
     // Allowed fields for mass assignment
     protected $fillable = [
-        'institution_id',
         'full_name',
         'email',
         'password_hash', // Maps directly to your custom column name
         'role',
         'status',
+        'institutional_id', // ✅ Kept the correct column name matching your database/controller
     ];
 
     // Hide sensitive attributes when converting to JSON outputs

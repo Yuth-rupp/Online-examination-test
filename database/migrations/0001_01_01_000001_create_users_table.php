@@ -17,6 +17,10 @@ return new class extends Migration
             $table->string('password_hash');
             $table->string('role')->default('student'); 
             $table->string('status')->default('active');
+            
+            // 🎯 FIXED: Added the missing column required by your form and database seeder
+            $table->string('institutional_id')->nullable(); 
+
             $table->rememberToken();
             $table->timestamps();
         });

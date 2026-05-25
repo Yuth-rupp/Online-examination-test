@@ -9,6 +9,9 @@ use Illuminate\Support\Str;
 
 class DatabaseSeeder extends Seeder
 {
+    /**
+     * Seed the application's database.
+     */
     public function run(): void
     {
         // 1. Seed Institution
@@ -24,25 +27,27 @@ class DatabaseSeeder extends Seeder
 
         // 2. Seed Users (Teacher & Student)
         $teacherId = DB::table('users')->insertGetId([
-            'institution_id' => $institutionId,
-            'full_name' => 'Dr. Alice Smith',
-            'email' => 'alice@nit.edu',
-            'password_hash' => Hash::make('password123'),
-            'role' => 'teacher',
-            'status' => 'active',
-            'created_at' => now(),
-            'updated_at' => now(),
+            'institution_id'   => $institutionId,
+            'full_name'        => 'Yun Dalin',
+            'email'            => 'yundalin9999@gmail.com',
+            'password_hash'    => Hash::make('password123'), // ✅ MATCHES MIGRATION
+            'role'             => 'teacher',
+            'status'           => 'active',
+            'institutional_id' => 'FAC-8842-1092',           // ✅ MATCHES MIGRATION
+            'created_at'       => now(),
+            'updated_at'       => now(),
         ]);
 
         $studentId = DB::table('users')->insertGetId([
-            'institution_id' => $institutionId,
-            'full_name' => 'John Doe',
-            'email' => 'john@nit.edu',
-            'password_hash' => Hash::make('password123'),
-            'role' => 'student',
-            'status' => 'active',
-            'created_at' => now(),
-            'updated_at' => now(),
+            'institution_id'   => $institutionId,
+            'full_name'        => 'John Doe',
+            'email'            => 'john@nit.edu',
+            'password_hash'    => Hash::make('password123'), // ✅ MATCHES MIGRATION
+            'role'             => 'student',
+            'status'           => 'active',
+            'institutional_id' => 'STU-1122-3344',           // ✅ MATCHES MIGRATION
+            'created_at'       => now(),
+            'updated_at'       => now(),
         ]);
 
         // 3. Seed Course

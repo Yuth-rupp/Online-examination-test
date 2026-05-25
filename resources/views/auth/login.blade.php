@@ -65,7 +65,7 @@
                     <div class="mb-5">
                         <div class="flex justify-between items-center mb-2">
                             <label class="block text-xs font-semibold text-gray-700">Password</label>
-                            <a href="#" class="text-xs text-[#1e5fa7] font-semibold hover:underline">Forgot Password?</a>
+                            <a href="{{ route('password.request') }}" class="text-xs text-[#1e5fa7] font-semibold hover:underline">Forgot Password?</a>
                         </div>
                         <div class="relative">
                             <span class="absolute inset-y-0 left-0 flex items-center pl-4 text-gray-400"><i class="fa-solid fa-lock"></i></span>
