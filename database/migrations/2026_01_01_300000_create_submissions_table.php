@@ -6,11 +6,15 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
+    /**
+     * Run the migrations.
+     */
     public function up(): void
     {
+        // Step 1: Initialize the structural table blueprint layout
         Schema::create('submissions', function (Blueprint $table) {
             $table->id(); 
-            $table->uuid('exam_id'); 
+            $table->uuid('exam_id'); // String structure matching your custom Exam model primary key
             $table->foreignId('user_id')->constrained('users', 'user_id')->onDelete('cascade');
             $table->unsignedBigInteger('session_id'); 
             $table->dateTime('started_at');
@@ -26,19 +30,27 @@ return new class extends Migration
             $table->timestamps();
         });
 
+        // Step 2: Bind the relational database constraint maps safely
         Schema::table('submissions', function (Blueprint $table) {
             $table->foreign('exam_id')->references('exam_id')->on('exams')->onDelete('cascade');
             $table->foreign('session_id')->references('id')->on('exam_sessions')->onDelete('cascade');
         });
     }
 
+    /**
+     * Reverse the migrations.
+     */
     public function down(): void
     {
-        Schema::table('submissions', function (Blueprint $table) {
-            $table->dropForeign(['exam_id']);
-            $table->dropForeign(['session_id']);
-        });
+        // Safely isolate and sever the foreign constraints map structure first
+        if (Schema::hasTable('submissions')) {
+            Schema::table('submissions', function (Blueprint $table) {
+                $table->dropForeign(['exam_id']);
+                $table->dropForeign(['session_id']);
+            });
+        }
         
+        // Wipe the physical table out of your database schema engine clean
         Schema::dropIfExists('submissions');
     }
 };

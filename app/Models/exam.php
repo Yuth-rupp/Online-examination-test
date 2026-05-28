@@ -12,7 +12,7 @@ class Exam extends Model
 
     // Custom non-incrementing UUID settings
     public $incrementing = false;
-    protected $primaryKey = 'exam_id'; // Fixed to explicitly target your migration primary column
+    protected $primaryKey = 'exam_id'; 
     protected $keyType = 'string';
 
     protected $fillable = [

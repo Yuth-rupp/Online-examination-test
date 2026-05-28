@@ -17,9 +17,10 @@ class User extends Authenticatable
     protected $fillable = [
         'full_name',
         'email',
-        'password_hash', // Maps directly to your custom column name
+        'password_hash',   // Maps directly to your custom column name
         'role',
         'status',
+        'institution_id',   // ✅ ADDED: Required because AuthController assigns this during registration
         'institutional_id', // ✅ Kept the correct column name matching your database/controller
     ];
 

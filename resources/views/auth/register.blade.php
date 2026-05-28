@@ -12,15 +12,12 @@
     <div class="flex h-full w-full">
         
         <div class="hidden lg:flex lg:w-1/2 bg-gradient-to-b from-[#2a629a] via-[#1e4a75] to-[#123150] text-white flex-col justify-center items-center text-center p-12 relative">
-            
             <div class="flex flex-col items-center justify-center">
                 <div class="text-white text-8xl mb-6 filter drop-shadow-md animate-fade-in">
                     <i class="fa-solid fa-graduation-cap"></i>
                 </div>
-                
                 <h1 class="text-5xl font-extrabold tracking-tight mb-4">OnlineExam</h1>
                 <p class="text-lg text-blue-100 font-light max-w-md tracking-wide">Empowering Academic Integrity</p>
-                
                 <div class="w-16 h-[3px] bg-white/30 rounded-full mt-8"></div>
             </div>
         </div>
@@ -49,19 +46,35 @@
                     <div class="grid grid-cols-2 gap-4">
                         <div>
                             <label class="block text-[10px] font-bold tracking-wider text-gray-500 uppercase mb-2">First Name</label>
-                            <input type="text" name="first_name" required
+                            <input type="text" name="first_name" value="{{ old('first_name') }}" required
                                 class="w-full px-4 py-3 bg-[#f0f2f5] border border-transparent rounded-xl text-sm text-gray-700 placeholder-gray-400 focus:outline-none focus:bg-white focus:border-blue-500 transition-all shadow-inner"
                                 placeholder="Jane">
                         </div>
                         <div>
                             <label class="block text-[10px] font-bold tracking-wider text-gray-500 uppercase mb-2">Last Name</label>
-                            <input type="text" name="last_name" required
+                            <input type="text" name="last_name" value="{{ old('last_name') }}" required
                                 class="w-full px-4 py-3 bg-[#f0f2f5] border border-transparent rounded-xl text-sm text-gray-700 placeholder-gray-400 focus:outline-none focus:bg-white focus:border-blue-500 transition-all shadow-inner"
                                 placeholder="Doe">
                         </div>
                     </div>
 
-                    <input type="hidden" name="role" value="teacher">
+                    <div>
+                        <label class="block text-[10px] font-bold tracking-wider text-gray-500 uppercase mb-2">Registering As</label>
+                        <div class="relative">
+                            <span class="absolute inset-y-0 left-0 flex items-center pl-4 text-gray-400 text-xs pointer-events-none">
+                                <i class="fa-solid fa-users"></i>
+                            </span>
+                            <select name="role" required
+                                class="w-full pl-11 pr-10 py-3 bg-[#f0f2f5] border border-transparent rounded-xl text-sm text-gray-700 focus:outline-none focus:bg-white focus:border-blue-500 transition-all shadow-inner appearance-none cursor-pointer">
+                                <option value="student" {{ old('role') == 'student' ? 'selected' : '' }}>Student (Default Portal Access)</option>
+                                <option value="teacher" {{ old('role') == 'teacher' ? 'selected' : '' }}>Teacher (Instructor Management Workspace)</option>
+                                <option value="admin"   {{ old('role') == 'admin'   ?  'selected' : ''}}>Admin   (Full System Access)</option>
+                            </select>
+                            <span class="absolute inset-y-0 right-0 flex items-center pr-4 text-gray-400 text-[10px] pointer-events-none">
+                                <i class="fa-solid fa-chevron-down"></i>
+                            </span>
+                        </div>
+                    </div>
 
                     <div>
                         <label class="block text-[10px] font-bold tracking-wider text-gray-500 uppercase mb-2">Institutional ID</label>
@@ -69,9 +82,9 @@
                             <span class="absolute inset-y-0 left-0 flex items-center pl-4 text-gray-400 text-xs">
                                 <i class="fa-regular fa-id-card"></i>
                             </span>
-                            <input type="text" name="institutional_id" required
+                            <input type="text" name="institutional_id" value="{{ old('institutional_id') }}" required
                                 class="w-full pl-11 pr-4 py-3 bg-[#f0f2f5] border border-transparent rounded-xl text-sm text-gray-700 placeholder-gray-400/80 focus:outline-none focus:bg-white focus:border-blue-500 transition-all shadow-inner"
-                                placeholder="e.g. STU-98234-AX">
+                                placeholder="e.g. STU-1122-3344">
                         </div>
                     </div>
 
@@ -81,7 +94,7 @@
                             <span class="absolute inset-y-0 left-0 flex items-center pl-4 text-gray-400 text-xs">
                                 <i class="fa-regular fa-envelope"></i>
                             </span>
-                            <input type="email" name="email" required
+                            <input type="email" name="email" value="{{ old('email') }}" required
                                 class="w-full pl-11 pr-4 py-3 bg-[#f0f2f5] border border-transparent rounded-xl text-sm text-gray-700 placeholder-gray-400/80 focus:outline-none focus:bg-white focus:border-blue-500 transition-all shadow-inner"
                                 placeholder="jane.doe@university.edu">
                         </div>
@@ -96,9 +109,6 @@
                             <input type="password" name="password" required
                                 class="w-full pl-11 pr-11 py-3 bg-[#f0f2f5] border border-transparent rounded-xl text-sm text-gray-700 placeholder-gray-400 focus:outline-none focus:bg-white focus:border-blue-500 transition-all shadow-inner"
                                 placeholder="••••••••••••">
-                            <span class="absolute inset-y-0 right-0 flex items-center pr-4 text-gray-400 hover:text-gray-600 cursor-pointer text-xs">
-                                <i class="fa-regular fa-eye"></i>
-                            </span>
                         </div>
                     </div>
 
@@ -116,7 +126,7 @@
 
                     <div class="flex items-start pt-2">
                         <input id="terms" type="checkbox" required 
-                            class="mt-1 w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500">
+                            class="mt-1 w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 cursor-pointer">
                         <label for="terms" class="ml-2 text-xs leading-relaxed font-light text-gray-400 select-none cursor-pointer">
                             I agree to the <a href="#" class="text-[#1c446c] font-semibold hover:underline">Terms of Service</a> and <a href="#" class="text-[#1c446c] font-semibold hover:underline">Privacy Policy</a> regarding proctored examinations.
                         </label>

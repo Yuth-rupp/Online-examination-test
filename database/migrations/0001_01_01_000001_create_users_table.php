@@ -6,6 +6,9 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
+    /**
+     * Run the migrations.
+     */
     public function up(): void
     {
         // 1. Create the users table structure first
@@ -18,8 +21,8 @@ return new class extends Migration
             $table->string('role')->default('student'); 
             $table->string('status')->default('active');
             
-            // 🎯 FIXED: Added the missing column required by your form and database seeder
-            $table->string('institutional_id')->nullable(); 
+            // 🎯 FIXED: Added unique constraint to match your AuthController validation rules
+            $table->string('institutional_id')->nullable()->unique(); 
 
             $table->rememberToken();
             $table->timestamps();
@@ -34,12 +37,17 @@ return new class extends Migration
         });
     }
 
+    /**
+     * Reverse the migrations.
+     */
     public function down(): void
     {
         // Drop foreign key first to avoid constraint conflicts on rollback
-        Schema::table('users', function (Blueprint $table) {
-            $table->dropForeign(['institution_id']);
-        });
+        if (Schema::hasTable('users')) {
+            Schema::table('users', function (Blueprint $table) {
+                $table->dropForeign(['institution_id']);
+            });
+        }
 
         Schema::dropIfExists('users');
     }

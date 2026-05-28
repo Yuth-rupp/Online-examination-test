@@ -30,7 +30,7 @@
                     </div>
                 </div>
             </div>
-            <div class="text-xs text-blue-200/60 tracking-wider">© 2026 Scholaris Pro OnlineXM. Academic Authority & Digital Serenity.</div>
+            <div class="text-xs text-blue-200/60 tracking-wider">© 2024 Scholaris Pro OnlineXM. Academic Authority & Digital Serenity.</div>
         </div>
 
         <div class="w-full lg:w-1/2 bg-white flex flex-col justify-between p-8 sm:p-12 md:p-20 relative">
@@ -47,25 +47,37 @@
 
                 <form action="{{ url('auth/login') }}" method="POST">
                     @csrf
-                    <div class="bg-gray-100 p-1 rounded-full flex justify-between gap-1 mb-8 text-[11px] font-bold tracking-wider text-gray-500 uppercase">
-                        <button type="button" class="w-full py-2 px-2 rounded-full text-center hover:bg-gray-200 transition-all">Student</button>
-                        <button type="button" class="w-full py-2 px-2 rounded-full text-center bg-[#2d3748] text-white shadow-sm transition-all">Teacher</button>
-                        <button type="button" class="w-full py-2 px-2 rounded-full text-center hover:bg-gray-200 transition-all">Admin</button>
-                        <button type="button" class="w-full py-2 px-2 rounded-full text-center hover:bg-gray-200 transition-all whitespace-nowrap">Super Admin</button>
+                    
+                    <input type="hidden" name="role" id="selected_role" value="student">
+
+                    <div class="bg-gray-100 p-1 rounded-full flex justify-between gap-1 mb-8 text-[11px] font-bold tracking-wider uppercase text-gray-500">
+                        <button type="button" class="role-btn w-full py-2 px-2 rounded-full text-center bg-[#2d3748] text-white shadow-sm transition-all" data-role="student">
+                            Student
+                        </button>
+                        <button type="button" class="role-btn w-full py-2 px-2 rounded-full text-center hover:bg-gray-200 transition-all text-gray-500" data-role="teacher">
+                            Teacher
+                        </button>
+                        <button type="button" class="role-btn w-full py-2 px-2 rounded-full text-center hover:bg-gray-200 transition-all text-gray-500" data-role="admin">
+                            Admin
+                        </button>
+                        <button type="button" class="role-btn w-full py-2 px-2 rounded-full text-center hover:bg-gray-200 transition-all whitespace-nowrap text-gray-500" data-role="super_admin">
+                            Super Admin
+                        </button>
+                     
                     </div>
 
                     <div class="mb-5">
                         <label class="block text-xs font-semibold text-gray-700 mb-2">Email Address</label>
                         <div class="relative">
                             <span class="absolute inset-y-0 left-0 flex items-center pl-4 text-gray-400"><i class="fa-regular fa-user"></i></span>
-                            <input type="email" name="email" required class="w-full pl-11 pr-4 py-3 bg-[#f3f4f6] rounded-xl text-sm focus:outline-none focus:bg-white focus:border-blue-500 text-gray-700 transition-all" placeholder="phatyuthyou9@gmail.com">
+                            <input type="email" name="email" required class="w-full pl-11 pr-4 py-3 bg-[#f3f4f6] rounded-xl text-sm focus:outline-none focus:bg-white focus:border-blue-500 text-gray-700 transition-all" placeholder="j.doe@university.edu">
                         </div>
                     </div>
 
                     <div class="mb-5">
                         <div class="flex justify-between items-center mb-2">
                             <label class="block text-xs font-semibold text-gray-700">Password</label>
-                            <a href="{{ route('password.request') }}" class="text-xs text-[#1e5fa7] font-semibold hover:underline">Forgot Password?</a>
+                            <a id="forgot_password_link" href="{{ route('password.request') }}" class="text-xs text-[#1e5fa7] font-semibold hover:underline">Forgot Password?</a>
                         </div>
                         <div class="relative">
                             <span class="absolute inset-y-0 left-0 flex items-center pl-4 text-gray-400"><i class="fa-solid fa-lock"></i></span>
@@ -93,5 +105,45 @@
             </div>
         </div>
     </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const buttons = document.querySelectorAll('.role-btn');
+            const roleInput = document.getElementById('selected_role');
+            
+            // Fetch the dynamic link element and define the two URLs from Laravel
+            const forgotPasswordLink = document.getElementById('forgot_password_link');
+            const standardForgotUrl = "{{ route('password.request') }}";
+            const superAdminForgotUrl = "{{ route('superadmin.password.request') }}";
+
+            const activeClasses = ['bg-[#2d3748]', 'text-white', 'shadow-sm'];
+            const inactiveClasses = ['hover:bg-gray-200', 'text-gray-500'];
+
+            buttons.forEach(button => {
+                button.addEventListener('click', function() {
+                    // Reset all buttons
+                    buttons.forEach(btn => {
+                        btn.classList.remove(...activeClasses);
+                        btn.classList.add(...inactiveClasses);
+                    });
+
+                    // Set clicked button to active
+                    this.classList.remove(...inactiveClasses);
+                    this.classList.add(...activeClasses);
+
+                    // Update hidden input
+                    const selectedRole = this.getAttribute('data-role');
+                    roleInput.value = selectedRole;
+
+                    // DYNAMIC ROUTING LOGIC ADDED HERE
+                    if (selectedRole === 'super_admin') {
+                        forgotPasswordLink.href = superAdminForgotUrl;
+                    } else {
+                        forgotPasswordLink.href = standardForgotUrl;
+                    }
+                });
+            });
+        });
+    </script>
 </body>
 </html>
