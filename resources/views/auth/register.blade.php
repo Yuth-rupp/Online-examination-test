@@ -69,6 +69,7 @@
                                 <option value="student" {{ old('role') == 'student' ? 'selected' : '' }}>Student (Default Portal Access)</option>
                                 <option value="teacher" {{ old('role') == 'teacher' ? 'selected' : '' }}>Teacher (Instructor Management Workspace)</option>
                                 <option value="admin"   {{ old('role') == 'admin'   ?  'selected' : ''}}>Admin   (Full System Access)</option>
+                                <option value="super admin"{{  old('role')== 'super admin' ? 'selected' : ''}}>Super Admin (Root & System Core)</option>
                             </select>
                             <span class="absolute inset-y-0 right-0 flex items-center pr-4 text-gray-400 text-[10px] pointer-events-none">
                                 <i class="fa-solid fa-chevron-down"></i>

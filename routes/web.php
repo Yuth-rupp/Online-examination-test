@@ -3,9 +3,11 @@
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Storage;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\StudentController;
 use App\Http\Controllers\TeacherController;
+use App\Http\Controllers\GradingController;
 
 /*
 |--------------------------------------------------------------------------
@@ -50,7 +52,6 @@ Route::middleware(['guest'])->group(function () {
     
     // 3. Display registration success confirmation screen
     Route::get('/register/success', function () {
-        // If the session flash memory has no verification data, bounce back to register safely
         if (!session()->has('registered_email')) {
             return redirect()->route('register.page');
         }
@@ -67,7 +68,6 @@ Route::middleware(['guest'])->group(function () {
 
     // 5b. Display the precise "Check your email" view structure success state
     Route::get('/forgot-password/success', function () {
-        // Keep the route protected from casual path URL jumping if a token wasn't just fired
         if (!session()->has('reset_email')) {
             return redirect()->route('password.request');
         }
@@ -126,22 +126,59 @@ Route::middleware(['auth', 'role:teacher'])->group(function () {
         return view('teacher.dashboard');
     })->name('teacher.dashboard');
 
-    // 2. Personalization Profile Settings View Layout
+    // 2. Dynamic Teacher Analytics Engine Dashboard Configuration Method Link
+    Route::get('/teacher/analytics', [TeacherController::class, 'analytics'])->name('teacher.analytics');
+
+    // 3. Personalization Profile Settings View Layout
     Route::get('/teacher/settings', function () {
         return view('teacher.settings');
     })->name('teacher.settings');
     
-    // 3. Nested Teacher Management Control Tree Module
+    // FIXED: Form submit target handler added to save personalization updates
+    Route::post('/teacher/settings', [TeacherController::class, 'updateSettings'])->name('teacher.settings.update');
+
+    /* --- 📝 INTERACTIVE GRADING WORKFLOW INTEGRATION --- */
+    Route::get('/teacher/grading/{student_id}', [GradingController::class, 'show'])->name('teacher.grading.show');
+    Route::post('/teacher/grading/{student_id}/save', [GradingController::class, 'store'])->name('teacher.grading.store');
+    
+    /* --- 📂 SECURE FILE ACCESS HANDLER --- */
+    // This intercepts and resolves the 403 Forbidden error by explicitly serving the files via backend streaming
+    Route::get('/teacher/submissions/download/{filename}', function ($filename) {
+        $path = 'submissions/' . $filename;
+
+        if (!Storage::disk('public')->exists($path)) {
+            abort(404, 'The requested submission file does not exist.');
+        }
+
+        return response()->file(Storage::disk('public')->path($path));
+    })->name('teacher.submissions.download');
+
+    // 4. Nested Teacher Management Control Tree Module
     Route::prefix('teacher')->group(function () {
+        
+        // Master Question Bank Overview Dashboard Page Layout View
+        Route::get('/question-bank', [TeacherController::class, 'questionBank'])->name('teacher.question-bank');
+        
         Route::get('/courses', [TeacherController::class, 'myCourses'])->name('teacher.courses');
         Route::post('/exams', [TeacherController::class, 'createExam'])->name('exams.store');
         
+        // Form page displaying the "Create New Question" UI panel
         Route::get('/questions/create', function() {
             return view('teacher.create_question'); 
         })->name('questions.create');
 
-        // Note: These paths reflect standard RESTful architecture setup
+        // Handles data submission when clicking "Save to Bank"
         Route::post('/questions', [TeacherController::class, 'addQuestion'])->name('questions.store');
+        
+        // Form panel loaded with existing model properties to edit questions
+        Route::get('/questions/{id}/edit', [TeacherController::class, 'editQuestion'])->name('questions.edit');
+
+        // Handles updates sent from your professional edit view dashboard interface
+        Route::put('/questions/{id}', [TeacherController::class, 'updateQuestion'])->name('questions.update');
+
+        // Handles explicit question record deletions from table actions row
+        Route::delete('/questions/{id}', [TeacherController::class, 'destroyQuestion'])->name('questions.destroy');
+        
         Route::get('/exams/{examId}/submissions', [TeacherController::class, 'submissions'])->name('exams.submissions');
     });
 });
@@ -161,10 +198,12 @@ Route::middleware(['auth', 'role:student'])->group(function () {
         return view('student.exams'); 
     })->name('student.exams');
 
+    // Route for historic score assessments logs
     Route::get('/student/history', function () {
         return view('student.history'); 
     })->name('student.history');
 
+    // Route for technical documentation help desk support channels
     Route::get('/student/support', function () {
         return view('student.support'); 
     })->name('student.support');
@@ -175,19 +214,15 @@ Route::middleware(['auth', 'role:admin,super_admin'])->group(function () {
     
     // 1. Main Admin Dashboard View Link (Calculates dynamic layout metric states)
     Route::get('/admin/dashboard', function () {
-        // Fetch dynamic registered user count values
         $totalUsers = \App\Models\User::count(); 
 
-        // Compute active matching exam sessions running right now
         $activeExams = \App\Models\Exam::where('status', 'published')
             ->where('start_time', '<=', now())
             ->where('end_time', '>=', now())
             ->count();
 
-        // Provide a safe, realistic system load visualization percentage
         $cpuUsage = rand(12, 45); 
 
-        // Populate system integrity flag indicators for your monitor pane component
         $proctorFlags = [
             [
                 'student' => 'Sem Vatenakpanha',
@@ -203,7 +238,6 @@ Route::middleware(['auth', 'role:admin,super_admin'])->group(function () {
             ]
         ];
 
-        // Safely extract system actions audit trail entries from the model tier
         if (class_exists('\App\Models\AuditLog')) {
             $systemLogs = \App\Models\AuditLog::orderBy('created_at', 'desc')->take(5)->get();
         } else {

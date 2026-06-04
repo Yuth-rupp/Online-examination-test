@@ -6,135 +6,233 @@
     <title>ExamSystem - Teacher Dashboard</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-</head>
-<body class="bg-[#f8fafc] h-screen font-sans overflow-hidden flex">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
 
-    <aside class="w-64 bg-white h-full border-r border-gray-100 flex flex-col justify-between flex-shrink-0">
+        /* 🌓 SYSTEM-WIDE HIGH CONTRAST CORES */
+        .high-contrast-mode {
+            background-color: #030712 !important;
+            color: #F9FAFB !important;
+        }
+        .high-contrast-mode aside, 
+        .high-contrast-mode section, 
+        .high-contrast-mode header,
+        .high-contrast-mode .bg-white {
+            background-color: #111827 !important;
+            border-color: #374151 !important;
+            color: #F9FAFB !important;
+        }
+        .high-contrast-mode nav a:not([class*="bg-"]) {
+            color: #9CA3AF !important;
+        }
+        .high-contrast-mode nav a:not([class*="bg-"]):hover {
+            background-color: #1F2937 !important;
+            color: #FFFFFF !important;
+        }
+        .high-contrast-mode td,
+        .high-contrast-mode th {
+            color: #E5E7EB !important;
+            border-color: #374151 !important;
+        }
+        .high-contrast-mode tr:hover {
+            background-color: #1F2937 !important;
+        }
+        .high-contrast-mode .text-[#0F172A],
+        .high-contrast-mode .text-[#1E293B] {
+            color: #F9FAFB !important;
+        }
+        .high-contrast-mode .text-[#64748B],
+        .high-contrast-mode .text-[#475569] {
+            color: #9CA3AF !important;
+        }
+        .high-contrast-mode .bg-[#F8FAFC],
+        .high-contrast-mode .bg-[#FAFCFF] {
+            background-color: #030712 !important;
+        }
+    </style>
+    <script>
+        // Reads local storage before browser starts painting to prevent flashing white frames
+        if (localStorage.getItem('high-contrast-enabled') === 'true') {
+            document.documentElement.classList.add('high-contrast-mode');
+        }
+    </script>
+</head>
+<body class="bg-[#F8FAFC] text-[#1E293B] min-h-screen flex selection:bg-blue-500/20">
+
+    <aside class="w-64 bg-white border-r border-[#E2E8F0] flex flex-col justify-between flex-shrink-0 z-20">
         <div>
-            <div class="p-6 flex items-center gap-3 text-[#1e5fa7] font-bold text-lg border-b border-gray-50">
-                <i class="fa-solid fa-graduation-cap text-xl"></i>
-                <span>ExamSystem</span>
+            <div class="h-20 flex items-center px-6 gap-2.5">
+                <div class="w-9 h-9 bg-[#1D4ED8] rounded-xl flex items-center justify-center text-white shadow-sm">
+                    <i class="fa-solid fa-graduation-cap text-base"></i>
+                </div>
+                <span class="font-bold text-xl text-[#0F172A] tracking-tight">ExamSystem</span>
             </div>
-            <nav class="p-4 space-y-1">
-                <a href="{{ route('teacher.dashboard') }}" class="flex items-center gap-4 px-4 py-3 bg-[#1e7be6] text-white rounded-xl text-sm font-medium shadow-sm shadow-blue-200">
-                    <i class="fa-solid fa-table-columns text-base w-5"></i> Dashboard
+
+            <nav class="px-4 py-2 space-y-1">
+                <a href="{{ route('teacher.dashboard') }}" class="group flex items-center gap-3 px-4 py-3 bg-[#1D4ED8] text-white font-semibold rounded-xl shadow-md shadow-blue-500/10 transition-all">
+                    <i class="fa-solid fa-table-columns w-5 text-center text-lg text-white"></i>
+                    <span>Dashboard</span>
                 </a>
-                <a href="{{ route('questions.create') }}" class="flex items-center gap-4 px-4 py-3 text-gray-500 hover:bg-gray-50 hover:text-gray-800 rounded-xl text-sm font-medium transition-all">
-                    <i class="fa-solid fa-folder-open text-base w-5"></i> Question Bank
+                
+                <a href="{{ route('teacher.question-bank') }}" class="group flex items-center gap-3 px-4 py-3 text-[#64748B] hover:text-[#1E293B] hover:bg-slate-50 font-medium transition-all rounded-xl">
+                    <i class="fa-solid fa-database w-5 text-center text-lg text-[#64748B] group-hover:text-[#1E293B] transition-colors"></i>
+                    <span>Question Bank</span>
                 </a>
-                <a href="#" class="flex items-center gap-4 px-4 py-3 text-gray-500 hover:bg-gray-50 hover:text-gray-800 rounded-xl text-sm font-medium transition-all">
-                    <i class="fa-solid fa-eye text-base w-5"></i> Monitoring
+                
+                <a href="#" class="group flex items-center gap-3 px-4 py-3 text-[#64748B] hover:text-[#1E293B] hover:bg-slate-50 font-medium transition-all rounded-xl">
+                    <i class="fa-solid fa-desktop w-5 text-center text-lg text-[#64748B] group-hover:text-[#1E293B] transition-colors"></i>
+                    <span>Monitoring</span>
                 </a>
-                <a href="#" class="flex items-center gap-4 px-4 py-3 text-gray-500 hover:bg-gray-50 hover:text-gray-800 rounded-xl text-sm font-medium transition-all">
-                    <i class="fa-solid fa-file-signature text-base w-5"></i> Grading
+                
+                <a href="{{ route('teacher.grading.show', ['student_id' => 1]) }}" class="group flex items-center gap-3 px-4 py-3 text-[#64748B] hover:text-[#1E293B] hover:bg-slate-50 font-medium transition-all rounded-xl">
+                    <i class="fa-solid fa-file-signature w-5 text-center text-lg text-[#64748B] group-hover:text-[#1E293B] transition-colors"></i>
+                    <span>Grading</span>
                 </a>
-                <a href="#" class="flex items-center gap-4 px-4 py-3 text-gray-500 hover:bg-gray-50 hover:text-gray-800 rounded-xl text-sm font-medium transition-all">
-                    <i class="fa-solid fa-chart-simple text-base w-5"></i> Analytics
+                
+                <a href="{{ route('teacher.analytics') }}" class="group flex items-center gap-3 px-4 py-3 text-[#64748B] hover:text-[#1E293B] hover:bg-slate-50 font-medium transition-all rounded-xl">
+                    <i class="fa-solid fa-chart-line w-5 text-center text-lg text-[#64748B] group-hover:text-[#1E293B] transition-colors"></i>
+                    <span>Analytics</span>
                 </a>
-                <a href="{{ route('teacher.settings') }}" class="flex items-center gap-4 px-4 py-3 text-gray-500 hover:bg-gray-50 hover:text-gray-800 rounded-xl text-sm font-medium transition-all">
-                    <i class="fa-solid fa-gear text-base w-5"></i> Settings
+                <a href="{{ route('teacher.settings') }}" class="group flex items-center gap-3 px-4 py-3 text-[#64748B] hover:text-[#1E293B] hover:bg-slate-50 font-medium transition-all rounded-xl">
+                    <i class="fa-solid fa-gear w-5 text-center text-lg text-[#64748B] group-hover:text-[#1E293B] transition-colors"></i>
+                    <span>Settings</span>
                 </a>
             </nav>
         </div>
 
-        <div class="p-4 border-t border-gray-50 bg-gray-50/50 flex items-center gap-3">
-            <div class="w-10 h-10 rounded-full overflow-hidden border border-gray-200">
-                <img src="https://api.dicebear.com/7.x/bottts/svg?seed=Alex" class="bg-red-100" alt="Avatar">
+        <div class="p-4 border-t border-[#E2E8F0] flex items-center gap-3 bg-[#F8FAFC] m-4 rounded-xl">
+            <div class="w-10 h-10 rounded-full overflow-hidden flex items-center justify-center border border-gray-200 bg-white">
+                <img src="{{ Auth::user()->profile_photo_path ?? Auth::user()->avatar_path ?? Auth::user()->profile_image ?? Auth::user()->image ?? Auth::user()->avatar ?? 'https://api.dicebear.com/7.x/bottts/svg?seed=Alex' }}" class="w-full h-full object-cover" alt="Avatar">
             </div>
-            <div class="flex flex-col">
-                <span class="text-sm font-bold text-gray-700 leading-tight">{{ Auth::user()->full_name ?? 'Teacher Alex' }}</span>
-                <span class="text-[11px] text-gray-400 font-medium">Senior Faculty</span>
+            <div>
+                <h4 class="text-sm font-bold text-[#0F172A] leading-tight">{{ Auth::user()->full_name ?? 'Yun Dalin' }}</h4>
+                <p class="text-xs text-[#94A3B8] font-medium mt-0.5">Senior Faculty</p>
             </div>
         </div>
     </aside>
 
-    <main class="flex-1 h-full flex flex-col overflow-hidden">
-        <header class="bg-white h-16 border-b border-gray-100 flex items-center justify-between px-8 z-10 flex-shrink-0">
-            <div class="relative w-96">
-                <span class="absolute inset-y-0 left-0 flex items-center pl-3.5 text-gray-400 text-xs"><i class="fa-solid fa-magnifying-glass"></i></span>
-                <input type="text" class="w-full pl-9 pr-4 py-2 bg-gray-100/80 rounded-xl text-xs text-gray-600 focus:outline-none focus:bg-white focus:border-gray-200 transition-all" placeholder="Search exams, students, or reports...">
-            </div>
-            <div class="flex items-center gap-4 text-gray-400 text-sm">
-                <button class="hover:text-gray-600 relative p-1"><i class="fa-regular fa-bell"></i><span class="absolute top-1 right-1 w-1.5 h-1.5 bg-blue-500 rounded-full"></span></button>
-                <button class="hover:text-gray-600 p-1"><i class="fa-solid fa-sliders"></i></button>
+    <main class="flex-1 flex flex-col min-w-0">
+        <header class="h-20 bg-white border-b border-[#E2E8F0] flex items-center justify-between px-8 z-10 flex-shrink-0">
+            <h1 class="text-2xl font-bold text-[#0F172A]">Welcome back, {{ Str::before(Auth::user()->full_name ?? 'Yun', ' ') }}</h1>
+            
+            <div class="flex items-center gap-6">
+                <button class="p-2.5 hover:bg-[#F1F5F9] rounded-xl relative border border-[#E2E8F0] bg-white text-[#64748B] transition-colors">
+                    <i class="fa-regular fa-bell text-lg"></i>
+                    <span class="absolute top-2.5 right-2.5 w-2 h-2 bg-red-500 rounded-full"></span>
+                </button>
+
+                <div class="flex items-center gap-3 border-l pl-6 border-[#E2E8F0]">
+                    <div class="w-9 h-9 rounded-full overflow-hidden border border-gray-200 bg-white">
+                        <img src="{{ Auth::user()->profile_photo_path ?? Auth::user()->avatar_path ?? Auth::user()->profile_image ?? Auth::user()->image ?? Auth::user()->avatar ?? 'https://api.dicebear.com/7.x/bottts/svg?seed=Alex' }}" class="w-full h-full object-cover" alt="Avatar">
+                    </div>
+                    <span class="text-sm font-semibold text-[#475569]">{{ Auth::user()->full_name ?? 'Yun Dalin' }}</span>
+                </div>
             </div>
         </header>
 
-        <div class="flex-1 p-8 overflow-y-auto flex gap-6">
-            <div class="w-2/3 space-y-6">
-                <div>
-                    <h2 class="text-2xl font-extrabold text-gray-800">Welcome back, {{ explode(' ', Auth::user()->full_name ?? 'Alex')[0] }}</h2>
-                    <p class="text-xs text-gray-400 font-medium mt-1">Here's what's happening in your classes today.</p>
+        <div class="p-8 flex-1 space-y-8 overflow-y-auto max-w-[1400px] w-full mx-auto">
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div class="bg-white border border-[#E2E8F0] p-6 rounded-2xl shadow-sm relative">
+                    <div class="flex justify-between items-start mb-4">
+                        <div class="p-2.5 bg-[#EFF6FF] text-[#1D4ED8] rounded-xl"><i class="fa-regular fa-file-lines text-xl"></i></div>
+                        <span class="text-xs font-semibold px-2 py-0.5 bg-[#DCFCE7] text-[#15803D] rounded-full">+2 this week</span>
+                    </div>
+                    <p class="text-xs font-bold text-[#94A3B8] uppercase tracking-wider">Total Exams</p>
+                    <h3 class="text-3xl font-extrabold text-[#0F172A] mt-1">8</h3>
                 </div>
 
-                <div class="grid grid-cols-3 gap-4">
-                    <div class="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm flex flex-col justify-between h-32">
-                        <div class="flex justify-between items-start">
-                            <div class="p-2.5 bg-blue-50 rounded-xl text-blue-600 text-sm"><i class="fa-regular fa-clipboard"></i></div>
-                            <span class="bg-emerald-50 text-emerald-600 text-[10px] font-bold px-2 py-0.5 rounded-full">+2 this week</span>
-                        </div>
-                        <div><p class="text-[11px] font-semibold text-gray-400 uppercase tracking-wider">Total Exams</p><h3 class="text-3xl font-extrabold text-gray-800 mt-1">8</h3></div>
+                <div class="bg-white border border-[#E2E8F0] p-6 rounded-2xl shadow-sm relative">
+                    <div class="flex justify-between items-start mb-4">
+                        <div class="p-2.5 bg-[#FFF7ED] text-[#EA580C] rounded-xl"><i class="fa-solid fa-satellite-dish text-xl"></i></div>
+                        <span class="text-xs font-semibold px-2 py-0.5 bg-[#FFEDD5] text-[#C2410C] rounded-full animate-pulse">Live Now</span>
                     </div>
-                    <div class="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm flex flex-col justify-between h-32">
-                        <div class="flex justify-between items-start">
-                            <div class="p-2.5 bg-amber-50 rounded-xl text-amber-600 text-sm"><i class="fa-solid fa-tower-broadcast"></i></div>
-                            <span class="bg-amber-50 text-amber-600 text-[10px] font-bold px-2 py-0.5 rounded-full">Live Now</span>
-                        </div>
-                        <div><p class="text-[11px] font-semibold text-gray-400 uppercase tracking-wider">Active Sessions</p><h3 class="text-3xl font-extrabold text-gray-800 mt-1">2</h3></div>
-                    </div>
-                    <div class="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm flex flex-col justify-between h-32">
-                        <div class="flex justify-between items-start">
-                            <div class="p-2.5 bg-purple-50 rounded-xl text-purple-600 text-sm"><i class="fa-regular fa-folder-open"></i></div>
-                            <span class="bg-rose-50 text-rose-600 text-[10px] font-bold px-2 py-0.5 rounded-full">Urgent</span>
-                        </div>
-                        <div><p class="text-[11px] font-semibold text-gray-400 uppercase tracking-wider">Pending Grading</p><h3 class="text-3xl font-extrabold text-gray-800 mt-1">45</h3></div>
-                    </div>
+                    <p class="text-xs font-bold text-[#94A3B8] uppercase tracking-wider">Active Sessions</p>
+                    <h3 class="text-3xl font-extrabold text-[#0F172A] mt-1">2</h3>
                 </div>
 
-                <div class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-                    <div class="p-5 flex justify-between items-center border-b border-gray-50">
-                        <h4 class="font-bold text-gray-800 text-sm">Active Exam Sessions</h4>
-                        <a href="#" class="text-xs font-bold text-[#1e7be6] hover:underline">View All</a>
+                <a href="{{ route('teacher.grading.show', ['student_id' => 1]) }}" class="block bg-white border border-[#E2E8F0] p-6 rounded-2xl shadow-sm relative hover:border-blue-400/70 transition-all group">
+                    <div class="flex justify-between items-start mb-4">
+                        <div class="p-2.5 bg-[#FDF2F8] text-[#DB2777] group-hover:bg-pink-50 transition-colors rounded-xl"><i class="fa-solid fa-signature text-xl"></i></div>
+                        <span class="text-xs font-semibold px-2 py-0.5 bg-[#FCE7F3] text-[#9D174D] rounded-full">Urgent</span>
                     </div>
-                    <div class="overflow-x-auto">
-                        <table class="w-full text-left border-collapse">
+                    <p class="text-xs font-bold text-[#94A3B8] uppercase tracking-wider">Pending Grading</p>
+                    <div class="flex items-baseline justify-between">
+                        <h3 class="text-3xl font-extrabold text-[#0F172A] mt-1">45</h3>
+                        <span class="text-xs font-bold text-blue-600 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1">Open Panel &rarr;</span>
+                    </div>
+                </a>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div class="lg:col-span-2 bg-white border border-[#E2E8F0] rounded-2xl shadow-sm flex flex-col justify-between overflow-hidden">
+                    <div class="p-6 border-b border-[#E2E8F0] flex justify-between items-center">
+                        <div>
+                            <h3 class="font-bold text-[#0F172A] text-lg">Active Exam Sessions</h3>
+                            <p class="text-xs text-[#64748B] mt-0.5">Real-time supervision system data</p>
+                        </div>
+                        <button class="text-xs font-semibold text-[#1D4ED8] hover:underline">View All</button>
+                    </div>
+                    <div class="divide-y divide-[#F1F5F9] overflow-x-auto">
+                        <table class="w-full text-left text-sm">
                             <thead>
-                                <tr class="bg-gray-50/70 border-b border-gray-50 text-[10px] font-bold text-gray-400 uppercase tracking-wider">
-                                    <th class="py-3 px-6">Exam Details</th>
-                                    <th class="py-3 px-4">Participants</th>
-                                    <th class="py-3 px-4">Time Left</th>
-                                    <th class="py-3 px-6 text-center">Action</th>
+                                <tr class="bg-[#FAFCFF] text-[#94A3B8] font-bold text-xs uppercase tracking-wider">
+                                    <th class="px-6 py-3.5">Exam Details</th>
+                                    <th class="px-6 py-3.5">Participants</th>
+                                    <th class="px-6 py-3.5">Time Left</th>
+                                    <th class="px-6 py-3.5">Action</th>
                                 </tr>
                             </thead>
-                            <tbody class="divide-y divide-gray-50 text-xs text-gray-600 font-medium">
+                            <tbody class="divide-y divide-slate-100 font-medium text-[#475569]">
                                 <tr>
-                                    <td class="py-4 px-6"><div class="font-bold text-gray-800 text-sm">Advanced Calculus - Midterm</div><div class="text-[10px] text-gray-400 font-semibold mt-0.5">Group A • Mathematics</div></td>
-                                    <td class="py-4 px-4"><span class="bg-blue-50 text-[#1e7be6] font-bold px-2 py-1 rounded-lg text-[11px]">+22</span></td>
-                                    <td class="py-4 px-4 font-bold text-amber-500">42:15</td>
-                                    <td class="py-4 px-6 text-center"><button class="bg-[#1e7be6] text-white text-[11px] font-bold px-4 py-2 rounded-xl flex items-center gap-2 mx-auto"><i class="fa-solid fa-tower-broadcast"></i> Live View</button></td>
+                                    <td class="px-6 py-4.5">
+                                        <div class="font-bold text-[#1E293B]">Advanced Calculus - Midterm</div>
+                                        <div class="text-xs text-[#94A3B8] mt-0.5">Group A • Mathematics</div>
+                                    </td>
+                                    <td class="px-6 py-4.5"><span class="bg-[#EFF6FF] text-[#1D4ED8] text-xs font-bold px-2 py-1 rounded-md">+22</span></td>
+                                    <td class="px-6 py-4.5 text-[#EA580C] font-semibold">42:15</td>
+                                    <td class="px-6 py-4.5"><button class="bg-[#1D4ED8] hover:bg-blue-800 text-white text-xs font-bold px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1.5"><i class="fa-solid fa-tower-broadcast"></i> Live View</button></td>
                                 </tr>
                                 <tr>
-                                    <td class="py-4 px-6"><div class="font-bold text-gray-800 text-sm">Introduction to Quantum Physics</div><div class="text-[10px] text-gray-400 font-semibold mt-0.5">Physics 101 • Science Dept</div></td>
-                                    <td class="py-4 px-4"><span class="bg-blue-50 text-[#1e7be6] font-bold px-2 py-1 rounded-lg text-[11px]">+18</span></td>
-                                    <td class="py-4 px-4 font-bold text-amber-500">01:15:20</td>
-                                    <td class="py-4 px-6 text-center"><button class="bg-[#1e7be6] text-white text-[11px] font-bold px-4 py-2 rounded-xl flex items-center gap-2 mx-auto"><i class="fa-solid fa-tower-broadcast"></i> Live View</button></td>
+                                    <td class="px-6 py-4.5">
+                                        <div class="font-bold text-[#1E293B]">Introduction to Quantum Physics</div>
+                                        <div class="text-xs text-[#94A3B8] mt-0.5">Physics 101 • Science Dept</div>
+                                    </td>
+                                    <td class="px-6 py-4.5"><span class="bg-[#EFF6FF] text-[#1D4ED8] text-xs font-bold px-2 py-1 rounded-md">+18</span></td>
+                                    <td class="px-6 py-4.5">01:15:20</td>
+                                    <td class="px-6 py-4.5"><button class="bg-[#1D4ED8] hover:bg-blue-800 text-white text-xs font-bold px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1.5"><i class="fa-solid fa-tower-broadcast"></i> Live View</button></td>
                                 </tr>
                             </tbody>
                         </table>
                     </div>
+                    <div class="p-4 bg-[#FAFCFF] border-t border-[#E2E8F0]"></div>
                 </div>
-            </div>
 
-            <div class="w-1/3 bg-white rounded-2xl border border-gray-100 shadow-sm p-5 flex flex-col justify-between">
-                <div>
-                    <h4 class="font-bold text-gray-800 text-sm mb-5">Recent Activity</h4>
-                    <div class="space-y-5 relative pl-4 border-l border-gray-100">
-                        <div class="relative"><span class="absolute -left-[21px] top-1 bg-emerald-50 text-emerald-600 w-3.5 h-3.5 rounded-full flex items-center justify-center text-[7px] border border-white shadow-sm"><i class="fa-solid fa-check"></i></span><div class="text-xs font-bold text-gray-800">Sarah Jenkins submitted Calculus Midterm</div><div class="text-[10px] text-gray-400 font-medium mt-0.5">2 minutes ago</div></div>
-                        <div class="relative"><span class="absolute -left-[21px] top-1 bg-blue-50 text-[#1e7be6] w-3.5 h-3.5 rounded-full flex items-center justify-center text-[7px] border border-white shadow-sm"><i class="fa-solid fa-user text-[6px]"></i></span><div class="text-xs font-bold text-gray-800">David Miller started Physics 101 Exam</div><div class="text-[10px] text-gray-400 font-medium mt-0.5">15 minutes ago</div></div>
-                        <div class="relative"><span class="absolute -left-[21px] top-1 bg-rose-50 text-rose-600 w-3.5 h-3.5 rounded-full flex items-center justify-center text-[7px] border border-white shadow-sm"><i class="fa-solid fa-triangle-exclamation text-[6px]"></i></span><div class="text-xs font-bold text-gray-800 text-rose-700">Alert: Suspicious activity detected</div><div class="text-[10px] text-rose-400 font-medium mt-0.5">Session: Calculus • Stud: J. Doe</div></div>
+                <div class="bg-white border border-[#E2E8F0] rounded-2xl shadow-sm p-6 flex flex-col justify-between">
+                    <div>
+                        <h3 class="font-bold text-[#0F172A] text-lg mb-5">Recent Activity</h3>
+                        <div class="space-y-5 pl-4 border-l-2 border-[#F1F5F9] relative">
+                            <div class="relative text-xs font-medium">
+                                <span class="absolute -left-[23px] top-0.5 bg-emerald-500 w-2.5 h-2.5 rounded-full border-2 border-white ring-4 ring-emerald-50"></span>
+                                <div class="font-bold text-[#1E293B]">Sarah Jenkins submitted Calculus Midterm</div>
+                                <div class="text-[10px] text-[#94A3B8] mt-0.5">2 minutes ago</div>
+                            </div>
+                            <div class="relative text-xs font-medium">
+                                <span class="absolute -left-[23px] top-0.5 bg-blue-500 w-2.5 h-2.5 rounded-full border-2 border-white ring-4 ring-blue-50"></span>
+                                <div class="font-bold text-[#1E293B]">David Miller started Physics 101 Exam</div>
+                                <div class="text-[10px] text-[#94A3B8] mt-0.5">15 minutes ago</div>
+                            </div>
+                            <div class="relative text-xs font-medium">
+                                <span class="absolute -left-[23px] top-0.5 bg-rose-500 w-2.5 h-2.5 rounded-full border-2 border-white ring-4 ring-rose-50"></span>
+                                <div class="font-bold text-rose-600">Alert: Suspicious activity detected</div>
+                                <div class="text-[10px] text-rose-400 mt-0.5">Session: Calculus • Stud: J. Doe</div>
+                            </div>
+                        </div>
                     </div>
+                    <button class="w-full mt-6 py-2.5 bg-slate-50 hover:bg-slate-100 text-[#475569] border border-[#E2E8F0] font-bold text-xs rounded-xl transition-colors">View Detailed Activity</button>
                 </div>
-                <button class="w-full py-2.5 border border-gray-100 text-gray-500 font-bold text-xs rounded-xl hover:bg-gray-50 transition-all">View Detailed Activity</button>
             </div>
         </div>
     </main>
