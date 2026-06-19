@@ -7,7 +7,7 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght=400;500;600;700&display=swap" rel="stylesheet">
   <script src="https://unpkg.com/lucide@latest"></script>
   <style>
     body { font-family: 'Inter', sans-serif; }
@@ -15,6 +15,7 @@
 </head>
 <body class="bg-[#F8FAFC] text-[#1E293B] min-h-screen flex">
 
+  <!-- Left Sidebar Navigation -->
   <aside class="w-64 bg-white border-r border-[#E2E8F0] flex flex-col justify-between fixed h-full z-10 hidden md:flex">
     <div>
       <div class="p-6 flex items-center gap-3">
@@ -56,14 +57,14 @@
         <div class="flex items-center gap-3">
           <div class="w-10 h-10 rounded-full bg-amber-400 overflow-hidden flex items-center justify-center border border-slate-200">
             <span class="text-sm font-bold text-amber-900">
-              {{ Auth::user() ? strtoupper(substr(Auth::user()->name, 0, 2)) : 'AJ' }}
+              {{ Auth::user() ? strtoupper(substr(Auth::user()->full_name, 0, 2)) : 'JD' }}
             </span>
           </div>
           <div>
             <h4 class="text-sm font-semibold text-[#0F172A] truncate max-w-[120px]">
-              {{ Auth::user()->name ?? 'Alex Johnson' }}
+              {{ Auth::user()->full_name ?? 'Jane Doe' }}
             </h4>
-            <p class="text-xs text-[#64748B]">ID: 2024-0891</p>
+            <p class="text-xs text-[#64748B]">ID: {{ Auth::user()->institutional_id ?? '88291' }}</p>
           </div>
         </div>
         
@@ -77,6 +78,7 @@
     </div>
   </aside>
 
+  <!-- Main View Execution Deck -->
   <main class="flex-1 md:pl-64 min-h-screen flex flex-col">
     
     <header class="bg-white border-b border-[#E2E8F0] px-6 py-4 flex items-center justify-between sticky top-0 z-20">
@@ -95,10 +97,10 @@
         </button>
         <div class="flex items-center gap-2 pl-2 border-l border-[#E2E8F0]">
           <div class="w-8 h-8 rounded-full bg-amber-400 overflow-hidden flex items-center justify-center text-xs font-bold text-amber-900">
-            {{ Auth::user() ? strtoupper(substr(Auth::user()->name, 0, 2)) : 'AJ' }}
+            {{ Auth::user() ? strtoupper(substr(Auth::user()->full_name, 0, 2)) : 'JD' }}
           </div>
           <span class="text-sm font-medium text-[#0F172A] hidden sm:inline">
-            {{ Auth::user()->name ?? 'Alex J.' }}
+            {{ Auth::user()->full_name ?? 'Jane Doe' }}
           </span>
         </div>
       </div>
@@ -106,6 +108,7 @@
 
     <div class="p-6 space-y-8 flex-1 max-w-[1400px] w-full mx-auto">
       
+      <!-- Top Balanced Metrics Parameters Cards Grid -->
       <section class="grid grid-cols-1 sm:grid-cols-3 gap-6">
         <div class="bg-white border border-[#E2E8F0] rounded-2xl p-6 flex items-center gap-5 shadow-sm">
           <div class="w-14 h-14 bg-blue-50 rounded-2xl flex items-center justify-center text-[#1D4ED8] border border-blue-100">
@@ -113,7 +116,7 @@
           </div>
           <div>
             <p class="text-xs font-medium text-[#64748B] tracking-wide uppercase mb-0.5">Total Exams</p>
-            <h3 class="text-3xl font-bold text-[#0F172A]">12</h3>
+            <h3 class="text-3xl font-bold text-[#0F172A]">{{ $totalExams ?? 0 }}</h3>
           </div>
         </div>
 
@@ -123,7 +126,7 @@
           </div>
           <div>
             <p class="text-xs font-medium text-[#64748B] tracking-wide uppercase mb-0.5">Completed</p>
-            <h3 class="text-3xl font-bold text-[#0F172A]">10</h3>
+            <h3 class="text-3xl font-bold text-[#0F172A]">{{ $completedExams ?? 0 }}</h3>
           </div>
         </div>
 
@@ -133,14 +136,15 @@
           </div>
           <div>
             <p class="text-xs font-medium text-[#64748B] tracking-wide uppercase mb-0.5">Average Score</p>
-            <h3 class="text-3xl font-bold text-[#1D4ED8]">88%</h3>
+            <h3 class="text-3xl font-bold text-[#1D4ED8]">{{ number_format($averageScore ?? 0, 0) }}%</h3>
           </div>
         </div>
       </section>
 
+      <!-- Upcoming Scheduled / Active Access Grid Frame -->
       <section class="space-y-4">
         <div class="flex items-center justify-between">
-          <h2 class="text-lg font-bold text-[#0F172A]">Upcoming Exams</h2>
+          <h2 class="text-lg font-bold text-[#0F172A]">Assessment Overview</h2>
           <a href="{{ route('student.exams') }}" class="text-sm font-semibold text-[#1D4ED8] hover:underline flex items-center gap-1">
             View All <i data-lucide="arrow-right" class="w-4 h-4"></i>
           </a>
@@ -148,95 +152,96 @@
 
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
           
-          <div class="bg-white border border-[#E2E8F0] rounded-2xl overflow-hidden shadow-sm relative flex flex-col justify-between min-h-[250px]">
-            <div class="absolute top-0 left-0 right-0 h-1.5 bg-[#2563EB]"></div>
-            <div class="p-6 space-y-4">
-              <div class="flex items-center justify-between">
-                <span class="px-2.5 py-1 bg-blue-50 text-xs font-bold text-[#2563EB] rounded-md tracking-wider">CS101</span>
-                <span class="text-xs text-[#94A3B8]">Computer Science</span>
+          <!-- Loop Handling Over Dynamic Upcoming Collections -->
+          @forelse($upcomingExams as $upcoming)
+            <div class="bg-white border border-[#E2E8F0] rounded-2xl overflow-hidden shadow-sm relative flex flex-col justify-between min-h-[250px]">
+              <div class="absolute top-0 left-0 right-0 h-1.5 bg-[#2563EB]"></div>
+              <div class="p-6 space-y-4">
+                <div class="flex items-center justify-between">
+                  <span class="px-2.5 py-1 bg-blue-50 text-xs font-bold text-[#2563EB] rounded-md tracking-wider">
+                    {{ $upcoming->course->code ?? 'COURSE' }}
+                  </span>
+                  <span class="text-xs text-[#94A3B8] max-w-[120px] truncate">{{ $upcoming->course->title ?? 'Department' }}</span>
+                </div>
+                <h3 class="text-lg font-bold text-[#0F172A] line-clamp-1">{{ $upcoming->title }}</h3>
+                <div class="space-y-2 text-sm text-[#64748B]">
+                  <div class="flex items-center gap-2">
+                    <i data-lucide="calendar" class="w-4 h-4 text-[#94A3B8]"></i>
+                    <span>{{ \Carbon\Carbon::parse($upcoming->start_time)->format('M d, Y') }}</span>
+                  </div>
+                  <div class="flex items-center gap-2">
+                    <i data-lucide="clock" class="w-4 h-4 text-[#94A3B8]"></i>
+                    <span>{{ \Carbon\Carbon::parse($upcoming->start_time)->format('h:i A') }} ({{ $upcoming->duration }} mins)</span>
+                  </div>
+                </div>
               </div>
-              <h3 class="text-lg font-bold text-[#0F172A]">Data Structures</h3>
-              <div class="space-y-2 text-sm text-[#64748B]">
+              <div class="p-6 pt-0 border-t border-slate-50 flex items-center justify-between mt-auto">
                 <div class="flex items-center gap-2">
-                  <i data-lucide="calendar" class="w-4 h-4 text-[#94A3B8]"></i>
-                  <span>Oct 25, 2024</span>
+                  <span class="w-2 h-2 rounded-full bg-orange-500"></span>
+                  <span class="text-sm font-medium text-orange-600">Upcoming</span>
                 </div>
-                <div class="flex items-center gap-2">
-                  <i data-lucide="clock" class="w-4 h-4 text-[#94A3B8]"></i>
-                  <span>10:00 AM (2 hrs)</span>
-                </div>
+                <button onclick="openDetailsModal('{{ $upcoming->title }}', '{{ $upcoming->course->code ?? 'GEN' }}', '{{ \Carbon\Carbon::parse($upcoming->start_time)->format('M d, Y') }}', '{{ $upcoming->duration }} mins', 'Please remain prepared to authenticate proctor validations 15 minutes ahead of deployment.')" class="px-4 py-2 bg-[#F1F5F9] text-[#1E293B] hover:bg-[#E2E8F0] text-sm font-medium rounded-xl transition-all">Details</button>
               </div>
             </div>
-            <div class="p-6 pt-0 border-t border-slate-50 flex items-center justify-between mt-auto">
-              <div class="flex items-center gap-2">
-                <span class="w-2 h-2 rounded-full bg-orange-500"></span>
-                <span class="text-sm font-medium text-orange-600">Upcoming</span>
+          @empty
+            <!-- Fallback Static Placeholders If No Scheduled Records Populated -->
+            <div class="bg-white border border-[#E2E8F0] rounded-2xl overflow-hidden shadow-sm relative flex flex-col justify-between min-h-[250px] opacity-60">
+              <div class="absolute top-0 left-0 right-0 h-1.5 bg-slate-300"></div>
+              <div class="p-6 space-y-4">
+                <h3 class="text-sm font-medium text-slate-400">No further scheduled assessments pending.</h3>
               </div>
-              <button class="px-4 py-2 bg-[#F1F5F9] text-[#1E293B] hover:bg-[#E2E8F0] text-sm font-medium rounded-xl transition-all">Details</button>
             </div>
-          </div>
+          @endforelse
 
-          <div class="bg-white border border-[#E2E8F0] rounded-2xl overflow-hidden shadow-sm relative flex flex-col justify-between min-h-[250px]">
-            <div class="absolute top-0 left-0 right-0 h-1.5 bg-[#2563EB]"></div>
-            <div class="p-6 space-y-4">
-              <div class="flex items-center justify-between">
-                <span class="px-2.5 py-1 bg-blue-50 text-xs font-bold text-[#2563EB] rounded-md tracking-wider">MAT202</span>
-                <span class="text-xs text-[#94A3B8]">Mathematics</span>
-              </div>
-              <h3 class="text-lg font-bold text-[#0F172A]">Calculus II</h3>
-              <div class="space-y-2 text-sm text-[#64748B]">
-                <div class="flex items-center gap-2">
-                  <i data-lucide="calendar" class="w-4 h-4 text-[#94A3B8]"></i>
-                  <span>Oct 26, 2024</span>
-                </div>
-                <div class="flex items-center gap-2">
-                  <i data-lucide="clock" class="w-4 h-4 text-[#94A3B8]"></i>
-                  <span>02:00 PM (1.5 hrs)</span>
-                </div>
-              </div>
-            </div>
-            <div class="p-6 pt-0 border-t border-slate-50 flex items-center justify-between mt-auto">
-              <div class="flex items-center gap-2">
-                <span class="w-2 h-2 rounded-full bg-orange-500"></span>
-                <span class="text-sm font-medium text-orange-600">Upcoming</span>
-              </div>
-              <button class="px-4 py-2 bg-[#F1F5F9] text-[#1E293B] hover:bg-[#E2E8F0] text-sm font-medium rounded-xl transition-all">Details</button>
-            </div>
-          </div>
-
+          <!-- SINGLE-USE CLASSROOM ACCESS SECURITY ROOM CODE ENTRANCE BOX -->
           <div class="bg-gradient-to-br from-[#1D4ED8] to-[#2563EB] text-white rounded-2xl p-6 shadow-md flex flex-col justify-between min-h-[250px]">
             <div class="space-y-4">
               <div class="flex items-center justify-between">
-                <span class="px-2.5 py-1 bg-white/20 text-xs font-bold text-white rounded-md tracking-wider">ENG105</span>
-                <span class="text-xs text-white/70">Humanities</span>
+                <span class="px-2.5 py-1 bg-white/20 text-xs font-bold text-white rounded-md tracking-wider">SECURE ENTRY</span>
+                @if($liveExam)
+                  <span class="flex items-center gap-1 text-xs text-emerald-300 font-semibold animate-pulse">
+                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> Live Session Open
+                  </span>
+                @else
+                  <span class="text-xs text-white/70">Class Validation Lock</span>
+                @endif
               </div>
-              <h3 class="text-xl font-bold">Statistics</h3>
-              <div class="space-y-2 text-sm text-white/90">
-                <div class="flex items-center gap-2">
-                  <i data-lucide="help-circle" class="w-4 h-4 text-white/70"></i>
-                  <span>Ongoing Session</span>
-                </div>
-                <div class="flex items-center gap-2">
-                  <i data-lucide="timer" class="w-4 h-4 text-white/70"></i>
-                  <span>Time Remaining: 00:45:12</span>
-                </div>
-              </div>
+              <h3 class="text-xl font-bold">Enter Session Code</h3>
+              <p class="text-xs text-white/80 leading-relaxed">
+                @if($liveExam)
+                  Active Assessment Found: <strong>{{ $liveExam->title }}</strong>. Please provide the unique class token issued by your instructor to unlock initialization parameters.
+                @else
+                  Provide the custom single-use access code shared by your lecturer (e.g. DBMS-3841) to pass security verification gates.
+                @endif
+              </p>
             </div>
             
-            <div class="flex items-center justify-between mt-auto pt-4">
-              <div class="flex items-center gap-2">
-                <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-                <span class="text-sm font-medium text-emerald-300">Live Now</span>
+            <form action="{{ route('student.verifyCode') }}" method="POST" class="mt-4 space-y-2">
+              @csrf
+              @if(session('error'))
+                <p class="text-xs text-rose-300 font-semibold bg-rose-950/40 p-2 rounded-lg border border-rose-900/30">
+                  {{ session('error') }}
+                </p>
+              @endif
+              @if(session('success'))
+                <p class="text-xs text-emerald-200 font-semibold bg-emerald-950/40 p-2 rounded-lg border border-emerald-900/30">
+                  {{ session('success') }}
+                </p>
+              @endif
+              <div class="flex gap-2">
+                <input type="text" name="access_code" placeholder="e.g., DBMS-4821" required 
+                       class="flex-1 bg-white/10 border border-white/20 px-3 py-2 rounded-xl text-sm font-mono text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-white uppercase">
+                <button type="submit" class="px-4 py-2 bg-white text-[#1D4ED8] hover:bg-slate-50 text-sm font-bold rounded-xl transition-all shadow-sm">
+                  Verify
+                </button>
               </div>
-              <button class="px-5 py-2 bg-white text-[#1D4ED8] hover:bg-slate-50 text-sm font-semibold rounded-xl transition-all shadow-sm">
-                Enter Room
-              </button>
-            </div>
+            </form>
           </div>
 
         </div>
       </section>
 
+      <!-- Insights Layout Columns Base Deck -->
       <section class="grid grid-cols-1 lg:grid-cols-3 gap-6">
         
         <div class="bg-white border border-[#E2E8F0] rounded-2xl p-6 shadow-sm lg:col-span-2 flex flex-col justify-between">
@@ -277,7 +282,7 @@
           <h3 class="text-base font-bold text-[#0F172A] mb-4">Quick Links</h3>
           <div class="space-y-3 flex-1 flex flex-col justify-center">
             
-            <a href="#" class="flex items-center justify-between p-3.5 border border-[#F1F5F9] hover:border-[#E2E8F0] rounded-xl hover:bg-[#F8FAFC] transition-all group">
+            <a href="{{ route('student.printTicket') }}" target="_blank" class="w-full flex items-center justify-between p-3.5 border border-[#F1F5F9] hover:border-[#E2E8F0] rounded-xl hover:bg-[#F8FAFC] transition-all group text-left">
               <div class="flex items-center gap-3">
                 <i data-lucide="download" class="w-5 h-5 text-[#2563EB]"></i>
                 <span class="text-sm font-medium text-[#334155] group-hover:text-[#0F172A]">Download Hall Ticket</span>
@@ -285,32 +290,89 @@
               <i data-lucide="chevron-right" class="w-4 h-4 text-[#94A3B8] group-hover:text-[#64748B]"></i>
             </a>
 
-            <a href="#" class="flex items-center justify-between p-3.5 border border-[#F1F5F9] hover:border-[#E2E8F0] rounded-xl hover:bg-[#F8FAFC] transition-all group">
+            <button onclick="openInfoModal('Examination Guidelines', 'All active browser instances must remain contained within a single window frame. Tab navigation switching, side panel interactions, or secondary monitors will generate automated system flags.')" class="w-full flex items-center justify-between p-3.5 border border-[#F1F5F9] hover:border-[#E2E8F0] rounded-xl hover:bg-[#F8FAFC] transition-all group text-left">
               <div class="flex items-center gap-3">
                 <i data-lucide="file-text" class="w-5 h-5 text-[#2563EB]"></i>
                 <span class="text-sm font-medium text-[#334155] group-hover:text-[#0F172A]">Examination Guidelines</span>
               </div>
               <i data-lucide="chevron-right" class="w-4 h-4 text-[#94A3B8] group-hover:text-[#64748B]"></i>
-            </a>
+            </button>
 
-            <a href="#" class="flex items-center justify-between p-3.5 border border-[#F1F5F9] hover:border-[#E2E8F0] rounded-xl hover:bg-[#F8FAFC] transition-all group">
+            <button onclick="openInfoModal('Proctoring FAQ', 'Q: What happens if my network disconnects?<br>A: The application context switches automatically to offline buffer mode. Reconnect within 180 seconds to protect session integrity.')" class="w-full flex items-center justify-between p-3.5 border border-[#F1F5F9] hover:border-[#E2E8F0] rounded-xl hover:bg-[#F8FAFC] transition-all group text-left">
               <div class="flex items-center gap-3">
                 <i data-lucide="help-circle" class="w-5 h-5 text-[#2563EB]"></i>
                 <span class="text-sm font-medium text-[#334155] group-hover:text-[#0F172A]">Proctoring FAQ</span>
               </div>
               <i data-lucide="chevron-right" class="w-4 h-4 text-[#94A3B8] group-hover:text-[#64748B]"></i>
-            </a>
+            </button>
 
           </div>
         </div>
 
       </section>
-
     </div>
   </main>
 
+  <!-- Global Modal Overlay -->
+  <div id="modalOverlay" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl shadow-xl border border-slate-100 max-w-md w-full overflow-hidden transform scale-95 opacity-0 transition-all duration-200" id="modalCard">
+      <div class="p-6 border-b border-slate-100 flex items-center justify-between">
+        <h3 id="modalTitle" class="text-lg font-bold text-[#0F172A]">Notification</h3>
+        <button onclick="closeModal()" class="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-600">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+      <div class="p-6 space-y-3 font-medium" id="modalContent"></div>
+      <div class="p-4 bg-slate-50 border-t border-slate-100 text-right">
+        <button onclick="closeModal()" class="px-4 py-2 bg-[#1D4ED8] hover:bg-[#1e40af] text-white text-sm font-semibold rounded-xl shadow-sm transition">Dismiss</button>
+      </div>
+    </div>
+  </div>
+
   <script>
     lucide.createIcons();
+
+    const overlay = document.getElementById('modalOverlay');
+    const card = document.getElementById('modalCard');
+    const mTitle = document.getElementById('modalTitle');
+    const mContent = document.getElementById('modalContent');
+
+    function openInfoModal(title, text) {
+        mTitle.innerText = title;
+        mContent.innerHTML = `<p class="text-sm text-[#64748B] leading-relaxed">${text}</p>`;
+        showModal();
+    }
+
+    function openDetailsModal(title, code, date, time, extra) {
+        mTitle.innerText = `${title} (${code})`;
+        mContent.innerHTML = `
+            <div class="space-y-2 text-sm text-[#64748B]">
+                <p><strong>Scheduled Date:</strong> ${date}</p>
+                <p><strong>Window Frame:</strong> ${time}</p>
+                <hr class="my-2 border-slate-100" />
+                <p class="text-xs bg-amber-50 text-amber-700 p-3 rounded-lg border border-amber-100">${extra}</p>
+            </div>
+        `;
+        showModal();
+    }
+
+    function showModal() {
+        overlay.classList.remove('hidden');
+        overlay.classList.add('flex');
+        setTimeout(() => {
+            card.classList.remove('scale-95', 'opacity-0');
+            card.classList.add('scale-100', 'opacity-100');
+        }, 10);
+    }
+
+    function closeModal() {
+        card.classList.remove('scale-100', 'opacity-100');
+        card.classList.add('scale-95', 'opacity-0');
+        setTimeout(() => {
+            overlay.classList.remove('flex');
+            overlay.classList.add('hidden');
+        }, 150);
+    }
   </script>
 </body>
 </html>

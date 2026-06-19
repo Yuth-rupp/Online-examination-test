@@ -26,6 +26,7 @@ class Exam extends Model
         'status',
         'start_time',
         'end_time',
+        'access_code', // CRITICAL FIX: Allows Laravel to save your single-use codes to the database!
     ];
 
     protected $casts = [
@@ -36,6 +37,9 @@ class Exam extends Model
         'end_time' => 'datetime',
     ];
 
+    /**
+     * Auto-generate a unique cryptographic string UUID as the primary key if not supplied.
+     */
     protected static function boot()
     {
         parent::boot();
@@ -46,11 +50,17 @@ class Exam extends Model
         });
     }
 
+    /**
+     * Relationship reference back to the course.
+     */
     public function course()
     {
         return $this->belongsTo(Course::class, 'course_id', 'id');
     }
 
+    /**
+     * Relationship reference back to the creating teacher user account.
+     */
     public function creator()
     {
         return $this->belongsTo(User::class, 'created_by', 'user_id');

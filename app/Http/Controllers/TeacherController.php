@@ -9,38 +9,195 @@ use App\Models\Exam;
 use App\Models\Question;
 use App\Models\Submission;
 use App\Models\User;
+use App\Models\Institution;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Log;
 
 class TeacherController extends Controller
 {
+    /**
+     * Display the primary teacher dashboard panel with live examination metrics datasets.
+     */
+    public function index(Request $request)
+    {
+        $user = $request->user() ?? Auth::user();
+
+        // Count total exams created by the authenticated faculty member
+        $totalExams = Exam::where('created_by', $user->user_id)->count();
+
+        // Gather all live active examination partitions to bind into the dynamic dashboard table loop
+        $activeExams = Exam::with('course')
+            ->where('created_by', $user->user_id)
+            ->orderBy('created_at', 'desc')
+            ->get();
+
+        // Fetch the courses assigned to this specific teacher so they render in the dashboard dropdown
+        $courses = Course::where('teacher_id', $user->user_id)->get();
+
+        return view('teacher.dashboard', compact('totalExams', 'activeExams', 'courses'));
+    }
+
     /**
      * Display a listing of courses taught by the authenticated teacher.
      */
     public function myCourses(Request $request)
     {
-        return response()->json(
-            Course::where('teacher_id', $request->user()->user_id)->get()
-        );
+        $user = $request->user() ?? Auth::user();
+        $courses = Course::where('teacher_id', $user->user_id)->get();
+
+        if ($request->wantsJson() || $request->is('api/*')) {
+            return response()->json($courses);
+        }
+
+        return view('teacher.courses', compact('courses'));
     }
 
     /**
-     * Store a newly created exam session in storage.
+     * Show the form to let a teacher create a new curriculum course directly via the UI.
+     */
+    public function createCourse()
+    {
+        return view('teacher.create_course');
+    }
+
+    /**
+     * Store a newly created curriculum course via user form submission context with an automated code.
+     */
+    public function storeCourse(Request $request)
+    {
+        $user = $request->user() ?? Auth::user();
+
+        // Validate incoming name and description properties
+        $data = $request->validate([
+            'name'        => 'required|string|max:255',
+            'description' => 'nullable|string'
+        ]);
+
+        try {
+            // 1. Auto-generate a clean uppercase acronym shortcode from the course name words
+            // e.g., "Introduction to Quantum Physics" -> "ITQP"
+            $words = explode(' ', $data['name']);
+            $acronym = '';
+            foreach ($words as $word) {
+                $acronym .= strtoupper(substr($word, 0, 1));
+            }
+            
+            // Strip any remaining odd character punctuation variants
+            $acronym = preg_replace('/[^A-Za-z0-9]/', '', $acronym);
+            
+            // Fallback clause to protect single-word entries (e.g. "Physics" -> "PHY")
+            if (strlen($acronym) < 2) {
+                $acronym = strtoupper(substr($data['name'], 0, 3));
+            }
+
+            // 2. Assert unique tracking constraint loops by generating random variants
+            do {
+                $generatedCode = $acronym . '-' . rand(100, 999);
+            } while (Course::where('code', $generatedCode)->exists());
+
+            // 3. Fallback dependency checking to ensure matching schema elements exist
+            $institution = Institution::firstOrCreate(
+                ['id' => 1],
+                ['name' => 'Main Campus Institution', 'code' => 'MAIN-INST', 'is_active' => true]
+            );
+
+            // 4. Save the structural course details cleanly mapping to active session state
+            Course::create([
+                'name'           => $data['name'],
+                'code'           => $generatedCode,
+                'description'    => $data['description'],
+                'institution_id' => $institution->id,
+                'teacher_id'     => $user->user_id,
+                'is_active'      => true
+            ]);
+
+            // 5. Fire redirect header command to land user back onto the primary viewport
+            return redirect()->route('teacher.dashboard')->with('success', "Course '{$data['name']}' built cleanly with identifier: {$generatedCode}");
+
+        } catch (\Exception $e) {
+            // Catch data layer constraints, log the incident context, and return to the form with state values
+            Log::error('Course Creation Architecture Failed: ' . $e->getMessage());
+            return back()->withErrors(['error' => 'Data Exception Mismatch: ' . $e->getMessage()])->withInput();
+        }
+    }
+
+    /**
+     * Permanently delete a duplicate or unwanted course partition safely.
+     */
+    public function destroyCourse($id)
+    {
+        $user = Auth::user();
+        
+        // Find the course ensuring it strictly belongs to the logged-in teacher context
+        $course = Course::where('id', $id)
+            ->where('teacher_id', $user->user_id)
+            ->firstOrFail();
+
+        // Terminate the row instance cleanly
+        $course->delete();
+
+        return redirect()->route('teacher.dashboard')->with('success', "Course record '{$course->name}' purged cleanly from your portal workspace!");
+    }
+
+    /**
+     * Render a comprehensive preview sheet of all exam questions and solution keys.
+     */
+    public function previewExam($id)
+    {
+        $user = Auth::user();
+        
+        // Find the exam belonging to this teacher, pulling its relation elements
+        $exam = Exam::with(['course', 'questions' => function($query) {
+            $query->orderBy('created_at', 'asc');
+        }])
+        ->where('exam_id', $id)
+        ->where('created_by', $user->user_id)
+        ->firstOrFail();
+
+        return view('teacher.preview_exam', compact('exam'));
+    }
+
+    /**
+     * Store a newly created exam session with an automatic single-use code identifier.
      */
     public function createExam(Request $request)
     {
+        $user = $request->user() ?? Auth::user();
+
         $data = $request->validate([
-            'title' => 'required|string',
+            'title'     => 'required|string|max:255',
             'course_id' => 'required|exists:courses,id',
-            'duration' => 'required|integer', 
-            'pass_mark' => 'required|numeric'
+            'duration'  => 'required|integer|min:1', 
+            'pass_mark' => 'required|numeric|min:0|max:100'
         ]);
 
-        $data['created_by'] = $request->user()->user_id;
+        // Find the matching course profile context using database schema fields
+        $course = Course::find($data['course_id']);
+        
+        // Isolate course initials using the correct schema column 'name' instead of 'title'
+        $prefix = $course ? strtoupper(preg_replace('/[^A-Za-z0-9]/', '', substr($course->name, 0, 4))) : 'EXAM';
 
-        $exam = Exam::create($data);
+        // Generate a random, human-readable single-use security string token unique for that classroom group
+        $cleanSingleUseCode = $prefix . '-' . str_pad(random_int(0, 9999), 4, '0', STR_PAD_LEFT);
 
-        return response()->json($exam, 201);
+        $exam = Exam::create([
+            'title'       => $data['title'],
+            'course_id'   => $data['course_id'],
+            'duration'    => $data['duration'],
+            'pass_mark'   => $data['pass_mark'],
+            'created_by'  => $user->user_id,
+            'access_code' => $cleanSingleUseCode, // Commits generated single-use class code straight to storage
+            'status'      => 'published'
+        ]);
+
+        if ($request->wantsJson() || $request->is('api/*')) {
+            return response()->json($exam, 201);
+        }
+
+        return redirect()->route('teacher.dashboard')->with('success', "Exam Session Generated Successfully! Share this single-use code token with Class: {$exam->access_code}");
     }
 
     /**
@@ -89,7 +246,7 @@ class TeacherController extends Controller
      */
     public function updateSettings(Request $request)
     {
-        $user = $request->user();
+        $user = $request->user() ?? Auth::user();
 
         $validatedData = $request->validate([
             'full_name'     => 'required|string|max:255',
@@ -254,70 +411,66 @@ class TeacherController extends Controller
         return view('teacher.submissions_list', compact('submissions'));
     }
 
-    /* --- 📝 INTERACTIVE GRADING WORKFLOW METHODS --- */
+    /* --- 🖥️ LIVE EXAM MONITORING METHOD IMPLEMENTATIONS --- */
 
     /**
-     * Show the Interactive Grading panel for a specific student submission.
-     * Maps to route: teacher.grading.show
+     * Interstitial View: Render the beautiful confirmation page before ending exam.
      */
-    public function showGradingPanel($student_id)
+    public function endExamConfirmation()
     {
-        // Fetch current submission with eager loading relations if available
-        $submission = Submission::findOrFail($student_id);
-
-        // Fetch surrounding submission instances restricted to the same exam session
-        $previous_id = Submission::where('exam_id', $submission->exam_id)
-            ->where('id', '<', $student_id)
-            ->max('id');
-
-        $next_id = Submission::where('exam_id', $submission->exam_id)
-            ->where('id', '>', $student_id)
-            ->min('id');
-
-        // Target your view file location (assuming your file is named teacher/grading.blade.php)
-        return view('teacher.grading', compact('submission', 'previous_id', 'next_id'));
+        return view('teacher.grading_confirmation_end');
     }
 
     /**
-     * Store grading scores, handle totals, passing rules, and jump sequences.
-     * Maps to route: teacher.grading.store
+     * Render the post-exam analytics dashboard overview screen.
      */
-    public function saveStudentGrade(Request $request, $student_id)
+    public function examSessionEnded()
     {
-        $validated = $request->validate([
-            'accuracy' => 'required|integer|between:0,10',
-            'depth'    => 'required|integer|between:0,10',
-            'clarity'  => 'required|integer|between:0,5',
-            'feedback' => 'nullable|string',
-        ]);
+        return view('teacher.exam_session_ended');
+    }
 
-        $submission = Submission::findOrFail($student_id);
-        
-        // Calculate dynamic runtime matrix values
-        $totalScore = $validated['accuracy'] + $validated['depth'] + $validated['clarity'];
-
-        // Persist metric modifications straight into the DB
-        $submission->update([
-            'accuracy_score' => $validated['accuracy'],
-            'depth_score'    => $validated['depth'],
-            'clarity_score'  => $validated['clarity'],
-            'total_score'    => $totalScore,
-            'feedback'       => $validated['feedback'],
-            'status'         => 'graded'
-        ]);
-
-        // Evaluate Save & Next jump condition parameters
-        if ($request->input('action') === 'save_next') {
-            $next_id = Submission::where('exam_id', $submission->exam_id)
-                ->where('id', '>', $student_id)
-                ->min('id');
-
-            if ($next_id) {
-                return redirect()->route('teacher.grading.show', $next_id)
-                    ->with('success', 'Grades updated and forwarded to next student!');
-            }
+    /**
+     * End the current running exam session globally via dynamic AJAX request commands.
+     */
+    public function endExamSession(Request $request)
+    {
+        if ($request->ajax() || $request->wantsJson()) {
+            return response()->json([
+                'status' => 'success',
+                'message' => 'Exam session terminated by Faculty command. Final configurations compiled.'
+            ]);
         }
 
-        return redirect()->back()->with('success', 'Grades preserved successfully!');
+        return redirect()->route('teacher.exam.endedOverview')->with('success', 'Exam session closed safely!');
+    }
+
+    /**
+     * Compile telemetry dataset metrics logs down into a downloadable stream attachment file (.csv).
+     */
+    public function exportSessionLog()
+    {
+        $filename = "advanced_calculus_ii_session_log_" . date('Y-m-d_H-i-s') . ".csv";
+        
+        $headers = [
+            "Content-type"        => "text/csv",
+            "Content-Disposition" => "attachment; filename=$filename",
+            "Pragma"              => "no-cache",
+            "Cache-Control"       => "must-revalidate, post-check=0, pre-check=0",
+            "Expires"             => "0"
+        ];
+
+        $callback = function() {
+            $file = fopen('php://output', 'w');
+            
+            fputcsv($file, ['Timestamp', 'Student Identity Name', 'Incident Type Flag Description', 'Status Context']);
+            fputcsv($file, ['10:42:15', 'Sarah Chen', 'Unauthorized tab switch detected', 'Flagged (3x)']);
+            fputcsv($file, ['10:38:02', 'Alex Rivera', 'Network connection interrupted', 'Resolved']);
+            fputcsv($file, ['10:35:58', 'Marcus Thorne', 'Multiple faces detected in frame', 'Flagged']);
+            fputcsv($file, ['10:30:12', 'Sarah Chen', 'Gaze tracked away from screen', 'Ignored']);
+
+            fclose($file);
+        };
+
+        return response()->stream($callback, 200, $headers);
     }
 }

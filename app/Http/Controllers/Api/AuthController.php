@@ -8,9 +8,9 @@ use App\Models\User;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Password; 
-use Illuminate\Support\Facades\Mail;     // ✅ For sending OTPs
-use Illuminate\Support\Facades\Cache;    // ✅ For storing OTPs temporarily
-use App\Mail\SuperAdminLoginCode;         // ✅ Our new Mail class
+use Illuminate\Support\Facades\Mail;     // For sending OTPs
+use Illuminate\Support\Facades\Cache;    // For storing OTPs temporarily
+use App\Mail\SuperAdminLoginCode;         // Our new Mail class
 
 class AuthController extends Controller
 {
@@ -48,10 +48,10 @@ class AuthController extends Controller
         $user = User::create([
             'full_name'        => $fullName,
             'email'            => $data['email'],
-            'password_hash'    => Hash::make($data['password']), // ✅ Maps to your migration column
+            'password_hash'    => Hash::make($data['password']), // Maps to your custom migration column
             'role'             => $assignedRole,                 
             'status'           => 'active',
-            'institution_id'   => null,                                             
+            'institution_id'   => null,                                                                            
             'institutional_id' => $data['institutional_id'], 
         ]);
 
@@ -77,7 +77,7 @@ class AuthController extends Controller
         // Find the user profile relative to their unique email field string
         $user = User::where('email', $request->email)->first();
 
-        // ✅ Uses manual hash check mapping cleanly against your custom column: 'password_hash'
+        // Uses manual hash check mapping cleanly against your custom column: 'password_hash'
         if ($user && Hash::check($request->password, $user->password_hash)) {
             
             if ($user->role !== $request->role) {
@@ -138,7 +138,7 @@ class AuthController extends Controller
             // Save the email in the session so the OTP page knows who is trying to recover their account
             session()->put('superadmin_attempt_email', $user->email);
 
-            // Redirect them to the 6 little boxes!
+            // Redirect them to the OTP input confirmation layout view page
             return redirect()->route('superadmin.verify.page');
         }
 
@@ -167,7 +167,7 @@ class AuthController extends Controller
         $status = Password::broker()->reset(
             $request->only('email', 'password', 'password_confirmation', 'token'),
             function ($user, $password) {
-                // ✅ Intercepts update logic to sync password straight with your custom column name
+                // Intercepts update logic to sync password straight with your custom column name
                 $user->password_hash = Hash::make($password);
                 $user->save();
             }
@@ -200,7 +200,7 @@ class AuthController extends Controller
     */
 
     /**
-     * Generate OTP and send it via Email (Used by the "Resend Code" button).
+     * Generate OTP and send it via Email (Used by passwordless login submission or resends).
      */
     public function sendSuperAdminCode(Request $request)
     {
@@ -230,7 +230,7 @@ class AuthController extends Controller
         $email = session()->get('superadmin_attempt_email');
 
         if (!$email) {
-            return redirect()->route('password.request')->withErrors(['email' => 'Session expired. Please request a new code.']);
+            return redirect()->route('login.page')->withErrors(['email' => 'Session expired. Please request a new code.']);
         }
 
         $cachedOtp = Cache::get('superadmin_otp_' . $email);

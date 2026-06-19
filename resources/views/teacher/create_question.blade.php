@@ -22,13 +22,11 @@
             transform: scale(1);
             pointer-events: auto;
         }
-        /* Placeholder styling rules for contenteditable window */
         [contenteditable_placeholder]:empty:before {
             content: attr(contenteditable_placeholder);
             color: #94A3B8;
             font-style: normal;
         }
-        /* Scoped styles to keep lists clean inside our editor window */
         #question-editor ul {
             list-style-type: disc;
             padding-left: 24px;
@@ -76,7 +74,8 @@
                 <div class="lg:col-span-4 space-y-2">
                     <label class="block text-[11px] font-extrabold text-[#94A3B8] uppercase tracking-wider">Assign to Exam</label>
                     <div class="relative">
-                        <select name="exam_id" class="w-full bg-[#F8FAFC] border border-[#E2E8F0] rounded-xl px-4 py-3 text-sm font-medium appearance-none focus:outline-none focus:border-[#1D4ED8] transition-all cursor-pointer shadow-inner">
+                        <select name="parent_exam_id" class="w-full bg-[#F8FAFC] border border-[#E2E8F0] rounded-xl px-4 py-3 text-sm font-medium appearance-none focus:outline-none focus:border-[#1D4ED8] transition-all cursor-pointer shadow-inner">
+                            <option value="">Leave Unassigned (Question Bank Only)</option>
                             <option value="EXAM-001">Midterm Mathematics Exam</option>
                             <option value="EXAM-002">Database Systems Quiz</option>
                             <option value="EXAM-003">Introduction to Quantum Physics</option>
