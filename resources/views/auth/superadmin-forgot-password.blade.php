@@ -51,15 +51,13 @@
                 </div>
             </div>
 
-            <div class="mt-auto pt-10 border-t border-white/10 text-[10px] text-blue-200/60 uppercase tracking-widest font-semibold">
+            <div class="text-[10px] text-blue-200/60 uppercase tracking-widest font-semibold">
                 Architectural Security Systems © 2026
             </div>
         </div>
 
         <div class="w-full lg:w-1/2 bg-white flex flex-col items-center justify-center relative p-8 sm:p-12 md:p-20">
-            
             <div class="w-full max-w-md mx-auto text-center">
-                
                 <div class="inline-flex items-center justify-center w-14 h-10 bg-blue-50 rounded-full text-[#1e3a8a] mb-6 shadow-sm">
                     <i class="fa-solid fa-key text-md transform -rotate-45"></i>
                 </div>
@@ -87,7 +85,6 @@
 
                 <form action="{{ route('password.email') }}" method="POST" class="text-left">
                     @csrf
-
                     <div class="mb-6">
                         <label for="email" class="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-2">
                             Admin Email
@@ -96,22 +93,11 @@
                             <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-gray-400">
                                 <i class="fa-solid fa-at"></i>
                             </div>
-                            <input 
-                                type="email" 
-                                name="email" 
-                                id="email" 
-                                value="{{ old('email') }}"
-                                required 
-                                placeholder="superadmin@system.com" 
-                                class="block w-full pl-11 pr-4 py-3.5 bg-white border border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#1e3a8a] focus:border-transparent transition-all text-sm"
-                            >
+                            <input type="email" name="email" id="email" value="{{ old('email') }}" required placeholder="superadmin@system.com" class="block w-full pl-11 pr-4 py-3.5 bg-white border border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#1e3a8a] focus:border-transparent transition-all text-sm">
                         </div>
                     </div>
 
-                    <button 
-                        type="submit" 
-                        class="w-full flex items-center justify-center space-x-2 py-3.5 px-4 bg-[#1e3a8a] hover:bg-[#152c6b] text-white text-sm font-medium rounded-xl shadow-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#1e3a8a] transition-all group"
-                    >
+                    <button type="submit" class="w-full flex items-center justify-center space-x-2 py-3.5 px-4 bg-[#1e3a8a] hover:bg-[#152c6b] text-white text-sm font-medium rounded-xl shadow-md transition-all group">
                         <span>Send Reset Link</span>
                         <i class="fa-solid fa-arrow-right text-xs transform group-hover:translate-x-1 transition-transform"></i>
                     </button>
@@ -129,7 +115,6 @@
                 <a href="#" class="hover:text-gray-600 transition-colors">Terms of Service</a>
                 <a href="#" class="hover:text-gray-600 transition-colors">System Status</a>
             </div>
-
         </div>
     </div>
 </body>

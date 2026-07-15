@@ -10,8 +10,8 @@
 <body class="bg-gray-50 h-screen font-sans overflow-hidden">
     <div class="flex h-full w-full">
         
+        <!-- Left Banner Pane -->
         <div class="hidden lg:flex lg:w-1/2 bg-[#1e5fa7] text-white flex-col justify-between p-12 md:p-16 relative">
-            
             <div class="flex items-center gap-3 text-xl font-bold tracking-wide uppercase">
                 <i class="fa-solid fa-graduation-cap text-2xl"></i> Online Exam
             </div>
@@ -38,10 +38,9 @@
             </div>
         </div>
 
+        <!-- Right Verification Pane -->
         <div class="w-full lg:w-1/2 bg-white flex flex-col items-center justify-center relative p-8 sm:p-12 md:p-20">
-            
             <div class="w-full max-w-md mx-auto flex flex-col items-center">
-                
                 <h2 class="text-3xl font-extrabold text-gray-900 text-center mb-3">Enter Verification Code</h2>
                 <p class="text-sm text-gray-500 text-center mb-10 max-w-xs leading-relaxed">
                     We have sent a 6-digit code to your email. Please enter it below to confirm your identity.
@@ -56,7 +55,6 @@
 
                 <form action="{{ route('superadmin.verify') }}" method="POST" class="w-full flex flex-col items-center">
                     @csrf
-                    
                     <div class="flex gap-2 sm:gap-3 mb-10 justify-center w-full" id="otp-container">
                         <input type="text" maxlength="1" class="otp-input w-12 h-14 sm:w-14 sm:h-16 bg-gray-50 border border-gray-200 rounded-xl text-center text-2xl font-bold text-gray-800 focus:outline-none focus:ring-2 focus:ring-[#1e5fa7] focus:bg-white transition-all">
                         <input type="text" maxlength="1" class="otp-input w-12 h-14 sm:w-14 sm:h-16 bg-gray-50 border border-gray-200 rounded-xl text-center text-2xl font-bold text-gray-800 focus:outline-none focus:ring-2 focus:ring-[#1e5fa7] focus:bg-white transition-all">
@@ -66,7 +64,8 @@
                         <input type="text" maxlength="1" class="otp-input w-12 h-14 sm:w-14 sm:h-16 bg-gray-50 border border-gray-200 rounded-xl text-center text-2xl font-bold text-gray-800 focus:outline-none focus:ring-2 focus:ring-[#1e5fa7] focus:bg-white transition-all">
                     </div>
                     
-                    <input type="hidden" name="verification_code" id="full-code">
+                    <!-- FIXED: Changed name from "verification_code" to "code" to align with Controller expectations -->
+                    <input type="hidden" name="code" id="full-code">
 
                     <button type="submit" class="w-full py-4 bg-[#173a70] text-white font-semibold text-sm rounded-xl shadow-sm hover:bg-[#112a52] transition-all flex justify-center items-center gap-2 mb-8">
                         Verify & Login <i class="fa-solid fa-arrow-right text-xs"></i>
@@ -98,9 +97,8 @@
         const hiddenInput = document.getElementById('full-code');
 
         inputs.forEach((input, index) => {
-            // Auto-advance to the next field when typing
             input.addEventListener('input', (e) => {
-                e.target.value = e.target.value.replace(/[^0-9]/g, ''); // Allow only numbers
+                e.target.value = e.target.value.replace(/[^0-9]/g, ''); 
 
                 if (e.target.value.length === 1 && index < inputs.length - 1) {
                     inputs[index + 1].focus();
@@ -108,14 +106,12 @@
                 updateHiddenInput();
             });
 
-            // Handle backspace to go to the previous field
             input.addEventListener('keydown', (e) => {
                 if (e.key === 'Backspace' && e.target.value === '' && index > 0) {
                     inputs[index - 1].focus();
                 }
             });
 
-            // Allow user to paste a 6-digit code directly
             input.addEventListener('paste', (e) => {
                 e.preventDefault();
                 const pastedData = e.clipboardData.getData('text').replace(/[^0-9]/g, '').split('');
@@ -126,17 +122,13 @@
                             input.value = pastedData[i];
                         }
                     });
-                    
-                    // Focus on the last filled input
                     const lastIndex = Math.min(pastedData.length - 1, inputs.length - 1);
                     inputs[lastIndex].focus();
-                    
                     updateHiddenInput();
                 }
             });
         });
 
-        // Combine the 6 boxes into one string before form submission
         function updateHiddenInput() {
             let code = '';
             inputs.forEach(input => code += input.value);

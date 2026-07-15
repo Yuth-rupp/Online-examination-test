@@ -1,0 +1,5 @@
+Timestamp,"Student Identity Name","Incident Type Flag Description","Status Context"
+10:42:15,"Sarah Chen","Unauthorized tab switch detected","Flagged (3x)"
+10:38:02,"Alex Rivera","Network connection interrupted",Resolved
+10:35:58,"Marcus Thorne","Multiple faces detected in frame",Flagged
+10:30:12,"Sarah Chen","Gaze tracked away from screen",Ignored

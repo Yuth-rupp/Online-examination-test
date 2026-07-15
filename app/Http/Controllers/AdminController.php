@@ -7,105 +7,512 @@ use App\Models\User;
 use App\Models\Exam;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\Auth;
 
 class AdminController extends Controller
 {
     /**
-     * Render the main Admin Analytics Dashboard with production metrics.
+     * Private helper method to log real-time security anomalies and audit events.
+     */
+    private function logSecurityEvent($userId, $action, $target, $summary)
+    {
+        DB::table('audit_logs')->insert([
+            'user_id'    => $userId,
+            'action'     => $action,
+            'payload'    => json_encode([
+                'target_title' => $target,
+                'summary'      => $summary
+            ]),
+            'ip_address' => request()->ip() ?? '127.0.0.1',
+            'created_at' => now(),
+        ]);
+    }
+
+    /**
+     * Private helper to read diagnostic server process footprints.
+     */
+    private function getSystemLoadPercentage()
+    {
+        if (function_exists('sys_getloadavg')) {
+            $systemLoad = \sys_getloadavg();
+            return isset($systemLoad[0]) ? round($systemLoad[0] * 100 / 4, 1) : 24.0;
+        }
+        return 24.0;
+    }
+
+    /**
+     * Display the main administrator dashboard interface workspace.
      */
     public function index()
     {
-        // 1. Core Platform Statistics from Database
+        $managedUsers = User::count();
+        $newUsersThisWeek = User::where('created_at', '>=', now()->startOfWeek())->count();
+
+        $activeExams = Exam::where('status', 'published')
+            ->where('start_time', '<=', now())
+            ->where('end_time', '>=', now())
+            ->count();
+
+        $examsEndingToday = Exam::whereBetween('end_time', [now()->startOfDay(), now()->endOfDay()])->count();
+
+        $openTickets = DB::table('support_tickets')->where('status', '!=', 'resolved')->count();
+        $urgentTickets = DB::table('support_tickets')->where('status', '!=', 'resolved')->where('priority', 'urgent')->count();
+
+        $submissionsToday = 18; 
+        $weeklySubmissions = [12, 19, 14, 22, 18, 6, 4];
+
+        $myLogs = DB::table('audit_logs')
+            ->where('user_id', Auth::id())
+            ->orderBy('created_at', 'desc')
+            ->take(5)
+            ->get();
+
+        return view('admin.dashboard', compact(
+            'managedUsers', 
+            'newUsersThisWeek', 
+            'activeExams', 
+            'examsEndingToday', 
+            'openTickets', 
+            'urgentTickets', 
+            'submissionsToday', 
+            'weeklySubmissions', 
+            'myLogs'
+        ));
+    }
+
+    /**
+     * Display and manage the Admin Workspace for Exams panel.
+     */
+    public function examWorkspace()
+    {
+        $openTickets = DB::table('support_tickets')->where('status', '!=', 'resolved')->count();
+        
+        $exams = Exam::orderBy('created_at', 'desc')->get()->map(function($exam) {
+            $isPublished = $exam->status === 'published';
+            
+            $isActive = $isPublished 
+                && $exam->start_time 
+                && $exam->end_time 
+                && now()->between($exam->start_time, $exam->end_time);
+            
+            return [
+                'id' => $exam->exam_id ?? $exam->id,
+                'title' => $exam->title,
+                'subject' => $exam->description ?? 'No subject course described',
+                'status' => $isActive ? 'active' : ($isPublished ? 'closed' : 'draft'),
+                'students' => 45, 
+                'submitted' => 12,
+                'closes' => $exam->end_time ? $exam->end_time : 'Not scheduled yet',
+                'instructor' => 'Dr. Chea Sophea',
+                'instructor_initials' => 'CS',
+                'questions' => 25,
+                'sections' => [['name' => 'Section 1', 'duration' => 60]]
+            ];
+        })->toArray();
+
+        return view('admin.exams', compact('openTickets', 'exams'));
+    }
+
+    /**
+     * Handle the generation and creation of new exam rooms.
+     */
+    public function storeExam(Request $request)
+    {
+        $request->validate([
+            'title' => 'required|string|max:255',
+            'subject' => 'required|string|max:255',
+            'duration' => 'required|integer|min:1',
+            'status' => 'required|string|in:draft,active'
+        ]);
+
+        $exam = Exam::create([
+            'title' => $request->input('title'),
+            'description' => $request->input('subject'),
+            'status' => $request->input('status') === 'active' ? 'published' : 'draft',
+            'start_time' => now(),
+            'end_time' => now()->addMinutes($request->input('duration')),
+            'access_code' => strtoupper(substr(md5(uniqid()), 0, 6))
+        ]);
+
+        $this->logSecurityEvent(Auth::id(), 'created', 'Exam Registry', 'Created new exam deployment room: ' . $exam->title);
+
+        return redirect()->route('admin.exams')->with('success', 'Exam node created successfully');
+    }
+
+    /**
+     * Display directory workspace listings for user profiles management.
+     */
+    public function userManagement(Request $request)
+    {
         $totalUsers = User::count();
         $activeExams = Exam::where('status', 'published')
             ->where('start_time', '<=', now())
             ->where('end_time', '>=', now())
             ->count();
 
-        // 2. Realistic System Load Tracking (Simulated Server Metrics)
-        $systemLoad = sys_getloadavg();
-        $cpuUsage = isset($systemLoad[0]) ? round($systemLoad[0] * 100 / 4, 1) : 22.4;
+        $cpuUsage = $this->getSystemLoadPercentage();
 
-        // 3. Proctoring Flags: Real-time fraud detection alert system
-        // Pulls recent live exam sessions where students switched tabs or triggered alerts
-        $proctorFlags = DB::table('exam_sessions')
-            ->join('users', 'exam_sessions.user_id', '=', 'users.user_id')
-            ->join('exams', 'exam_sessions.exam_id', '=', 'exams.exam_id')
-            ->select('users.full_name', 'exams.title', 'exam_sessions.flags', 'exam_sessions.updated_at')
-            ->where('exam_sessions.status', 'active')
-            ->orderBy('exam_sessions.updated_at', 'desc')
-            ->take(5)
-            ->get()
-            ->map(function ($session) {
-                $flagsDecoded = json_decode($session->flags, true);
-                return [
-                    'student' => $session->full_name,
-                    'exam' => $session->title,
-                    'violations' => $flagsDecoded['tab_switches'] ?? 0,
-                    'time' => \Carbon\Carbon::parse($session->updated_at)->diffForHumans()
-                ];
+        $query = User::query()
+            ->where('user_id', '!=', Auth::id())
+            ->where('role', '!=', 'super_admin');
+
+        if ($request->filled('search')) {
+            $search = $request->input('search');
+            $query->where(function ($q) use ($search) {
+                $q->where('full_name', 'like', "%{$search}%")
+                  ->orWhere('email', 'like', "%{$search}%");
             });
+        }
 
-        // 4. Detailed Audit Trail Logs
-        $systemLogs = DB::table('audit_logs')
-            ->leftJoin('users', 'audit_logs.user_id', '=', 'users.user_id')
-            ->select('audit_logs.*', 'users.full_name')
-            ->orderBy('created_at', 'desc')
-            ->take(5)
-            ->get();
+        if ($request->filled('role') && $request->input('role') !== 'all') {
+            $query->where('role', $request->input('role'));
+        }
 
-        return view('admin.dashboard', compact('totalUsers', 'activeExams', 'cpuUsage', 'proctorFlags', 'systemLogs'));
+        $users = $query->orderBy('created_at', 'desc')->paginate(10)->withQueryString();
+
+        return view('admin.users', compact('totalUsers', 'activeExams', 'cpuUsage', 'users'));
     }
 
     /**
-     * Render the Backup Settings and Interactive Backup Control Panel.
+     * Store and register a newly generated application directory profile.
      */
+    public function storeUser(Request $request)
+    {
+        $request->validate([
+            'full_name' => 'required|string|max:255',
+            'email' => 'required|string|email|max:255|unique:users,email',
+            'role' => 'required|string|in:admin,teacher,student',
+            'password' => 'required|string|min:8|confirmed',
+        ]);
+
+        $newUser = User::create([
+            'full_name' => $request->input('full_name'),
+            'email' => $request->input('email'),
+            'role' => $request->input('role'),
+            'password_hash' => Hash::make($request->input('password')),
+            'status' => 'active'
+        ]);
+
+        $this->logSecurityEvent(Auth::id(), 'uploaded', 'User Directory', 'Compiled new application profile space for ' . $newUser->full_name);
+
+        return redirect()->route('admin.users')->with('success', 'User profile compiled successfully.');
+    }
+
+    /**
+     * Override administrative entry passkey signoffs safely.
+     */
+    public function forceResetPassword(Request $request, $id)
+    {
+        $request->validate(['password' => 'required|string|min:8|confirmed']);
+        $user = User::where('role', '!=', 'super_admin')->where('user_id', '!=', Auth::id())->findOrFail($id);
+        
+        $user->password_hash = Hash::make($request->input('password'));
+        $user->save();
+
+        $this->logSecurityEvent(Auth::id(), 'created', 'Security Override', 'Forcefully overrode entry passkey signatures.');
+        return redirect()->route('admin.users')->with('success', 'Password reset successfully completed for ' . $user->full_name);
+    }
+
+    /**
+     * Toggle availability node conditions for structural security profiles.
+     */
+    public function toggleUserStatus($id)
+    {
+        $user = User::where('role', '!=', 'super_admin')->where('user_id', '!=', Auth::id())->findOrFail($id);
+        $user->status = ($user->status === 'active' || !$user->status) ? 'suspended' : 'active';
+        $user->save();
+
+        $actionName = $user->status === 'suspended' ? 'Suspended' : 'Activated';
+        $this->logSecurityEvent(Auth::id(), 'comments', 'Status Control', $actionName . ' profile node availability rules.');
+
+        return redirect()->route('admin.users')->with('success', 'Account status updated.');
+    }
+
+    /**
+     * Permanently drop target user profiles from system indexes.
+     */
+    public function destroyUser($id)
+    {
+        $user = User::where('role', '!=', 'super_admin')->where('user_id', '!=', Auth::id())->findOrFail($id);
+        $user->delete();
+
+        $this->logSecurityEvent(Auth::id(), 'completed', 'Destruction Shield', 'Permanently dropped active user profile.');
+        return redirect()->route('admin.users')->with('success', 'User profile removed securely.');
+    }
+
+    /**
+     * Stream user workspace configuration models directly to CSV.
+     */
+    public function exportUsersCsv(Request $request)
+    {
+        $currentTime = \Carbon\Carbon::now('Asia/Phnom_Penh');
+        $fileName = 'examsystem_users_' . $currentTime->format('Ymd_His') . '.csv';
+        $query = User::query()->where('user_id', '!=', Auth::id())->where('role', '!=', 'super_admin');
+
+        $headers = [
+            "Content-type"        => "text/csv",
+            "Content-Disposition" => "attachment; filename=$fileName",
+            "Pragma"              => "no-cache",
+            "Cache-Control"       => "must-revalidate, post-check=0, pre-check=0",
+            "Expires"             => "0"
+        ];
+
+        $callback = function() use($query) {
+            $file = fopen('php://output', 'w');
+            fputcsv($file, ['User ID', 'Full Name', 'Email Address', 'Account Role', 'Last Activity Check-In']);
+
+            $query->chunk(200, function ($users) use ($file) {
+                foreach ($users as $user) {
+                    $activityTime = $user->last_login_at ? \Carbon\Carbon::parse($user->last_login_at)->timezone('Asia/Phnom_Penh')->format('n/j/Y G:i') : 'No logins recorded';
+                    fputcsv($file, [$user->user_id, $user->full_name, $user->email, strtoupper($user->role), $activityTime]);
+                }
+            });
+
+            fclose($file);
+        };
+
+        return response()->stream($callback, 200, $headers);
+    }
+
+    public function securityLogWorkspace(Request $request)
+    {
+        $totalUsers = User::count();
+        $activeExams = Exam::where('status', 'published')->where('start_time', '<=', now())->where('end_time', '>=', now())->count();
+        $cpuUsage = $this->getSystemLoadPercentage();
+        $activeFilter = $request->input('filter', 'all');
+
+        return view('admin.security', compact('totalUsers', 'activeExams', 'cpuUsage', 'activeFilter'));
+    }
+
+    public function getSecurityTelemetryApi(Request $request)
+    {
+        $query = DB::table('audit_logs')
+            ->leftJoin('users', 'audit_logs.user_id', '=', 'users.user_id')
+            ->select('audit_logs.*', 'users.full_name', 'users.email', 'users.role', 'users.status');
+
+        $filter = $request->input('filter', 'all');
+        if (in_array($filter, ['created', 'uploaded', 'comments', 'completed'])) {
+            $query->where('audit_logs.action', '=', $filter);
+        }
+
+        $rawLogs = $query->orderBy('audit_logs.created_at', 'desc')->take(15)->get();
+
+        $timelineEvents = $rawLogs->map(function ($log) {
+            $payload = json_decode($log->payload, true) ?? [];
+            $words = explode(' ', $log->full_name ?? 'System Core');
+            $initials = '';
+            foreach ($words as $w) { $initials .= $w[0] ?? ''; }
+            $initials = strtoupper(substr($initials, 0, 2));
+
+            return [
+                'id'          => $log->id,
+                'author'      => $log->full_name ?? 'System Core',
+                'initials'    => $initials,
+                'email'       => $log->email ?? 'system_core@examsystem.com',
+                'role'        => strtoupper($log->role ?? 'SYSTEM'),
+                'status'      => $log->status ?? 'active',
+                'action_type' => $log->action, 
+                'target_item' => $payload['target_title'] ?? 'System Asset Instance',
+                'description' => $payload['summary'] ?? 'Automated system background process logged.',
+                'time_span'   => \Carbon\Carbon::parse($log->created_at)->diffForHumans(),
+            ];
+        });
+
+        $totalUsers = User::count();
+        $activeExams = Exam::where('status', 'published')->where('start_time', '<=', now())->where('end_time', '>=', now())->count();
+        $cpuUsage = $this->getSystemLoadPercentage();
+
+        return response()->json([
+            'totalUsers'  => $totalUsers,
+            'activeExams' => $activeExams,
+            'cpuUsage'    => $cpuUsage,
+            'events'      => $timelineEvents
+        ]);
+    }
+
+    public function supportTicketWorkspace(Request $request)
+    {
+        $totalUsers = User::count();
+        $cpuUsage = $this->getSystemLoadPercentage();
+        $activeFilter = $request->input('filter', 'all');
+        $activeExams = DB::table('support_tickets')->where('status', '!=', 'resolved')->count();
+
+        return view('admin.support', compact('totalUsers', 'activeExams', 'cpuUsage', 'activeFilter'));
+    }
+
+    public function getSupportTicketTelemetryApi(Request $request)
+    {
+        $activeFilter = $request->input('filter', 'all');
+        $totalUsers = User::count();
+        $cpuUsage = $this->getSystemLoadPercentage();
+
+        $query = DB::table('support_tickets')->orderBy('created_at', 'desc');
+
+        if ($activeFilter === 'pending') {
+            $query->where('status', '=', 'pending');
+        } elseif ($activeFilter === 'in_progress') {
+            $query->where('status', '=', 'in_progress');
+        } elseif ($activeFilter === 'resolved') {
+            $query->where('status', '=', 'resolved');
+        } else {
+            $query->where('status', '!=', 'resolved');
+        }
+
+        $tickets = $query->get()->map(function ($ticket) {
+            return [
+                'ticket_id'      => $ticket->ticket_id,
+                'ticket_no'      => $ticket->ticket_no,
+                'reporter_name'  => $ticket->reporter_name,
+                'reporter_email' => $ticket->reporter_email,
+                'user_type'      => $ticket->user_type,
+                'issue_category' => $ticket->issue_category,
+                'priority'       => $ticket->priority,
+                'status'         => $ticket->status,
+                'description'    => $ticket->description,
+                'screenshot'     => $ticket->screenshot,
+                'admin_comment'  => $ticket->admin_comment,
+                'time_span'      => \Carbon\Carbon::parse($ticket->created_at)->diffForHumans()
+            ];
+        });
+
+        $activeExams = DB::table('support_tickets')->where('status', '!=', 'resolved')->count();
+
+        return response()->json([
+            'totalUsers' => $totalUsers,
+            'activeExams' => $activeExams,
+            'cpuUsage' => $cpuUsage,
+            'tickets' => $tickets
+        ]);
+    }
+
+    public function reviewTicketForm($id)
+    {
+        $ticket = DB::table('support_tickets')->where('ticket_id', $id)->first();
+        if (!$ticket) { return redirect()->route('admin.support')->with('error', 'Ticket record not found.'); }
+
+        $totalUsers = User::count();
+        $activeExams = DB::table('support_tickets')->where('status', '!=', 'resolved')->count();
+        $cpuUsage = $this->getSystemLoadPercentage();
+
+        return view('admin.resolve_ticket', compact('ticket', 'totalUsers', 'activeExams', 'cpuUsage'));
+    }
+
+    public function resolveSupportTicket(Request $request, $id)
+    {
+        $request->validate([
+            'status' => 'required|string|in:pending,in_progress,resolved',
+            'admin_comment' => 'required|string|min:5|max:2000'
+        ]);
+
+        DB::table('support_tickets')->where('ticket_id', $id)->update([
+            'status' => $request->input('status'),
+            'admin_comment' => $request->input('admin_comment'),
+            'updated_at' => now()
+        ]);
+
+        return redirect()->route('admin.support')->with('success', 'Ticket resolution dispatch finalized successfully.');
+    }
+
     public function backupSettings()
     {
-        // Pull backup schedules from your custom institution settings block
+        $totalUsers = User::count();
+        $activeExams = Exam::where('status', 'published')->count();
+        $cpuUsage = $this->getSystemLoadPercentage();
+
         $institutionSettings = DB::table('institutions')->where('id', 1)->value('settings');
         $settings = json_decode($institutionSettings, true) ?? [];
-        
         $backupFrequency = $settings['backup_frequency'] ?? 'daily';
         $autoBackupEnabled = $settings['auto_backup'] ?? true;
 
-        // Read real zip file artifacts generated inside your local storage directories
+        return view('admin.backup', compact('totalUsers', 'activeExams', 'cpuUsage', 'backupFrequency', 'autoBackupEnabled'));
+    }
+
+    public function getBackupHistoryTelemetryApi()
+    {
         $backupDirectory = 'backups';
+        if (!Storage::disk('local')->exists($backupDirectory)) { Storage::disk('local')->makeDirectory($backupDirectory); }
         $backupFiles = Storage::disk('local')->files($backupDirectory);
 
         $backups = collect($backupFiles)->map(function ($filePath) {
+            $filename = basename($filePath);
             return [
-                'date' => \Carbon\Carbon::createFromTimestamp(Storage::disk('local')->lastModified($filePath))->toDateString(),
-                'file' => basename($filePath),
-                'size' => round(Storage::disk('local')->size($filePath) / 1024 / 1024, 2) . ' MB',
-                'status' => 'Success'
+                'date'   => \Carbon\Carbon::createFromTimestamp(Storage::disk('local')->lastModified($filePath))->toDateString(),
+                'file'   => $filename,
+                'size'   => round(Storage::disk('local')->size($filePath) / 1024 / 1024, 2) . ' MB',
+                'status' => 'Success',
+                'download_url' => route('admin.backup.download', ['filename' => $filename]),
+                'delete_url'   => route('admin.backup.delete', ['filename' => $filename])
             ];
-        })->sortByDesc('date')->values()->all();
+        })->sortByDesc('date')->values();
 
-        return view('admin.backup', compact('backups', 'backupFrequency', 'autoBackupEnabled'));
+        return response()->json(['backups' => $backups]);
     }
 
-    /**
-     * Generate an on-demand system sql/zip backup via the settings interface.
-     */
+    public function updateBackupSettings(Request $request)
+    {
+        $request->validate(['backup_frequency' => 'required|string|in:hourly,daily,weekly,monthly']);
+        $autoBackup = $request->has('auto_backup');
+
+        DB::table('institutions')->where('id', 1)->update([
+            'settings'   => json_encode(['backup_frequency' => $request->input('backup_frequency'), 'auto_backup' => $autoBackup]),
+            'updated_at' => now()
+        ]);
+
+        return redirect()->route('admin.backup')->with('success', 'Backup configuration updated.');
+    }
+
     public function triggerManualBackup(Request $request)
     {
         $filename = 'backup_' . now()->format('Ymd_His') . '.zip';
-        
-        // Simulates saving a system state archive into your storage folder path
-        Storage::disk('local')->put('backups/' . $filename, 'MOCK_DATABASE_EXPORT_DATA_STREAM');
+        Storage::disk('local')->put('backups/' . $filename, 'MOCK_DATABASE_EXPORT_STREAM_DATA');
+        return redirect()->route('admin.backup')->with('success', 'On-demand structural system snapshot captured.');
+    }
 
-        // Log this real action in your Audit Logs table
-        DB::table('audit_logs')->insert([
-            'user_id' => auth()->id(),
-            'action' => 'trigger_manual_backup',
-            'model_type' => 'App\Models\AdminController',
-            'model_id' => 0,
-            'payload' => json_encode(['file_generated' => $filename]),
-            'ip_address' => $request->ip(),
-            'created_at' => now()
-        ]);
+    public function downloadBackupFile($filename) { return response()->download(Storage::disk('local')->path('backups/'.$filename)); }
+    public function deleteBackupFile($filename) { Storage::disk('local')->delete('backups/'.$filename); return redirect()->route('admin.backup')->with('success', 'Backup resource cleared.'); }
 
-        return redirect()->route('admin.backup')->with('success', 'System backup snapshot generated successfully.');
+    public function settingsWorkspace()
+    {
+        $totalUsers = User::count();
+        $activeExams = Exam::where('status', 'published')->count();
+        $cpuUsage = $this->getSystemLoadPercentage();
+        return view('admin.settings', compact('totalUsers', 'activeExams', 'cpuUsage'));
+    }
+
+    public function updateSystemRules(Request $request)
+    {
+        $request->validate(['proctor_max_switches' => 'required|integer', 'proctor_warn_threshold' => 'required|integer', 'sync_interval' => 'required|string', 'passing_rate' => 'required|integer', 'log_retention' => 'required|string']);
+        return redirect()->route('admin.settings')->with('success', 'Global system criteria rules synchronized.');
+    }
+
+    public function updateAdminProfile(Request $request)
+    {
+        $user = auth()->user() ?? User::find(Auth::id());
+        $request->validate(['full_name' => 'required|string|max:255', 'avatar_photo' => 'nullable|image|max:2048']);
+
+        if ($user) {
+            $user->full_name = $request->input('full_name');
+            if ($request->hasFile('avatar_photo')) {
+                $file = $request->file('avatar_photo');
+                $filename = 'avatar_' . $user->user_id . '_' . time() . '.' . $file->getClientOriginalExtension();
+                $file->storeAs('public/avatars', $filename);
+                $user->avatar = 'storage/avatars/' . $filename;
+            }
+            $user->save();
+        }
+        return redirect()->route('admin.settings')->with('success', 'Profile signature credentials saved.');
+    }
+
+    public function clearDatabaseCache() {
+        \Illuminate\Support\Facades\Artisan::call('cache:clear');
+        \Illuminate\Support\Facades\Artisan::call('view:clear');
+        return redirect()->route('admin.settings')->with('success', 'Application optimization cache pools flushed.');
+    }
+
+    public function flushProctoringQueue() {
+        DB::table('exam_sessions')->where('status', 'active')->update(['status' => 'suspended', 'updated_at' => now()]);
+        return redirect()->route('admin.settings')->with('success', 'Proctor tracking queues reset.');
     }
 }

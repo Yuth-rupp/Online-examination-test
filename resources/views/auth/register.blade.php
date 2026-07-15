@@ -69,7 +69,7 @@
                                 <option value="student" {{ old('role') == 'student' ? 'selected' : '' }}>Student (Default Portal Access)</option>
                                 <option value="teacher" {{ old('role') == 'teacher' ? 'selected' : '' }}>Teacher (Instructor Management Workspace)</option>
                                 <option value="admin"   {{ old('role') == 'admin'   ?  'selected' : ''}}>Admin   (Full System Access)</option>
-                                <option value="super admin"{{  old('role')== 'super admin' ? 'selected' : ''}}>Super Admin (Root & System Core)</option>
+                                <option value="super_admin" {{ old('role') == 'super_admin' ? 'selected' : ''}}>Super Admin (Root & System Core)</option>
                             </select>
                             <span class="absolute inset-y-0 right-0 flex items-center pr-4 text-gray-400 text-[10px] pointer-events-none">
                                 <i class="fa-solid fa-chevron-down"></i>
@@ -103,25 +103,33 @@
 
                     <div>
                         <label class="block text-[10px] font-bold tracking-wider text-gray-500 uppercase mb-2">Create Password</label>
+                        <!-- 🟢 FIXED FIELD 1: SHOW/HIDE TOGGLE -->
                         <div class="relative">
                             <span class="absolute inset-y-0 left-0 flex items-center pl-4 text-gray-400 text-xs">
                                 <i class="fa-solid fa-lock"></i>
                             </span>
-                            <input type="password" name="password" required
-                                class="w-full pl-11 pr-11 py-3 bg-[#f0f2f5] border border-transparent rounded-xl text-sm text-gray-700 placeholder-gray-400 focus:outline-none focus:bg-white focus:border-blue-500 transition-all shadow-inner"
+                            <input type="password" name="password" id="register_password_field" required
+                                class="w-full pl-11 pr-12 py-3 bg-[#f0f2f5] border border-transparent rounded-xl text-sm text-gray-700 placeholder-gray-400 focus:outline-none focus:bg-white focus:border-blue-500 transition-all shadow-inner"
                                 placeholder="••••••••••••">
+                            <button type="button" onclick="togglePasswordVisibility('register_password_field', 'register_eye_icon')" class="absolute inset-y-0 right-0 flex items-center pr-4 text-gray-400 hover:text-slate-600 transition-all cursor-pointer focus:outline-none">
+                                <i class="fa-regular fa-eye text-sm" id="register_eye_icon"></i>
+                            </button>
                         </div>
                     </div>
 
                     <div>
                         <label class="block text-[10px] font-bold tracking-wider text-gray-500 uppercase mb-2">Confirm Password</label>
+                        <!-- 🟢 FIXED FIELD 2: SHOW/HIDE TOGGLE -->
                         <div class="relative">
                             <span class="absolute inset-y-0 left-0 flex items-center pl-4 text-gray-400 text-xs">
                                 <i class="fa-solid fa-lock"></i>
                             </span>
-                            <input type="password" name="password_confirmation" required
-                                class="w-full pl-11 pr-4 py-3 bg-[#f0f2f5] border border-transparent rounded-xl text-sm text-gray-700 placeholder-gray-400 focus:outline-none focus:bg-white focus:border-blue-500 transition-all shadow-inner"
+                            <input type="password" name="password_confirmation" id="register_confirm_field" required
+                                class="w-full pl-11 pr-12 py-3 bg-[#f0f2f5] border border-transparent rounded-xl text-sm text-gray-700 placeholder-gray-400 focus:outline-none focus:bg-white focus:border-blue-500 transition-all shadow-inner"
                                 placeholder="••••••••••••">
+                            <button type="button" onclick="togglePasswordVisibility('register_confirm_field', 'register_confirm_eye_icon')" class="absolute inset-y-0 right-0 flex items-center pr-4 text-gray-400 hover:text-slate-600 transition-all cursor-pointer focus:outline-none">
+                                <i class="fa-regular fa-eye text-sm" id="register_confirm_eye_icon"></i>
+                            </button>
                         </div>
                     </div>
 
@@ -160,5 +168,22 @@
 
     </div>
 
+    <!-- 🟢 SCRIPT INJECTION -->
+    <script>
+        function togglePasswordVisibility(fieldId, iconId) {
+            const passwordField = document.getElementById(fieldId);
+            const eyeIcon = document.getElementById(iconId);
+            
+            if (passwordField.type === "password") {
+                passwordField.type = "text";
+                eyeIcon.classList.remove('fa-eye');
+                eyeIcon.classList.add('fa-eye-slash');
+            } else {
+                passwordField.type = "password";
+                eyeIcon.classList.remove('fa-eye-slash');
+                eyeIcon.classList.add('fa-eye');
+            }
+        }
+    </script>
 </body>
 </html>

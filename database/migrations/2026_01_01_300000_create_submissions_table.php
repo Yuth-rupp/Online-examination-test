@@ -14,9 +14,12 @@ return new class extends Migration
         // Step 1: Initialize the structural table blueprint layout
         Schema::create('submissions', function (Blueprint $table) {
             $table->id(); 
-            $table->uuid('exam_id'); // String structure matching your custom Exam model primary key
-            $table->foreignId('user_id')->constrained('users', 'user_id')->onDelete('cascade');
+            $table->uuid('exam_id'); // Ensure this matches your Exam table's primary key data type (integer vs UUID)
+            
+            // Cleaned to match standard 'id' target columns on the users table
+            $table->foreignId('user_id')->constrained('users')->onDelete('cascade');
             $table->unsignedBigInteger('session_id'); 
+            
             $table->dateTime('started_at');
             $table->dateTime('submitted_at')->nullable();
             $table->integer('time_taken_seconds')->nullable();
@@ -25,14 +28,18 @@ return new class extends Migration
             $table->decimal('percentage', 5, 2)->default(0.00);
             $table->boolean('is_passed')->default(false);
             $table->text('teacher_feedback')->nullable();
-            $table->foreignId('graded_by')->nullable()->constrained('users', 'user_id')->onDelete('set null');
+            
+            // Cleaned to match standard 'id' target column on the users table
+            $table->foreignId('graded_by')->nullable()->constrained('users')->onDelete('set null');
+            
             $table->dateTime('graded_at')->nullable();
             $table->timestamps();
         });
 
         // Step 2: Bind the relational database constraint maps safely
         Schema::table('submissions', function (Blueprint $table) {
-            $table->foreign('exam_id')->references('exam_id')->on('exams')->onDelete('cascade');
+            // Corrected references to point directly to the true 'id' primary keys
+            $table->foreign('exam_id')->references('id')->on('exams')->onDelete('cascade');
             $table->foreign('session_id')->references('id')->on('exam_sessions')->onDelete('cascade');
         });
     }
@@ -47,6 +54,8 @@ return new class extends Migration
             Schema::table('submissions', function (Blueprint $table) {
                 $table->dropForeign(['exam_id']);
                 $table->dropForeign(['session_id']);
+                $table->dropForeign(['user_id']);
+                $table->dropForeign(['graded_by']);
             });
         }
         

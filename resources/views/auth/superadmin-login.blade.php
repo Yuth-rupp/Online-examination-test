@@ -51,15 +51,13 @@
                 </div>
             </div>
 
-            <div class="mt-auto pt-10 border-t border-white/10 text-[10px] text-blue-200/60 uppercase tracking-widest font-semibold">
+            <div class="text-[10px] text-blue-200/60 uppercase tracking-widest font-semibold">
                 Architectural Security Systems © 2026
             </div>
         </div>
 
         <div class="w-full lg:w-1/2 bg-white flex flex-col items-center justify-center relative p-8 sm:p-12 md:p-20">
-
             <div class="w-full max-w-md mx-auto">
-
                 <div class="text-center mb-10">
                     <h2 class="text-3xl font-bold text-gray-900 mb-3">Secure Super Admin Access</h2>
                     <p class="text-sm text-gray-500">
@@ -68,7 +66,7 @@
                 </div>
 
                 @if($errors->any())
-                    <div class="bg-red-50 border-l-4 border-red-500 text-red-700 p-3 rounded text-sm mb-6 shadow-sm flex items-center gap-2">
+                    <div class="bg-red-50 border-l-4 border-red-500 text-red-700 p-3 rounded text-sm mb-6 shadow-sm flex items-center gap-2 w-full">
                         <i class="fa-solid fa-triangle-exclamation"></i>
                         {{ $errors->first() }}
                     </div>
@@ -111,7 +109,6 @@
                 <a href="#" class="hover:text-gray-600 transition-colors">Terms of Service</a>
                 <a href="#" class="hover:text-gray-600 transition-colors">System Status</a>
             </div>
-
         </div>
     </div>
 </body>

@@ -23,15 +23,16 @@ class Submission extends Model
         'time_taken_seconds', 
         'status', 
         'total_score', 
+        'score',         // Dual-mapping attribute for total accumulated grading counters
         'percentage', 
         'is_passed', 
         'teacher_feedback', 
         'graded_by', 
         'graded_at',
-        // 🌟 ADDED: Rubric Breakdown Metrics columns for interactive grading panels
-        'accuracy_score',
-        'depth_score',
-        'clarity_score',
+        'accuracy_score', // Manual Essay Rubric Track: Accuracy
+        'depth_score',    // Manual Essay Rubric Track: Depth
+        'clarity_score',  // Manual Essay Rubric Track: Clarity
+        'answers_payload' // Storage component string for submitted question JSON sequences
     ];
 
     /**
@@ -45,8 +46,8 @@ class Submission extends Model
         'graded_at'    => 'datetime',
         'is_passed'    => 'boolean',
         'total_score'  => 'decimal:2',
+        'score'        => 'integer',
         'percentage'   => 'decimal:2',
-        // Authorize proper type formats for numeric processing engines
         'accuracy_score' => 'integer',
         'depth_score'    => 'integer',
         'clarity_score'  => 'integer',

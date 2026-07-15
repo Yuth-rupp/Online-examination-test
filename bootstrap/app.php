@@ -9,14 +9,20 @@ return Application::configure(basePath: dirname(__DIR__))
         web: __DIR__.'/../routes/web.php',
         api: __DIR__.'/../routes/api.php',
         commands: __DIR__.'/../routes/console.php',
+        channels: __DIR__.'/../routes/channels.php',
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        $middleware->api(); // 🔥 IMPORTANT (Kept your existing code)
+        $middleware->api();
         
-        // ✅ ADDED: Register your custom RoleMiddleware with the 'role' alias
+        // Register your custom RoleMiddleware with the 'role' alias
         $middleware->alias([
             'role' => \App\Http\Middleware\RoleMiddleware::class,
+        ]);
+
+        // Exclude the live proctoring frame stream route from CSRF protection
+        $middleware->validateCsrfTokens(except: [
+            'student/exams/stream-frame'
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

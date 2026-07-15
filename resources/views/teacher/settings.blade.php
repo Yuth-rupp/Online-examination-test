@@ -3,427 +3,694 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ExamSystem - Account Settings</title>
+    <title>ExamSystem – Settings</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
     <style>
-        body { font-family: 'Inter', sans-serif; }
-        
-        /* 🌓 GLOBAL HIGH CONTRAST STRUCTURAL RULES */
-        .high-contrast-mode {
-            background-color: #030712 !important;
-            color: #F9FAFB !important;
-        }
-        /* Forces Sidebars, Section Containers, and Headers into deep dark mode */
-        .high-contrast-mode aside, 
-        .high-contrast-mode section, 
-        .high-contrast-mode header,
-        .high-contrast-mode .bg-white {
-            background-color: #111827 !important;
-            border-color: #374151 !important;
-            color: #F9FAFB !important;
-        }
-        /* High-contrast nav text link balances */
-        .high-contrast-mode nav a:not([class*="bg-"]) {
-            color: #9CA3AF !important;
-        }
-        .high-contrast-mode nav a:not([class*="bg-"]):hover {
-            background-color: #1F2937 !important;
-            color: #FFFFFF !important;
-        }
-        /* High visibility input layout maps */
-        .high-contrast-mode input, 
-        .high-contrast-mode select, 
-        .high-contrast-mode textarea {
-            background-color: #1F2937 !important;
-            color: #FFFFFF !important;
-            border: 2px solid #4B5563 !important;
-        }
-        .high-contrast-mode input::placeholder {
-            color: #9CA3AF !important;
-        }
-        .high-contrast-mode .bg-gray-50 {
-            background-color: #1F2937 !important;
-            color: #FFFFFF !important;
-        }
-        .high-contrast-mode .text-gray-700,
-        .high-contrast-mode .text-gray-600 {
-            color: #E5E7EB !important;
-        }
-        
-        /* Smooth transitions for the new professional modal */
-        #legalModalWrapper {
-            transition: all 0.25s ease-in-out;
-        }
+        *,*::before,*::after{box-sizing:border-box}
+        body{font-family:'Inter',system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+
+        /* SCROLLBAR */
+        ::-webkit-scrollbar{width:4px}
+        ::-webkit-scrollbar-track{background:transparent}
+        ::-webkit-scrollbar-thumb{background:#CBD5E1;border-radius:99px}
+
+        /* SIDEBAR */
+        .nl{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:10px;text-decoration:none;font-size:13px;font-weight:500;color:#64748B;transition:all .18s}
+        .nl:hover{background:#F8FAFC;color:#1E293B}
+        .nl.act{background:#EFF6FF;color:#2563EB;font-weight:700;border:1px solid #BFDBFE}
+        .ni{width:30px;height:30px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:13px;flex-shrink:0;transition:all .18s}
+        .nl.act .ni{background:#2563EB;color:#fff}
+        .nl:hover .ni{background:#F1F5F9}
+
+        /* ANIMATIONS */
+        @keyframes pdot{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.4;transform:scale(.7)}}
+        .ld{animation:pdot 1.5s infinite}
+        @keyframes fu{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+        .fu{animation:fu .35s ease both}
+        @keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
+        .spin{animation:spin .7s linear infinite}
+        @keyframes tin{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+        @keyframes avatarGlow{0%,100%{box-shadow:0 0 0 4px rgba(79,70,229,.2)}50%{box-shadow:0 0 0 8px rgba(79,70,229,.08)}}
+        .aglow{animation:avatarGlow 2.5s ease infinite}
+
+        /* TOAST */
+        #tbox{position:fixed;bottom:22px;left:50%;transform:translateX(-50%);z-index:9999;display:flex;flex-direction:column;gap:8px;align-items:center;pointer-events:none}
+        .toast{display:flex;align-items:center;gap:9px;color:#fff;border-radius:14px;padding:11px 18px;font-size:12px;font-weight:700;box-shadow:0 10px 30px rgba(0,0,0,.22);animation:tin .3s ease;min-width:200px;pointer-events:auto;white-space:nowrap}
+
+        /* INPUT FIELDS */
+        .fld{width:100%;padding:12px 16px;background:#F8FAFC;border:1.5px solid #E2E8F0;border-radius:12px;font-size:13px;font-weight:500;color:#1E293B;outline:none;transition:all .18s}
+        .fld:focus{background:#fff;border-color:#4F46E5;box-shadow:0 0 0 3px rgba(79,70,229,.1)}
+        .fld:disabled{background:#F1F5F9;color:#94A3B8;cursor:not-allowed}
+        .fld::placeholder{color:#94A3B8;font-weight:400}
+
+        /* CARD */
+        .card{background:#fff;border-radius:20px;border:1.5px solid #F1F5F9;box-shadow:0 1px 3px rgba(0,0,0,.05),0 4px 12px rgba(0,0,0,.04);overflow:hidden}
+        .card:hover{box-shadow:0 4px 20px rgba(0,0,0,.07)}
+
+        /* TOGGLE */
+        .tog-track{width:48px;height:26px;border-radius:99px;transition:background .25s;cursor:pointer;position:relative;flex-shrink:0}
+        .tog-thumb{width:20px;height:20px;background:#fff;border-radius:50%;position:absolute;top:3px;left:3px;transition:transform .25s;box-shadow:0 1px 4px rgba(0,0,0,.2)}
+
+        /* HIGH CONTRAST */
+        .high-contrast-mode{background-color:#030712!important;color:#F9FAFB!important}
+        .high-contrast-mode .card,.high-contrast-mode aside,.high-contrast-mode header,.high-contrast-mode .bg-white{background-color:#111827!important;border-color:#374151!important;color:#F9FAFB!important}
+        .high-contrast-mode .fld{background:#1F2937!important;color:#fff!important;border-color:#4B5563!important}
+        .high-contrast-mode .nl{color:#9CA3AF!important}
+        .high-contrast-mode .nl:hover{background:#1F2937!important;color:#fff!important}
+
+        /* MODAL */
+        @keyframes mIn{from{opacity:0;transform:scale(.95)}to{opacity:1;transform:scale(1)}}
+        .mIn{animation:mIn .2s ease}
     </style>
     <script>
-        // Execute immediately before document rendering to prevent bright screen flashing
-        if (localStorage.getItem('high-contrast-enabled') === 'true') {
-            document.documentElement.classList.add('high-contrast-mode');
-        }
+        if(localStorage.getItem('high-contrast-enabled')==='true') document.documentElement.classList.add('high-contrast-mode');
     </script>
 </head>
-<body id="appBody" class="bg-[#f8fafc] h-screen font-sans overflow-hidden flex flex-col transition-all">
 
-    <header class="bg-white h-16 border-b border-gray-100 flex items-center justify-between px-8 z-20 flex-shrink-0">
-        <div class="flex items-center gap-8">
-            <div class="flex items-center gap-3 text-blue-600 font-bold text-base tracking-tight">
-                <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 14l9-5-9-5-9 5 9 5z"></path>
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z"></path>
-                </svg>
-                <span class="font-bold tracking-tight text-gray-900">ExamSystem</span>
-            </div>
-            <nav class="flex gap-6 text-xs font-semibold text-gray-400">
-                <a href="#" class="text-blue-600 border-b-2 border-blue-600 pb-5 pt-5 px-1">Account Settings</a>
-                <a href="{{ route('teacher.dashboard') }}" class="hover:text-gray-600 transition-all pb-5 pt-5">Dashboard</a>
-                <a href="#" class="hover:text-gray-600 transition-all pb-5 pt-5">Examinations</a>
-            </nav>
+<body id="appBody" class="bg-slate-100 text-slate-800 min-h-screen overflow-x-hidden">
+
+<div class="flex h-screen overflow-hidden">
+
+{{-- ═══════════════════════ SIDEBAR ═══════════════════════ --}}
+<aside class="w-56 bg-white border-r border-slate-100 flex flex-col flex-shrink-0 h-screen z-20 shadow-sm">
+    <a href="{{ route('teacher.dashboard') }}"
+       class="h-16 flex items-center px-4 gap-3 border-b border-slate-100 hover:opacity-90 transition-opacity flex-shrink-0">
+        <div class="w-8 h-8 rounded-xl flex items-center justify-center text-white flex-shrink-0"
+             style="background:linear-gradient(135deg,#2563EB,#1E40AF);box-shadow:0 3px 10px rgba(37,99,235,.4)">
+            <i class="fa-solid fa-graduation-cap text-sm"></i>
         </div>
+        <span class="font-black text-[16px] text-slate-900 tracking-tight">ExamSystem</span>
+    </a>
 
-        <div class="flex items-center gap-6">
-            <div class="flex items-center gap-3">
-                <div class="w-8 h-8 rounded-full overflow-hidden border border-gray-200 bg-gray-50">
-                    <img id="navAvatar" src="{{ Auth::user()->profile_photo_path ?? Auth::user()->avatar_path ?? Auth::user()->profile_image ?? Auth::user()->image ?? Auth::user()->avatar ?? 'https://api.dicebear.com/7.x/bottts/svg?seed=Alex' }}" class="w-full h-full object-cover" alt="Avatar">
-                </div>
-                <span class="text-xs font-bold text-gray-700">
-                    {{ Auth::user()->full_name ?? 'Yun Dalin' }}
-                </span>
+    <nav class="flex-1 px-2.5 py-3 space-y-0.5 overflow-y-auto">
+        <p class="text-[9px] font-black text-slate-400 uppercase tracking-widest px-2 pt-1 pb-1.5">Menu</p>
+        <a href="{{ route('teacher.dashboard') }}"        class="nl"><span class="ni"><i class="fa-solid fa-house text-xs"></i></span><span>Dashboard</span></a>
+        <a href="{{ route('teacher.question-bank') }}"   class="nl"><span class="ni"><i class="fa-solid fa-database text-xs"></i></span><span>Question Bank</span></a>
+        <a href="{{ route('teacher.monitoring.show') }}" class="nl"><span class="ni"><i class="fa-solid fa-display text-xs"></i></span><span>Monitoring</span></a>
+        <a href="{{ route('teacher.grading.queue') }}"   class="nl"><span class="ni"><i class="fa-solid fa-pen-to-square text-xs"></i></span><span>Grading</span></a>
+        <a href="{{ route('teacher.analytics') }}"       class="nl"><span class="ni"><i class="fa-solid fa-chart-line text-xs"></i></span><span>Analytics</span></a>
+        <p class="text-[9px] font-black text-slate-400 uppercase tracking-widest px-2 pt-3 pb-1.5">Account</p>
+        <a href="{{ route('teacher.settings') }}"        class="nl act"><span class="ni"><i class="fa-solid fa-gear text-xs"></i></span><span>Settings</span></a>
+    </nav>
+
+    <div class="p-2.5 border-t border-slate-100 flex-shrink-0">
+        <div class="flex items-center gap-2.5 px-2 py-2 rounded-xl">
+            <div class="w-8 h-8 rounded-full overflow-hidden border-2 border-slate-200 flex-shrink-0">
+                <img src="https://api.dicebear.com/7.x/bottts/svg?seed={{ Auth::user()->full_name ?? 'I' }}" class="w-full h-full object-cover">
             </div>
-
-            <form action="{{ route('logout') }}" method="POST" class="inline">
-                @csrf
-                <button type="submit" class="flex items-center gap-2 text-xs font-bold text-rose-500 hover:text-rose-700 transition-all border border-transparent hover:border-rose-100 px-3 py-1.5 rounded-lg">
-                    <i class="fa-solid fa-arrow-right-from-bracket"></i> Sign Out
-                </button>
-            </form>
+            <div class="min-w-0">
+                <p class="text-xs font-black text-slate-900 truncate">{{ Auth::user()->full_name ?? 'Yun Dalin' }}</p>
+                <p class="text-[10px] text-slate-400">Senior Faculty</p>
+            </div>
         </div>
-    </header>
+    </div>
+</aside>
 
-    <div class="flex flex-1 overflow-hidden">
-        <aside class="w-64 bg-white h-full border-r border-gray-100 p-6 flex flex-col justify-between flex-shrink-0 select-none">
-            <div class="space-y-1">
-                <a href="{{ route('teacher.dashboard') }}" class="flex items-center gap-3.5 text-gray-500 hover:bg-gray-50 hover:text-gray-900 px-4 py-3 rounded-xl text-sm font-semibold tracking-tight transition group">
-                    <svg class="w-5 h-5 text-gray-400 group-hover:text-gray-500 transition" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v4a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v4a2 2 0 01-2 2h-2a2 2 0 01-2-2v-4z"></path>
-                    </svg>
-                    <span>Dashboard</span>
-                </a>
+{{-- ═══════════════════════ MAIN ═══════════════════════ --}}
+<div class="flex-1 flex flex-col min-w-0 overflow-hidden">
 
-                <a href="{{ route('teacher.question-bank') }}" class="flex items-center gap-3.5 text-gray-500 hover:bg-gray-50 hover:text-gray-900 px-4 py-3 rounded-xl text-sm font-semibold tracking-tight transition group">
-                    <svg class="w-5 h-5 text-gray-400 group-hover:text-gray-500 transition" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>
-                    </svg>
-                    <span>Question Bank</span>
-                </a>
-
-                <a href="#" class="flex items-center gap-3.5 text-gray-500 hover:bg-gray-50 hover:text-gray-900 px-4 py-3 rounded-xl text-sm font-semibold tracking-tight transition group">
-                    <svg class="w-5 h-5 text-gray-400 group-hover:text-gray-500 transition" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
-                    </svg>
-                    <span>Monitoring</span>
-                </a>
-
-                <a href="{{ route('teacher.grading.show', 1) }}" class="flex items-center gap-3.5 text-gray-500 hover:bg-gray-50 hover:text-gray-900 px-4 py-3 rounded-xl text-sm font-semibold tracking-tight transition group">
-                    <svg class="w-5 h-5 text-gray-400 group-hover:text-gray-500 transition" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
-                    </svg>
-                    <span>Grading</span>
-                </a>
-
-                <a href="{{ route('teacher.analytics') }}" class="flex items-center gap-3.5 text-gray-500 hover:bg-gray-50 hover:text-gray-900 px-4 py-3 rounded-xl text-sm font-semibold tracking-tight transition group">
-                    <svg class="w-5 h-5 text-gray-400 group-hover:text-gray-500 transition" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10a2 2 0 01-2 2h-2a2 2 0 01-2-2zm9-1V4a2 2 0 00-2-2h-2a2 2 0 00-2 2v14a2 2 0 002 2h2a2 2 0 002-2z"></path>
-                    </svg>
-                    <span>Analytics</span>
-                </a>
-
-                <div class="flex items-center gap-3.5 text-white bg-blue-600 px-4 py-3 rounded-xl text-sm font-semibold tracking-tight shadow-sm shadow-blue-600/10">
-                    <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
-                    </svg>
-                    <span>Settings</span>
+    {{-- HEADER --}}
+    <div class="flex-shrink-0" style="background:linear-gradient(135deg,#0F172A 0%,#1E3A5F 55%,#312E81 100%)">
+        <div class="px-6 py-4 flex items-center gap-4">
+            <div class="flex-1 min-w-0">
+                <p class="text-[10px] font-bold text-white/40 uppercase tracking-widest mb-0.5">Teacher Portal</p>
+                <h1 class="text-[16px] font-black text-white tracking-tight">Account Settings</h1>
+                <p class="text-[10px] text-white/50 mt-0.5">Manage your profile, security, and preferences</p>
+            </div>
+            <div class="flex items-center gap-2.5 flex-shrink-0">
+                <div class="px-3 py-2 rounded-xl hidden lg:block" style="background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12)">
+                    <p class="text-[9px] font-bold text-white/40 uppercase tracking-wider mb-0.5">Time</p>
+                    <p class="text-[12px] font-black text-white tabular-nums" id="lc">--:--:--</p>
                 </div>
+                <div class="flex items-center gap-1.5 px-2.5 py-2 rounded-xl" style="background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12)">
+                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 ld"></span>
+                    <span class="text-[10px] font-bold text-white/60">Online</span>
+                </div>
+                <form action="{{ route('logout') }}" method="POST" class="inline">
+                    @csrf
+                    <button type="submit" class="flex items-center gap-1.5 text-[11px] font-black px-3 py-2 rounded-xl transition-all"
+                            style="background:rgba(239,68,68,.2);border:1px solid rgba(239,68,68,.4);color:#FCA5A5">
+                        <i class="fa-solid fa-arrow-right-from-bracket text-[10px]"></i> Sign Out
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    {{-- SCROLL AREA --}}
+    <div class="flex-1 overflow-y-auto bg-slate-100 p-5">
+    <div class="max-w-5xl mx-auto">
+
+    <div class="grid grid-cols-1 xl:grid-cols-3 gap-5">
+
+    {{-- ══ LEFT COLUMN ══ --}}
+    <div class="xl:col-span-2 space-y-5">
+
+        {{-- Profile Card --}}
+        <div class="card fu" style="animation-delay:.04s">
+            <div class="px-6 py-4 border-b border-slate-100" style="background:linear-gradient(135deg,#FAFCFF,#F5F7FF)">
+                <div class="flex items-center gap-2">
+                    <div class="w-7 h-7 rounded-lg flex items-center justify-center text-indigo-600" style="background:#EEF2FF">
+                        <i class="fa-solid fa-user text-xs"></i>
+                    </div>
+                    <h2 class="text-[13px] font-black text-slate-900">Profile Information</h2>
+                </div>
+                <p class="text-[10px] text-slate-400 mt-0.5 ml-9">Update your display name and contact details</p>
             </div>
 
-            <div class="flex items-center gap-3 border-t border-gray-100 pt-4 pb-2">
-                <div class="w-9 h-9 rounded-full overflow-hidden border border-gray-200 bg-gray-50 flex-shrink-0">
-                    <img src="{{ Auth::user()->profile_photo_path ?? Auth::user()->avatar_path ?? Auth::user()->profile_image ?? Auth::user()->image ?? Auth::user()->avatar ?? 'https://api.dicebear.com/7.x/bottts/svg?seed=Alex' }}" class="w-full h-full object-cover" alt="Avatar">
-                </div>
-                <div>
-                    <p class="text-xs font-bold text-gray-800 leading-none">{{ Auth::user()->full_name ?? 'Yun Dalin' }}</p>
-                    <p class="text-[10px] text-gray-400 font-medium mt-1.5">Senior Faculty</p>
-                </div>
-            </div>
-        </aside>
+            <div class="p-6">
+            <form action="{{ route('teacher.settings.update') }}" method="POST" enctype="multipart/form-data" id="profileForm">
+            @csrf
 
-        <main class="flex-1 p-8 overflow-y-auto flex gap-6">
-            <div class="w-2/3 space-y-6">
-                <section class="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
-                    <div class="flex items-center gap-2 text-sm font-bold text-[#0c2340] mb-6">
-                        <i class="fa-regular fa-address-card text-[#1e5fa7] text-base"></i> Personalization
+                {{-- Avatar section --}}
+                <div class="flex items-center gap-6 mb-6 pb-6" style="border-bottom:1.5px dashed #F1F5F9">
+                    <div class="relative flex-shrink-0">
+                        {{-- Glow ring --}}
+                        <div class="w-24 h-24 rounded-2xl aglow overflow-hidden border-2 border-indigo-200">
+                            <img id="avatarPreview"
+                                 src="{{ Auth::user()->avatar_url ?? 'https://api.dicebear.com/7.x/bottts/svg?seed='.(Auth::user()->full_name ?? 'I') }}"
+                                 class="w-full h-full object-cover" alt="Profile">
+                        </div>
+                        <input type="file" id="avatarInput" name="avatar" accept="image/*" class="hidden" onchange="previewAvatar(this)">
+                        <input type="hidden" id="removeAvatarFlag" name="remove_avatar" value="0">
+                        <button type="button" onclick="document.getElementById('avatarInput').click()"
+                                class="absolute -bottom-2 -right-2 w-8 h-8 rounded-xl flex items-center justify-center text-white text-xs border-2 border-white shadow-lg transition-all hover:scale-110"
+                                style="background:linear-gradient(135deg,#4F46E5,#2563EB)">
+                            <i class="fa-solid fa-camera"></i>
+                        </button>
                     </div>
 
-                    <form action="{{ route('teacher.settings.update') }}" method="POST" enctype="multipart/form-data" class="space-y-4">
-                        @csrf
-                        
-                        <div class="flex items-center gap-6 mb-8">
+                    <div>
+                        <p class="text-sm font-black text-slate-900 mb-1">{{ Auth::user()->full_name ?? 'Yun Dalin' }}</p>
+                        <p class="text-[11px] text-slate-400 mb-3">Senior Faculty · ExamSystem</p>
+                        <div class="flex gap-2">
+                            <button type="button" onclick="document.getElementById('avatarInput').click()"
+                                    class="flex items-center gap-1.5 text-[11px] font-black px-3 py-2 rounded-xl transition-all"
+                                    style="background:#EEF2FF;color:#4338CA;border:1px solid #C7D2FE">
+                                <i class="fa-solid fa-arrow-up-from-bracket text-[10px]"></i> Upload Photo
+                            </button>
+                            <button type="button" onclick="removeAvatar()"
+                                    class="flex items-center gap-1.5 text-[11px] font-bold px-3 py-2 rounded-xl transition-all"
+                                    style="background:#F8FAFC;color:#64748B;border:1px solid #E2E8F0">
+                                <i class="fa-solid fa-trash text-[10px]"></i> Remove
+                            </button>
+                        </div>
+                        <p class="text-[9px] text-slate-400 mt-2">JPG, GIF or PNG · Max 800KB</p>
+                    </div>
+                </div>
+
+                {{-- Name + Email --}}
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+                    <div>
+                        <label class="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-1.5">Full Name</label>
+                        <div class="relative">
+                            <i class="fa-solid fa-user absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-300 text-xs pointer-events-none"></i>
+                            <input type="text" name="full_name" class="fld pl-9"
+                                   value="{{ Auth::user()->full_name ?? 'Yun Dalin' }}"
+                                   placeholder="Your full name" required>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-1.5">University Email</label>
+                        <div class="relative">
+                            <i class="fa-solid fa-envelope absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-300 text-xs pointer-events-none"></i>
+                            <input type="email" name="email" class="fld pl-9"
+                                   value="{{ Auth::user()->email ?? 'dalin@university.edu' }}"
+                                   placeholder="your@university.edu" required>
+                        </div>
+                    </div>
+                </div>
+
+                {{-- University ID (read-only) --}}
+                <div class="mb-6">
+                    <label class="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-1.5">
+                        University ID <span class="normal-case font-normal">(read-only)</span>
+                    </label>
+                    <div class="relative">
+                        <i class="fa-solid fa-id-badge absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-300 text-xs pointer-events-none"></i>
+                        <input type="text" class="fld pl-9 w-full sm:w-1/2"
+                               value="{{ Auth::user()->institutional_id ?? '#UNI-8842-1092' }}" disabled>
+                    </div>
+                </div>
+
+                {{-- Actions --}}
+                <div class="flex items-center justify-between pt-4" style="border-top:1.5px solid #F1F5F9">
+                    <p class="text-[10px] text-slate-400 flex items-center gap-1.5">
+                        <i class="fa-solid fa-circle-info text-slate-300 text-xs"></i>
+                        Changes are applied immediately
+                    </p>
+                    <div class="flex gap-2">
+                        <button type="button" onclick="window.location.reload()"
+                                class="text-[11px] font-bold px-4 py-2 rounded-xl transition-all"
+                                style="background:#F8FAFC;border:1.5px solid #E2E8F0;color:#475569">
+                            Cancel
+                        </button>
+                        <button type="submit" id="saveBtn"
+                                class="flex items-center gap-2 text-[11px] font-black px-5 py-2 rounded-xl text-white transition-all"
+                                style="background:linear-gradient(135deg,#4F46E5,#2563EB);box-shadow:0 4px 14px rgba(79,70,229,.35)">
+                            <i class="fa-solid fa-floppy-disk" id="saveBtnIcon"></i>
+                            <span id="saveBtnLabel">Save Changes</span>
+                        </button>
+                    </div>
+                </div>
+
+            </form>
+            </div>
+        </div>
+
+        {{-- Password Card --}}
+        <div class="card fu" style="animation-delay:.08s">
+            <div class="px-6 py-4 border-b border-slate-100" style="background:linear-gradient(135deg,#FAFCFF,#F5F7FF)">
+                <div class="flex items-center gap-2">
+                    <div class="w-7 h-7 rounded-lg flex items-center justify-center text-amber-600" style="background:#FEF3C7">
+                        <i class="fa-solid fa-lock text-xs"></i>
+                    </div>
+                    <h2 class="text-[13px] font-black text-slate-900">Change Password</h2>
+                </div>
+                <p class="text-[10px] text-slate-400 mt-0.5 ml-9">Keep your account secure with a strong password</p>
+            </div>
+
+            <div class="p-6">
+            <form action="{{ route('teacher.settings.update.password') }}" method="POST" id="pwForm">
+            @csrf
+                <div class="space-y-4">
+                    <div>
+                        <label class="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-1.5">Current Password</label>
+                        <div class="relative">
+                            <i class="fa-solid fa-lock absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-300 text-xs pointer-events-none"></i>
+                            <input type="password" name="current_password" id="pw1" class="fld pl-9 pr-10" placeholder="••••••••">
+                            <button type="button" onclick="togglePw('pw1','eye1')" class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-300 hover:text-slate-500 transition-colors">
+                                <i id="eye1" class="fa-solid fa-eye text-xs"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                            <label class="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-1.5">New Password</label>
                             <div class="relative">
-                                <div class="w-24 h-24 rounded-full overflow-hidden border-2 border-gray-100 shadow-inner bg-gray-50">
-                                    <img id="profileImageCanvas" src="{{ Auth::user()->profile_photo_path ?? Auth::user()->avatar_path ?? Auth::user()->profile_image ?? Auth::user()->image ?? Auth::user()->avatar ?? 'https://api.dicebear.com/7.x/bottts/svg?seed=Alex' }}" class="w-full h-full object-cover" alt="Avatar">
-                                </div>
-                                
-                                <input type="file" id="hiddenAvatarInput" name="avatar" accept="image/*" class="hidden" onchange="previewUploadedAvatar(this)">
-                                <input type="hidden" id="removeAvatarFlag" name="remove_avatar" value="0">
-                                
-                                <button type="button" onclick="triggerAvatarUpload()" class="absolute bottom-0 right-0 bg-[#0a2569] text-white w-6 h-6 rounded-full flex items-center justify-center text-[10px] shadow-md hover:bg-blue-800 transition-all cursor-pointer">
-                                    <i class="fa-solid fa-pen"></i>
+                                <i class="fa-solid fa-key absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-300 text-xs pointer-events-none"></i>
+                                <input type="password" name="password" id="pw2" class="fld pl-9 pr-10" placeholder="Min 8 characters" oninput="checkStrength(this.value)">
+                                <button type="button" onclick="togglePw('pw2','eye2')" class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-300 hover:text-slate-500 transition-colors">
+                                    <i id="eye2" class="fa-solid fa-eye text-xs"></i>
                                 </button>
                             </div>
-                            <div class="flex gap-2.5">
-                                <button type="button" onclick="triggerAvatarUpload()" class="bg-[#0a2569] hover:bg-[#061743] text-white text-xs font-bold px-4 py-2 rounded-xl shadow-sm transition-all cursor-pointer">Change Image</button>
-                                <button type="button" onclick="removeProfileImage()" class="bg-[#e2e8f0] hover:bg-gray-300 text-gray-600 text-xs font-bold px-4 py-2 rounded-xl transition-all cursor-pointer">Remove</button>
+                            {{-- Strength bar --}}
+                            <div class="mt-2 h-1.5 rounded-full overflow-hidden" style="background:#F1F5F9">
+                                <div id="strengthBar" class="h-full rounded-full transition-all duration-400" style="width:0%"></div>
                             </div>
-                            <p class="text-[10px] font-semibold text-gray-400 mt-auto ml-2">JPG, GIF or PNG. Max size of 800K.</p>
+                            <p id="strengthLabel" class="text-[9px] font-bold mt-1 text-slate-400"></p>
                         </div>
-
-                        <div class="grid grid-cols-2 gap-4">
-                            <div>
-                                <label class="block text-[10px] font-bold tracking-wider text-gray-400 uppercase mb-2">Full Name</label>
-                                <input type="text" name="full_name" value="{{ Auth::user()->full_name ?? 'Yun Dalin' }}" 
-                                    class="w-full px-4 py-3 bg-[#f0f2f5] border border-transparent rounded-xl text-xs font-semibold text-gray-700 focus:outline-none focus:bg-white focus:border-blue-500 transition-all" required>
-                            </div>
-                            <div>
-                                <label class="block text-[10px] font-bold tracking-wider text-gray-400 uppercase mb-2">University Email</label>
-                                <input type="email" name="email" value="{{ Auth::user()->email ?? 'dalin12345@gmail.com' }}" 
-                                    class="w-full px-4 py-3 bg-[#f0f2f5] border border-transparent rounded-xl text-xs font-semibold text-gray-700 focus:outline-none focus:bg-white focus:border-blue-500 transition-all" required>
-                            </div>
-                        </div>
-
-                        <div class="grid grid-cols-2 gap-4">
-                            <div class="pr-2">
-                                <label class="block text-[10px] font-bold tracking-wider text-gray-400 uppercase mb-2">University ID</label>
-                                <input type="text" value="#UNI-8842-1092" disabled 
-                                    class="w-full px-4 py-3 bg-[#f8fafc] border border-gray-100 text-gray-300 rounded-xl text-xs font-medium cursor-not-allowed select-none">
-                            </div>
-                        </div>
-
-                        <div class="flex justify-end gap-3 pt-4 border-t border-gray-50">
-                            <button type="button" onclick="window.location.reload();" class="text-xs font-bold text-gray-500 hover:text-gray-700 transition-all px-4 py-2 cursor-pointer">Cancel</button>
-                            <button type="submit" class="bg-[#173154] hover:bg-[#0f2139] text-white text-xs font-bold px-5 py-2.5 rounded-xl shadow-md transition-all cursor-pointer">Save Changes</button>
-                        </div>
-                    </form>
-                </section>
-
-                <section class="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
-                    <div class="flex items-center gap-2 text-sm font-bold text-[#0c2340] mb-6">
-                        <i class="fa-solid fa-eye text-[#1e5fa7] text-base"></i> Accessibility Options
-                    </div>
-                    <div class="flex justify-between items-center">
                         <div>
-                            <span class="text-xs font-bold text-gray-700 mb-0.5 block">High Contrast Mode</span>
-                            <p class="text-[11px] text-gray-400 font-medium">Enhance UI visibility for visual impairments.</p>
-                        </div>
-                        <button onclick="toggleHighContrastTheme()" id="contrastToggleSwitch" class="w-10 h-5 bg-gray-200 rounded-full p-0.5 transition-all relative flex items-center cursor-pointer">
-                            <span id="switchNodeCircle" class="w-4 h-4 bg-white rounded-full shadow-sm transition-all transform translate-x-0"></span>
-                        </button>
-                    </div>
-                </section>
-            </div>
-
-            <div class="w-1/3 space-y-6">
-                <section class="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-5">
-                    <div class="flex items-center gap-2 text-sm font-bold text-[#0c2340]">
-                        <i class="fa-solid fa-shield-halved text-[#1e5fa7] text-base"></i> Security & Privacy
-                    </div>
-                    
-                    <div class="space-y-2">
-                        <div class="bg-gray-50 px-4 py-3 rounded-xl flex justify-between items-center text-[10px] font-bold">
-                            <span class="text-gray-600 flex items-center gap-2"><i class="fa-brands fa-google text-gray-400"></i> Google SSO</span>
-                            <span class="text-emerald-600 uppercase tracking-wider">Connected</span>
-                        </div>
-                        <div class="bg-gray-50 px-4 py-3 rounded-xl flex justify-between items-center text-[10px] font-bold">
-                            <span class="text-gray-600 flex items-center gap-2"><i class="fa-brands fa-microsoft text-gray-400"></i> Microsoft Azure</span>
-                            <span class="text-emerald-600 uppercase tracking-wider">Connected</span>
-                        </div>
-                    </div>
-
-                    <div class="pt-2 space-y-2 text-[11px] font-bold text-gray-600 flex flex-col">
-                        <button onclick="displayModalPopup('Privacy Policy (GDPR)', 'Your dynamic standard system data details are completely covered securely in balance with global technical parameters. All records are guarded with end-to-end database hashing filters.', 'fa-shield-halved')" class="flex justify-between items-center bg-gray-50 hover:bg-gray-100 transition-all cursor-pointer w-full text-left px-4 py-3 rounded-xl border border-gray-100/50">
-                            <span class="flex items-center gap-2"><i class="fa-regular fa-file-lines text-blue-600 text-sm"></i> View Privacy Policy (GDPR)</span> 
-                            <i class="fa-solid fa-chevron-right text-[10px] text-gray-400"></i>
-                        </button>
-                        <button onclick="displayModalPopup('Data Usage Agreement', 'By utilizing this specialized evaluation terminal network platform, systemic metrics are computed exclusively inside the private academic institution layer storage infrastructure pool. No client analytics tracking metrics leave the server boundaries.', 'fa-handshake')" class="flex justify-between items-center bg-gray-50 hover:bg-gray-100 transition-all cursor-pointer w-full text-left px-4 py-3 rounded-xl border border-gray-100/50">
-                            <span class="flex items-center gap-2"><i class="fa-regular fa-handshake text-blue-600 text-sm"></i> Data Usage Agreement</span> 
-                            <i class="fa-solid fa-chevron-right text-[10px] text-gray-400"></i>
-                        </button>
-                    </div>
-                </section>
-
-                <section class="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 flex flex-col justify-between">
-                    <div>
-                        <div class="flex items-center gap-2 text-sm font-bold text-[#0c2340] mb-4">
-                            <i class="fa-regular fa-comments text-[#1e5fa7] text-base"></i> Support & Notifications
-                        </div>
-                        
-                        <button type="button" onclick="triggerTechnicalSupportAction()" class="w-full py-3 bg-[#173154] hover:bg-[#0f2139] text-white font-medium text-xs rounded-xl shadow-sm mb-3 flex items-center justify-center gap-2 transition-all cursor-pointer">
-                            <i class="fa-regular fa-circle-question text-sm"></i> Technical Support
-                        </button>
-
-                        <div class="grid grid-cols-2 gap-3 mb-6">
-                            <button type="button" onclick="displayModalPopup('Help Center Gateway', 'Welcome to the Help Center. Search the documentation bank logs, explore platform interface step-by-step components, or forward tickets to administrative workflows.', 'fa-circle-info')" class="py-2.5 bg-gray-50 hover:bg-gray-100 border border-gray-100/70 text-gray-600 font-bold text-[10px] rounded-xl transition-all cursor-pointer flex items-center justify-center gap-1.5">
-                                <i class="fa-solid fa-circle-info text-blue-600"></i> Help Center
-                            </button>
-                            <button type="button" onclick="displayModalPopup('User Guides Deck', 'Review step-by-step master operational setup manuals for managing question items, grading exam session structures, and parsing custom multi-format CSV exports.', 'fa-book')" class="py-2.5 bg-gray-50 hover:bg-gray-100 border border-gray-100/70 text-gray-600 font-bold text-[10px] rounded-xl transition-all cursor-pointer flex items-center justify-center gap-1.5">
-                                <i class="fa-solid fa-book text-blue-600"></i> User Guides
-                            </button>
-                        </div>
-
-                        <p class="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-3">System Feed</p>
-                        <div class="space-y-4 pl-3.5 border-l border-gray-100 relative">
-                            <div class="relative text-[11px]">
-                                <span class="absolute -left-[19px] top-1 bg-red-500 w-2 h-2 rounded-full border-2 border-white shadow-sm"></span>
-                                <div class="font-bold text-gray-700">Storage Quota Alert</div>
-                                <div class="text-[9px] text-gray-400 font-medium">2 hours ago • Action required</div>
-                            </div>
-                            <div class="relative text-[11px]">
-                                <span class="absolute -left-[19px] top-1 bg-emerald-500 w-2 h-2 rounded-full border-2 border-white shadow-sm"></span>
-                                <div class="font-bold text-gray-700">Security Audit Passed</div>
-                                <div class="text-[9px] text-gray-400 font-medium">Yesterday, 4:12 PM • 0 threats</div>
-                            </div>
-                            <div class="relative text-[11px]">
-                                <span class="absolute -left-[19px] top-1 bg-blue-400 w-2 h-2 rounded-full border-2 border-white shadow-sm"></span>
-                                <div class="font-bold text-gray-700">Profile Updated</div>
-                                <div class="text-[9px] text-gray-400 font-medium">Oct 24, 2023 • System</div>
+                            <label class="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-1.5">Confirm New Password</label>
+                            <div class="relative">
+                                <i class="fa-solid fa-check-double absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-300 text-xs pointer-events-none"></i>
+                                <input type="password" name="password_confirmation" id="pw3" class="fld pl-9 pr-10" placeholder="Repeat password">
+                                <button type="button" onclick="togglePw('pw3','eye3')" class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-300 hover:text-slate-500 transition-colors">
+                                    <i id="eye3" class="fa-solid fa-eye text-xs"></i>
+                                </button>
                             </div>
                         </div>
                     </div>
-                </section>
-            </div>
-        </main>
-    </div>
-
-    <div id="legalModalWrapper" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center hidden edit-modal z-50 transition-opacity opacity-0">
-        <div class="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-gray-100 transform scale-95 transition-all relative">
-            <div class="flex items-center gap-3 border-b border-gray-100 pb-4 mb-4">
-                <div class="w-10 h-10 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center text-lg shadow-sm" id="modalHeaderIconContainer">
-                    <i class="fa-solid fa-shield-halved" id="modalHeaderIcon"></i>
                 </div>
-                <div>
-                    <h3 id="modalHeaderTitle" class="text-base font-bold text-slate-800 tracking-tight">Policy Title</h3>
-                    <p class="text-[10px] uppercase font-bold tracking-wider text-blue-600/80">ExamSystem Document Integration</p>
+                <div class="flex justify-end mt-5 pt-4" style="border-top:1.5px solid #F1F5F9">
+                    <button type="submit"
+                            class="flex items-center gap-2 text-[11px] font-black px-5 py-2 rounded-xl text-white transition-all"
+                            style="background:linear-gradient(135deg,#F59E0B,#D97706);box-shadow:0 4px 14px rgba(245,158,11,.3)">
+                        <i class="fa-solid fa-key"></i> Update Password
+                    </button>
                 </div>
-                <button type="button" onclick="dismissModalWindow()" class="absolute top-5 right-5 text-gray-400 hover:text-gray-600 transition-colors cursor-pointer text-sm p-1 hover:bg-gray-50 rounded-lg">
-                    <i class="fa-solid fa-xmark text-base"></i>
-                </button>
-            </div>
-            
-            <div class="bg-slate-50/50 rounded-xl p-4 border border-slate-100 max-h-[320px] overflow-y-auto">
-                <p id="modalBodyText" class="text-xs text-slate-600 leading-relaxed font-medium">Policy context message details placeholder...</p>
-            </div>
-            
-            <div class="flex justify-end gap-2 mt-5 pt-3 border-t border-gray-100">
-                <button type="button" onclick="dismissModalWindow()" class="px-5 py-2.5 bg-slate-800 text-white font-bold text-xs rounded-xl hover:bg-slate-950 shadow-md shadow-slate-900/10 transition-all cursor-pointer">Acknowledge Account Policy</button>
+            </form>
             </div>
         </div>
+
+        {{-- Accessibility --}}
+        <div class="card fu" style="animation-delay:.12s">
+            <div class="px-6 py-4 border-b border-slate-100" style="background:linear-gradient(135deg,#FAFCFF,#F5F7FF)">
+                <div class="flex items-center gap-2">
+                    <div class="w-7 h-7 rounded-lg flex items-center justify-center text-purple-600" style="background:#F5F3FF">
+                        <i class="fa-solid fa-eye text-xs"></i>
+                    </div>
+                    <h2 class="text-[13px] font-black text-slate-900">Accessibility & Display</h2>
+                </div>
+            </div>
+            <div class="p-6 space-y-4">
+
+                {{-- High contrast --}}
+                <div class="flex items-center justify-between p-4 rounded-xl" style="background:#F8FAFC;border:1.5px solid #F1F5F9">
+                    <div class="flex items-center gap-3">
+                        <div class="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0" style="background:#EDE9FE">
+                            <i class="fa-solid fa-circle-half-stroke text-purple-600"></i>
+                        </div>
+                        <div>
+                            <p class="text-[12px] font-black text-slate-900">High Contrast Mode</p>
+                            <p class="text-[10px] text-slate-400 font-medium">Enhanced UI for visual accessibility</p>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <span class="text-[10px] font-bold text-slate-400" id="contrastLabel">Off</span>
+                        <div class="tog-track" id="togTrack" onclick="toggleContrast()"
+                             style="background:#E2E8F0">
+                            <div class="tog-thumb" id="togThumb"></div>
+                        </div>
+                    </div>
+                </div>
+
+                {{-- Language placeholder --}}
+                <div class="flex items-center justify-between p-4 rounded-xl" style="background:#F8FAFC;border:1.5px solid #F1F5F9">
+                    <div class="flex items-center gap-3">
+                        <div class="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0" style="background:#ECFDF5">
+                            <i class="fa-solid fa-globe text-emerald-600"></i>
+                        </div>
+                        <div>
+                            <p class="text-[12px] font-black text-slate-900">Interface Language</p>
+                            <p class="text-[10px] text-slate-400 font-medium">Currently: English (US)</p>
+                        </div>
+                    </div>
+                    <span class="text-[10px] font-black text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-200">EN</span>
+                </div>
+
+            </div>
+        </div>
+
+    </div>{{-- /left col --}}
+
+    {{-- ══ RIGHT COLUMN ══ --}}
+    <div class="space-y-5">
+
+        {{-- Security & Privacy --}}
+        <div class="card fu" style="animation-delay:.06s">
+            <div class="px-5 py-4 border-b border-slate-100" style="background:linear-gradient(135deg,#FAFCFF,#F5F7FF)">
+                <div class="flex items-center gap-2">
+                    <div class="w-7 h-7 rounded-lg flex items-center justify-center text-blue-600" style="background:#EFF6FF">
+                        <i class="fa-solid fa-shield-halved text-xs"></i>
+                    </div>
+                    <h2 class="text-[13px] font-black text-slate-900">Security</h2>
+                </div>
+            </div>
+            <div class="p-5 space-y-3">
+
+                {{-- Connected accounts --}}
+                <p class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Connected Accounts</p>
+
+                <div class="flex items-center justify-between p-3 rounded-xl" style="background:#F8FAFC;border:1px solid #F1F5F9">
+                    <div class="flex items-center gap-2.5">
+                        <div class="w-7 h-7 rounded-lg flex items-center justify-center" style="background:#EFF6FF">
+                            <i class="fa-brands fa-google text-blue-600 text-xs"></i>
+                        </div>
+                        <span class="text-[11px] font-bold text-slate-700">Google SSO</span>
+                    </div>
+                    <span class="flex items-center gap-1 text-[9px] font-black text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                        <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> Connected
+                    </span>
+                </div>
+
+                <div class="flex items-center justify-between p-3 rounded-xl" style="background:#F8FAFC;border:1px solid #F1F5F9">
+                    <div class="flex items-center gap-2.5">
+                        <div class="w-7 h-7 rounded-lg flex items-center justify-center" style="background:#EFF6FF">
+                            <i class="fa-brands fa-microsoft text-blue-600 text-xs"></i>
+                        </div>
+                        <span class="text-[11px] font-bold text-slate-700">Microsoft Azure</span>
+                    </div>
+                    <span class="flex items-center gap-1 text-[9px] font-black text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                        <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> Connected
+                    </span>
+                </div>
+
+                {{-- Docs --}}
+                <div class="pt-2 space-y-2">
+                    <button onclick="openModal('Privacy Policy','Your data is secured with end-to-end encryption and complies with global GDPR standards. No personal information is shared externally.','fa-shield-halved')"
+                            class="flex items-center justify-between w-full p-3 rounded-xl text-left transition-all hover:bg-slate-50"
+                            style="background:#F8FAFC;border:1px solid #F1F5F9">
+                        <div class="flex items-center gap-2">
+                            <i class="fa-regular fa-file-lines text-blue-500 text-sm"></i>
+                            <span class="text-[11px] font-bold text-slate-700">Privacy Policy (GDPR)</span>
+                        </div>
+                        <i class="fa-solid fa-chevron-right text-slate-300 text-[9px]"></i>
+                    </button>
+                    <button onclick="openModal('Data Usage Agreement','Your evaluation data is stored exclusively within your institution\'s private infrastructure. No analytics are sent to third parties.','fa-handshake')"
+                            class="flex items-center justify-between w-full p-3 rounded-xl text-left transition-all hover:bg-slate-50"
+                            style="background:#F8FAFC;border:1px solid #F1F5F9">
+                        <div class="flex items-center gap-2">
+                            <i class="fa-regular fa-handshake text-blue-500 text-sm"></i>
+                            <span class="text-[11px] font-bold text-slate-700">Data Usage Agreement</span>
+                        </div>
+                        <i class="fa-solid fa-chevron-right text-slate-300 text-[9px]"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        {{-- Support --}}
+        <div class="card fu" style="animation-delay:.1s">
+            <div class="px-5 py-4 border-b border-slate-100" style="background:linear-gradient(135deg,#FAFCFF,#F5F7FF)">
+                <div class="flex items-center gap-2">
+                    <div class="w-7 h-7 rounded-lg flex items-center justify-center text-indigo-600" style="background:#EEF2FF">
+                        <i class="fa-regular fa-circle-question text-xs"></i>
+                    </div>
+                    <h2 class="text-[13px] font-black text-slate-900">Support</h2>
+                </div>
+            </div>
+            <div class="p-5 space-y-3">
+                <button type="button" onclick="openSupport()"
+                        class="w-full flex items-center justify-center gap-2 text-[11px] font-black py-3 rounded-xl text-white transition-all"
+                        style="background:linear-gradient(135deg,#4F46E5,#2563EB);box-shadow:0 4px 14px rgba(79,70,229,.25)">
+                    <i class="fa-solid fa-headset"></i> Technical Support Helpdesk
+                </button>
+                <div class="grid grid-cols-2 gap-2">
+                    <button onclick="openModal('Help Center','Search documentation, explore guides, or submit tickets to the admin team.','fa-circle-info')"
+                            class="flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-[10px] font-bold transition-all hover:bg-slate-100"
+                            style="background:#F8FAFC;border:1px solid #F1F5F9;color:#475569">
+                        <i class="fa-solid fa-circle-info text-blue-500 text-xs"></i> Help Center
+                    </button>
+                    <button onclick="openModal('User Guides','Step-by-step manuals for managing questions, grading, and exporting results.','fa-book')"
+                            class="flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-[10px] font-bold transition-all hover:bg-slate-100"
+                            style="background:#F8FAFC;border:1px solid #F1F5F9;color:#475569">
+                        <i class="fa-solid fa-book text-blue-500 text-xs"></i> User Guides
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        {{-- System Alerts --}}
+        <div class="card fu" style="animation-delay:.14s">
+            <div class="px-5 py-4 border-b border-slate-100" style="background:linear-gradient(135deg,#FAFCFF,#F5F7FF)">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-2">
+                        <div class="w-7 h-7 rounded-lg flex items-center justify-center text-red-600" style="background:#FEF2F2">
+                            <i class="fa-solid fa-bell text-xs"></i>
+                        </div>
+                        <h2 class="text-[13px] font-black text-slate-900">System Alerts</h2>
+                    </div>
+                    <span class="text-[9px] font-black text-white bg-red-500 px-2 py-0.5 rounded-full">2</span>
+                </div>
+            </div>
+            <div class="p-5">
+                <div class="space-y-3">
+
+                    <div class="flex gap-3 p-3 rounded-xl" style="background:#FEF2F2;border:1px solid #FECACA">
+                        <div class="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 text-red-600" style="background:#FEE2E2">
+                            <i class="fa-solid fa-triangle-exclamation text-xs"></i>
+                        </div>
+                        <div>
+                            <p class="text-[11px] font-black text-red-900">Storage Quota Alert</p>
+                            <p class="text-[9px] text-red-600 font-medium mt-0.5">2 hours ago · Action required</p>
+                            <p class="text-[10px] text-red-700 font-medium mt-1">Storage is approaching 85% capacity.</p>
+                        </div>
+                    </div>
+
+                    <div class="flex gap-3 p-3 rounded-xl" style="background:#ECFDF5;border:1px solid #A7F3D0">
+                        <div class="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 text-emerald-600" style="background:#D1FAE5">
+                            <i class="fa-solid fa-shield-check text-xs"></i>
+                        </div>
+                        <div>
+                            <p class="text-[11px] font-black text-emerald-900">Security Audit Passed</p>
+                            <p class="text-[9px] text-emerald-600 font-medium mt-0.5">Yesterday · 0 threats detected</p>
+                            <p class="text-[10px] text-emerald-700 font-medium mt-1">All systems secure and operational.</p>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+
+        {{-- Danger zone --}}
+        <div class="card fu" style="animation-delay:.18s;border-color:#FECACA">
+            <div class="px-5 py-4 border-b" style="background:linear-gradient(135deg,#FFF5F5,#FEF2F2);border-color:#FECACA">
+                <div class="flex items-center gap-2">
+                    <div class="w-7 h-7 rounded-lg flex items-center justify-center text-red-600" style="background:#FEE2E2">
+                        <i class="fa-solid fa-skull-crossbones text-xs"></i>
+                    </div>
+                    <h2 class="text-[13px] font-black text-red-900">Danger Zone</h2>
+                </div>
+            </div>
+            <div class="p-5">
+                <p class="text-[10px] text-slate-500 mb-3 leading-relaxed">Permanently delete your account and all associated data. This action <strong>cannot</strong> be undone.</p>
+                <button type="button" onclick="confirmDelete()"
+                        class="flex items-center gap-1.5 text-[11px] font-black px-4 py-2 rounded-xl transition-all"
+                        style="background:#FEF2F2;border:1.5px solid #FECACA;color:#EF4444">
+                    <i class="fa-solid fa-trash text-[10px]"></i> Delete My Account
+                </button>
+            </div>
+        </div>
+
+    </div>{{-- /right col --}}
+    </div>{{-- /grid --}}
+
+    <div class="h-4"></div>
+    </div>{{-- /container --}}
+    </div>{{-- /scroll --}}
+</div>{{-- /main --}}
+</div>{{-- /flex wrapper --}}
+
+{{-- ── MODAL ── --}}
+<div id="M" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4"
+     style="background:rgba(15,23,42,.7);backdrop-filter:blur(4px)">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden mIn">
+        <div class="flex items-center gap-3 px-6 py-4 border-b border-slate-100" style="background:#FAFCFF">
+            <div class="w-9 h-9 rounded-xl flex items-center justify-center text-blue-600 flex-shrink-0" style="background:#EFF6FF">
+                <i id="mIcon" class="fa-solid fa-shield-halved text-sm"></i>
+            </div>
+            <div class="flex-1">
+                <h3 id="mTitle" class="text-[13px] font-black text-slate-900">Title</h3>
+                <p class="text-[9px] font-bold text-blue-600 uppercase tracking-widest mt-0.5">ExamSystem Document</p>
+            </div>
+            <button onclick="closeModal()" class="w-7 h-7 rounded-lg flex items-center justify-center text-slate-400 hover:bg-slate-100 transition-colors">
+                <i class="fa-solid fa-xmark text-sm"></i>
+            </button>
+        </div>
+        <div class="p-6">
+            <div class="rounded-xl p-4 max-h-64 overflow-y-auto" style="background:#F8FAFC;border:1.5px solid #F1F5F9">
+                <p id="mBody" class="text-[12px] text-slate-600 leading-relaxed font-medium"></p>
+            </div>
+        </div>
+        <div class="flex justify-end px-6 pb-5">
+            <button onclick="closeModal()"
+                    class="text-[11px] font-black px-5 py-2.5 rounded-xl text-white transition-all"
+                    style="background:linear-gradient(135deg,#1E293B,#0F172A);box-shadow:0 4px 12px rgba(0,0,0,.2)">
+                Acknowledged
+            </button>
+        </div>
     </div>
+</div>
 
-    <script>
-        const FALLBACK_DEFAULT_IMAGE = "https://api.dicebear.com/7.x/bottts/svg?seed=Alex";
+<div id="tbox"></div>
 
-        document.addEventListener("DOMContentLoaded", function() {
-            const isContrastActive = localStorage.getItem('high-contrast-enabled') === 'true';
-            const switchToggleBtn = document.getElementById('contrastToggleSwitch');
-            const toggleCircle = document.getElementById('switchNodeCircle');
-            
-            if (isContrastActive && switchToggleBtn && toggleCircle) {
-                switchToggleBtn.classList.replace('bg-gray-200', 'bg-blue-600');
-                toggleCircle.classList.replace('translate-x-0', 'translate-x-5');
-            }
-        });
+<script>
+// ── CLOCK ──
+(function tick(){ const el=document.getElementById('lc'); if(el) el.textContent=new Date().toLocaleTimeString('en-US',{hour12:false}); setTimeout(tick,1000); })();
 
-        function triggerAvatarUpload() {
-            document.getElementById('hiddenAvatarInput').click();
-        }
+// ── TOAST ──
+function toast(m,t='success'){
+    const c={success:'#10B981',info:'#4F46E5',warning:'#F59E0B',error:'#EF4444'};
+    const i={success:'fa-circle-check',info:'fa-circle-info',warning:'fa-triangle-exclamation',error:'fa-circle-xmark'};
+    const b=document.getElementById('tbox'),el=document.createElement('div');
+    el.className='toast';el.style.background=c[t];
+    el.innerHTML=`<i class="fa-solid ${i[t]}"></i>${m}`;
+    b.appendChild(el);
+    setTimeout(()=>{el.style.transition='all .3s';el.style.opacity='0';el.style.transform='translateY(8px)';setTimeout(()=>el.remove(),300)},3500);
+}
 
-        function previewUploadedAvatar(inputElement) {
-            if (inputElement.files && inputElement.files[0]) {
-                const fileReaderInstance = new FileReader();
-                fileReaderInstance.onload = function(eventResult) {
-                    const base64DataString = eventResult.target.result;
-                    document.getElementById('profileImageCanvas').src = base64DataString;
-                    document.getElementById('navAvatar').src = base64DataString;
-                    document.getElementById('removeAvatarFlag').value = "0";
-                };
-                fileReaderInstance.readAsDataURL(inputElement.files[0]);
-            }
-        }
+// ── AVATAR ──
+const FALLBACK = "https://api.dicebear.com/7.x/bottts/svg?seed={{ Auth::user()->full_name ?? 'I' }}";
+function previewAvatar(inp){
+    if(inp.files&&inp.files[0]){
+        const r=new FileReader();
+        r.onload=e=>{ document.getElementById('avatarPreview').src=e.target.result; document.getElementById('removeAvatarFlag').value='0'; };
+        r.readAsDataURL(inp.files[0]);
+    }
+}
+function removeAvatar(){
+    if(confirm('Remove your profile photo?')){
+        document.getElementById('avatarPreview').src=FALLBACK;
+        document.getElementById('avatarInput').value='';
+        document.getElementById('removeAvatarFlag').value='1';
+    }
+}
 
-        function removeProfileImage() {
-            if(confirm("Are you sure you want to clear your uploaded profile illustration avatar?")) {
-                document.getElementById('profileImageCanvas').src = FALLBACK_DEFAULT_IMAGE;
-                document.getElementById('navAvatar').src = FALLBACK_DEFAULT_IMAGE;
-                document.getElementById('hiddenAvatarInput').value = ""; 
-                document.getElementById('removeAvatarFlag').value = "1";
-            }
-        }
+// ── PASSWORD TOGGLE ──
+function togglePw(id,eyeId){
+    const inp=document.getElementById(id);
+    const eye=document.getElementById(eyeId);
+    if(inp.type==='password'){ inp.type='text'; eye.className='fa-solid fa-eye-slash text-xs'; }
+    else { inp.type='password'; eye.className='fa-solid fa-eye text-xs'; }
+}
 
-        function displayModalPopup(titleString, parameterDescriptionText, iconClassName = 'fa-shield-halved') {
-            document.getElementById('modalHeaderTitle').innerText = titleString;
-            document.getElementById('modalBodyText').innerText = parameterDescriptionText;
-            
-            const iconElement = document.getElementById('modalHeaderIcon');
-            if (iconElement) {
-                iconElement.className = `fa-solid ${iconClassName}`;
-            }
-            
-            const targetModal = document.getElementById('legalModalWrapper');
-            targetModal.classList.remove('hidden');
-            
-            setTimeout(() => {
-                targetModal.classList.remove('opacity-0');
-                targetModal.children[0].classList.remove('scale-95');
-            }, 20);
-        }
+// ── PASSWORD STRENGTH ──
+function checkStrength(v){
+    const bar=document.getElementById('strengthBar');
+    const lbl=document.getElementById('strengthLabel');
+    let sc=0;
+    if(v.length>=8)sc++;
+    if(/[A-Z]/.test(v))sc++;
+    if(/[0-9]/.test(v))sc++;
+    if(/[^A-Za-z0-9]/.test(v))sc++;
+    const lvl=['','Weak','Fair','Good','Strong'];
+    const col=['','#EF4444','#F59E0B','#3B82F6','#10B981'];
+    const pct=[0,25,50,75,100];
+    bar.style.width=pct[sc]+'%';
+    bar.style.background=col[sc];
+    lbl.textContent=lvl[sc];
+    lbl.style.color=col[sc];
+}
 
-        function dismissModalWindow() {
-            const targetModal = document.getElementById('legalModalWrapper');
-            targetModal.classList.add('opacity-0');
-            targetModal.children[0].classList.add('scale-95');
-            
-            setTimeout(() => {
-                targetModal.classList.add('hidden');
-            }, 220);
-        }
+// ── HIGH CONTRAST TOGGLE ──
+const savedContrast=localStorage.getItem('high-contrast-enabled')==='true';
+const togTrack=document.getElementById('togTrack');
+const togThumb=document.getElementById('togThumb');
+const contrastLabel=document.getElementById('contrastLabel');
+function applyContrastUI(on){
+    if(on){ togTrack.style.background='#4F46E5'; togThumb.style.transform='translateX(22px)'; contrastLabel.textContent='On'; }
+    else  { togTrack.style.background='#E2E8F0'; togThumb.style.transform='translateX(0)';   contrastLabel.textContent='Off'; }
+}
+applyContrastUI(savedContrast);
+function toggleContrast(){
+    const on=!document.documentElement.classList.contains('high-contrast-mode');
+    on ? document.documentElement.classList.add('high-contrast-mode') : document.documentElement.classList.remove('high-contrast-mode');
+    localStorage.setItem('high-contrast-enabled',on);
+    applyContrastUI(on);
+    toast(on?'High Contrast Mode enabled':'High Contrast Mode disabled','info');
+}
 
-        function toggleHighContrastTheme() {
-            const rootElement = document.documentElement;
-            const switchToggleBtn = document.getElementById('contrastToggleSwitch');
-            const toggleCircle = document.getElementById('switchNodeCircle');
+// ── MODAL ──
+function openModal(title,body,icon='fa-shield-halved'){
+    document.getElementById('mTitle').textContent=title;
+    document.getElementById('mBody').textContent=body;
+    document.getElementById('mIcon').className=`fa-solid ${icon} text-sm`;
+    document.getElementById('M').classList.remove('hidden');
+}
+function closeModal(){ document.getElementById('M').classList.add('hidden'); }
+document.getElementById('M').addEventListener('click',function(e){ if(e.target===this) closeModal(); });
 
-            if (rootElement.classList.contains('high-contrast-mode')) {
-                rootElement.classList.remove('high-contrast-mode');
-                localStorage.setItem('high-contrast-enabled', 'false');
-                
-                if(switchToggleBtn) switchToggleBtn.classList.replace('bg-blue-600', 'bg-gray-200');
-                if(toggleCircle) toggleCircle.classList.replace('translate-x-5', 'translate-x-0');
-            } else {
-                rootElement.classList.add('high-contrast-mode');
-                localStorage.setItem('high-contrast-enabled', 'true');
-                
-                if(switchToggleBtn) switchToggleBtn.classList.replace('bg-gray-200', 'bg-blue-600');
-                if(toggleCircle) toggleCircle.classList.replace('translate-x-0', 'translate-x-5');
-            }
-        }
+// ── SUPPORT ──
+function openSupport(){
+    const msg=prompt('Describe the issue you encountered:');
+    if(msg&&msg.trim()){
+        const id='#'+Math.floor(1000+Math.random()*9000);
+        toast(`Ticket ${id} submitted to helpdesk`,'success');
+    }
+}
 
-        function triggerTechnicalSupportAction() {
-            const userResponseSelection = prompt("Describe the layout bottleneck or terminal issue encountered below:");
-            if (userResponseSelection !== null && userResponseSelection.trim() !== "") {
-                alert("Ticket safely assigned to your internal evaluation help desk platform group under queue token identifier code ID #" + Math.floor(1000 + Math.random() * 9000));
-            }
-        }
-    </script>
+// ── DANGER ZONE ──
+function confirmDelete(){
+    if(confirm('⚠️ WARNING: This will permanently delete your account and all data. Are you absolutely sure?')){
+        toast('Account deletion request sent to admin','warning');
+    }
+}
+
+// ── SAVE FORM ──
+document.getElementById('profileForm').addEventListener('submit',function(e){
+    const btn=document.getElementById('saveBtn');
+    const icon=document.getElementById('saveBtnIcon');
+    const lbl=document.getElementById('saveBtnLabel');
+    icon.className='fa-solid fa-circle-notch spin';
+    lbl.textContent='Saving…';
+    btn.disabled=true;
+    btn.style.opacity='.8';
+    // Re-enable after submission (Laravel redirects, but just in case)
+    setTimeout(()=>{ icon.className='fa-solid fa-floppy-disk'; lbl.textContent='Save Changes'; btn.disabled=false; btn.style.opacity='1'; },3000);
+});
+</script>
 </body>
 </html>

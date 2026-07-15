@@ -10,7 +10,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Password; 
 use Illuminate\Support\Facades\Mail;     // For sending OTPs
 use Illuminate\Support\Facades\Cache;    // For storing OTPs temporarily
-use App\Mail\SuperAdminLoginCode;         // Our new Mail class
+use App\Mail\SuperAdminLoginCode;         // Our Mail class
 
 class AuthController extends Controller
 {
@@ -32,7 +32,6 @@ class AuthController extends Controller
         $fullName = $data['first_name'] . ' ' . $data['last_name'];
 
         // 2. Automate role detection matching the Institutional ID prefixes
-        // Converts to uppercase so inputs like "adm-5566-7788" work flawlessly too!
         $idPrefix = strtoupper($data['institutional_id']); 
 
         if (str_starts_with($idPrefix, 'ADM-')) {
@@ -80,20 +79,31 @@ class AuthController extends Controller
         // Uses manual hash check mapping cleanly against your custom column: 'password_hash'
         if ($user && Hash::check($request->password, $user->password_hash)) {
             
+            // Check if user role matches the request selection
             if ($user->role !== $request->role) {
                 return redirect()->back()
                     ->with('error', 'The selected role does not match your account type.')
                     ->withInput($request->only('email'));
             }
 
-            // Log the user context into the browser web state guard directly
+            // Prevent Super Admins from bypassing the secure 2FA workflow through this basic form
+            if ($user->role === 'super_admin') {
+                return redirect()->route('superadmin.login.page')
+                    ->with('error', 'Super Admin authentication requires a secure validation token. Please log in here.')
+                    ->withInput($request->only('email'));
+            }
+
+            // Log standard users into the browser web state guard directly
             Auth::guard('web')->login($user);
+            
+            // UPDATE TIMESTAMPS: Save the login checkpoint into the active profile
+            $user->last_login_at = now();
+            $user->save();
             
             $request->session()->regenerate();
 
             // Redirect user to their corresponding dynamic layout workspace names
             switch ($user->role) {
-                case 'super_admin':
                 case 'admin':
                     return redirect()->intended('/admin/dashboard');
                 case 'teacher':
@@ -123,7 +133,7 @@ class AuthController extends Controller
 
         $user = User::where('email', $request->email)->first();
 
-        // 👑 2. SUPER ADMIN CUSTOM RECOVERY FLOW (6-Digit OTP)
+        // SUPER ADMIN CUSTOM RECOVERY FLOW (6-Digit OTP)
         if ($user && $user->role === 'super_admin') {
             
             // Generate a random 6-digit code
@@ -142,7 +152,7 @@ class AuthController extends Controller
             return redirect()->route('superadmin.verify.page');
         }
 
-        // 🎓 3. NORMAL USERS FLOW (Standard Reset Link)
+        // NORMAL USERS FLOW (Standard Reset Link)
         $status = Password::broker()->sendResetLink($request->only('email'));
 
         if ($status === Password::RESET_LINK_SENT) {
@@ -200,18 +210,24 @@ class AuthController extends Controller
     */
 
     /**
-     * Generate OTP and send it via Email (Used by passwordless login submission or resends).
+     * FIXED: Removed password requirement and validation checks for passwordless workflow.
      */
     public function sendSuperAdminCode(Request $request)
     {
-        $request->validate(['email' => 'required|email']);
+        // Only validate the email input field and verify it exists in the database
+        $request->validate([
+            'email' => 'required|email|exists:users,email',
+        ]);
 
+        // Find user profile checking both email matching limits and super_admin privileges
         $user = User::where('email', $request->email)->where('role', 'super_admin')->first();
 
+        // Secure boundary fallback check if user is not a super_admin
         if (!$user) {
-            return back()->withErrors(['email' => 'Unauthorized. This email does not have Super Admin privileges.']);
+            return back()->withErrors(['email' => 'Unauthorized administrative credentials.'])->withInput();
         }
 
+        // Generate OTP token code, save it to the cache cache, and flash data to session state
         $otp = str_pad(random_int(0, 999999), 6, '0', STR_PAD_LEFT);
         Cache::put('superadmin_otp_' . $request->email, $otp, now()->addMinutes(5));
         Mail::to($request->email)->send(new SuperAdminLoginCode($otp));
@@ -221,32 +237,38 @@ class AuthController extends Controller
     }
 
     /**
-     * Verify the OTP and log the Super Admin in.
+     * Verify the OTP token and authenticate the Super Admin.
+     * FIXED: Normalized form parameter query match to fetch 'code' rather than 'verification_code'.
      */
     public function verifySuperAdminCode(Request $request)
     {
-        $request->validate(['verification_code' => 'required|string|size:6']);
+        $request->validate(['code' => 'required|string|size:6']);
 
         $email = session()->get('superadmin_attempt_email');
 
         if (!$email) {
-            return redirect()->route('login.page')->withErrors(['email' => 'Session expired. Please request a new code.']);
+            return redirect()->route('login.page')->withErrors(['email' => 'Authentication session has expired. Please log in again.']);
         }
 
         $cachedOtp = Cache::get('superadmin_otp_' . $email);
 
-        if ($cachedOtp && $cachedOtp === $request->verification_code) {
+        if ($cachedOtp && $cachedOtp === $request->code) {
             
             $user = User::where('email', $email)->first();
             Auth::guard('web')->login($user);
+            
+            // Log access timestamp marker
+            $user->last_login_at = now();
+            $user->save();
+            
             $request->session()->regenerate();
 
             Cache::forget('superadmin_otp_' . $email);
             session()->forget('superadmin_attempt_email');
 
-            return redirect()->route('admin.dashboard');
+            return redirect()->intended('/super-admin/dashboard');
         }
 
-        return back()->withErrors(['verification_code' => 'Invalid or expired code. Please try again.']);
+        return back()->withErrors(['code' => 'The system token code provided is invalid or has expired.']);
     }
 }

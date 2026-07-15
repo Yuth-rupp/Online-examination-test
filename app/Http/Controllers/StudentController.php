@@ -6,10 +6,14 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\DB; 
+use Illuminate\Support\Carbon; 
 use App\Models\Course;
 use App\Models\Enrollment;
 use App\Models\Exam;
 use App\Models\Submission;
+use App\Models\AuditLog; 
+use App\Events\StudentFrameSubmitted; 
 
 class StudentController extends Controller
 {
@@ -20,30 +24,29 @@ class StudentController extends Controller
     {
         $user = $request->user() ?? Auth::user();
 
-        // 1. Get distinct active course IDs the student is enrolled in
         $enrolledCourseIds = Enrollment::where('user_id', $user->user_id)
             ->where('status', 'active')
             ->pluck('course_id');
 
-        // 2. Count total exams assigned to those courses
-        $totalExams = Exam::whereIn('course_id', $enrolledCourseIds)->count();
+        $totalExams = Exam::whereIn('course_id', $enrolledCourseIds)
+            ->where('status', 'published')
+            ->count();
 
-        // 3. Count completed exams from submission tables
         $completedExams = Submission::where('user_id', $user->user_id)->count();
 
-        // 4. Fixed: Changed column mapping from 'score' to 'percentage' to resolve query exception
         $averageScore = Submission::where('user_id', $user->user_id)->avg('percentage') ?? 0;
 
-        // 5. Gather top 2 upcoming exams (where the start time is in the future)
-        $upcomingExams = Exam::with('course')
-            ->whereIn('course_id', $enrolledCourseIds)
-            ->where('start_time', '>', now())
-            ->where('status', 'published') // Filters out drafts safely
-            ->orderBy('start_time', 'asc')
-            ->take(2)
+        $submissions = Submission::with('exam')
+            ->where('user_id', $user->user_id)
+            ->orderBy('created_at', 'asc')
             ->get();
 
-        // 6. Look up an actively running live exam card session
+        $upcomingExams = Exam::with('course')
+            ->whereIn('course_id', $enrolledCourseIds)
+            ->where('status', 'published') 
+            ->orderBy('start_time', 'asc')
+            ->get();
+
         $liveExam = Exam::with('course')
             ->whereIn('course_id', $enrolledCourseIds)
             ->where('start_time', '<=', now())
@@ -51,7 +54,6 @@ class StudentController extends Controller
             ->where('status', 'published')
             ->first();
 
-        // Check if the request expects an application/json structure response instead
         if ($request->wantsJson()) {
             return response()->json([
                 'totalExams'     => $totalExams,
@@ -67,7 +69,8 @@ class StudentController extends Controller
             'completedExams',
             'averageScore',
             'upcomingExams',
-            'liveExam'
+            'liveExam',
+            'submissions'
         ));
     }
 
@@ -78,13 +81,11 @@ class StudentController extends Controller
     {
         $user = $request->user() ?? Auth::user();
 
-        // Get past graded exam performance logs for the history data table
         $submissions = Submission::with('exam.course')
             ->where('user_id', $user->user_id)
             ->orderBy('created_at', 'desc')
             ->get();
 
-        // Calculate current rank and historical averages dynamically using percentage column
         $averageScore = Submission::where('user_id', $user->user_id)->avg('percentage') ?? 0;
 
         return view('student.settings', compact('user', 'submissions', 'averageScore'));
@@ -101,12 +102,45 @@ class StudentController extends Controller
             'full_name' => 'required|string|max:255',
         ]);
 
-        // Updates user record fields directly
         $user->update([
             'full_name' => $data['full_name']
         ]);
 
         return redirect()->route('student.settings')->with('success', 'Profile updated successfully.');
+    }
+
+    /**
+     * Upload and update profile photo instantly with immediate asset preview paths.
+     */
+    public function uploadProfilePhoto(Request $request)
+    {
+        $request->validate([
+            'profile_photo' => 'required|image|mimes:jpeg,png,jpg,svg|max:2048',
+        ]);
+
+        $user = $request->user() ?? Auth::user();
+
+        if ($request->hasFile('profile_photo')) {
+            if ($user->profile_photo && Storage::disk('public')->exists($user->profile_photo)) {
+                Storage::disk('public')->delete($user->profile_photo);
+            }
+
+            $path = $request->file('profile_photo')->store('profile_photos', 'public');
+            
+            $user->update([
+                'profile_photo' => $path
+            ]);
+
+            if ($request->wantsJson()) {
+                return response()->json([
+                    'success' => true,
+                    'photo_url' => Storage::url($path),
+                    'message' => 'Profile avatar packet written safely to disk architecture.'
+                ]);
+            }
+        }
+
+        return redirect()->back()->with('success', 'Profile photo updated successfully.');
     }
 
     /**
@@ -152,28 +186,34 @@ class StudentController extends Controller
     }
 
     /**
-     * Get all available exams with their associated course details.
+     * Get all available exams paired with real-time submission metrics.
      */
     public function exams(Request $request)
     {
         $user = $request->user() ?? Auth::user();
 
-        // Pull active course IDs to filter exams relevant to this student's registration
         $enrolledCourseIds = Enrollment::where('user_id', $user->user_id)
             ->where('status', 'active')
             ->pluck('course_id');
 
-        $exams = Exam::with('course')
-            ->whereIn('course_id', $enrolledCourseIds)
-            ->get();
-
-        // If explicitly hitting the API or requesting JSON return collection parameters
-        if ($request->wantsJson() || $request->is('api/*')) {
-            return response()->json($exams);
+        if ($enrolledCourseIds->isNotEmpty()) {
+            $exams = Exam::with('course')
+                ->whereIn('course_id', $enrolledCourseIds)
+                ->get();
+        } else {
+            $exams = Exam::with('course')->get();
         }
 
-        // Fallback interface handler to load the native Blade template requested by your web routes
-        return view('student.exams', compact('exams'));
+        $submissions = Submission::where('user_id', $user->user_id)->get();
+
+        if ($request->wantsJson() || $request->is('api/*')) {
+            return response()->json([
+                'exams' => $exams,
+                'submissions' => $submissions
+            ]);
+        }
+
+        return view('student.exams', compact('exams', 'submissions'));
     }
 
     /**
@@ -192,12 +232,11 @@ class StudentController extends Controller
             return response()->json($submissions);
         }
 
-        // Serve history blade template view context securely
         return view('student.history', compact('submissions'));
     }
 
     /**
-     * Print-ready structural asset engine mapping method.
+     * Print-ready hall ticket reference generation.
      */
     public function printHallTicket(Request $request)
     {
@@ -206,7 +245,7 @@ class StudentController extends Controller
     }
 
     /**
-     * Validate incoming session access token parameters before entering proctoring phase.
+     * Validate incoming classroom authorization proctor parameters.
      */
     public function enterProctorRoom(Request $request)
     {
@@ -214,62 +253,77 @@ class StudentController extends Controller
             'access_code' => 'required|string',
         ]);
 
-        // Look up the active exam matching the single-use token code provided by the lecturer
         $exam = Exam::where('access_code', strtoupper(trim($request->access_code)))
             ->where('status', 'published')
             ->first();
 
         if (!$exam) {
             return redirect()->back()
-                ->with('error', 'Invalid exam access code. Please request the active token parameters from your lecturer.')
+                ->with('error', 'Invalid exam access code. Please check with your supervisor.')
                 ->withInput();
         }
 
-        // Keep a short-term check verification validation token in the session container memory
-        session()->put('validated_exam_id', $exam->id);
+        session()->put('validated_exam_id', $exam->exam_id);
 
-        return redirect()->route('student.exam.verification')
-            ->with('success', "Access Authorized for session: {$exam->title}");
+        return redirect()->route('student.exam.verification', ['code' => $exam->access_code])
+            ->with('success', "Access authorized for exam: {$exam->title}");
     }
 
-    /* --- ☎️ STUDENT DYNAMIC HELPDESK & SUPPORT FUNCTIONS --- */
-
     /**
-     * Display static support documentation guides along with dynamic history items.
+     * Render the isolation checkpoint verification holding area.
      */
+    public function showVerificationPage(Request $request)
+    {
+        $exams = Exam::with('course')->where('status', 'published')->get();
+        $sessionCode = strtoupper(trim($request->query('code')));
+        $exam = Exam::where('access_code', $sessionCode)->first();
+
+        return view('student.exam-room', compact('exams', 'exam'));
+    }
+
+    /* --- SUPPORT TICKETS SYSTEM --- */
+
     public function support()
     {
-        // Simulated structural data placeholders mapping closely to UI database schemas
-        $tickets = [
-            [
-                'ticket_no' => '#ASC-2409',
-                'subject' => 'Camera calibration error',
-                'status' => 'PENDING',
-                'updated_at' => 'Oct 24, 10:45 AM',
-                'description' => 'The proctoring system fails to calibrate my external webcam during biometric verification steps.'
-            ],
-            [
-                'ticket_no' => '#ASC-2391',
-                'subject' => 'Login credentials reset',
-                'status' => 'RESOLVED',
-                'updated_at' => 'Oct 22, 2:15 PM',
-                'description' => 'Requested password recovery linkage context synchronization due to faculty domain migration changes.'
-            ],
-            [
-                'ticket_no' => '#ASC-2102',
-                'subject' => 'Mock exam results missing',
-                'status' => 'RESOLVED',
-                'updated_at' => 'Sep 15, 9:00 AM',
-                'description' => 'The system summary metrics dashboard returned a blank layout matrix upon terminating the DBMS trial session.'
-            ]
-        ];
+        $userEmail = auth()->user()->email ?? 'phatyuthyou9@gmail.com';
+
+        $tickets = DB::table('support_tickets')
+            ->where('reporter_email', $userEmail)
+            ->where('status', '!=', 'resolved')
+            ->orderBy('created_at', 'desc')
+            ->get()
+            ->map(function ($t) {
+                return [
+                    'ticket_id' => $t->ticket_id,
+                    'ticket_no' => $t->ticket_no,
+                    'subject' => $t->issue_category,
+                    'status' => strtoupper($t->status === 'in_progress' ? 'investigating' : $t->status),
+                    'updated_at' => \Carbon\Carbon::parse($t->updated_at)->diffForHumans(),
+                    'description' => $t->description,
+                    'screenshot' => $t->screenshot,
+                    'admin_comment' => $t->admin_comment
+                ];
+            });
 
         return view('student.support', compact('tickets'));
     }
 
-    /**
-     * Process real-time helpdesk queries payloads and compile image download channels securely.
-     */
+    public function pollSupportNotifications()
+    {
+        $userEmail = auth()->user()->email ?? 'phatyuthyou9@gmail.com';
+
+        $notifications = DB::table('support_tickets')
+            ->where('reporter_email', $userEmail)
+            ->where('status', '=', 'resolved')
+            ->orderBy('updated_at', 'desc')
+            ->get();
+
+        return response()->json([
+            'count' => $notifications->count(),
+            'resolved_items' => $notifications
+        ]);
+    }
+
     public function storeSupportTicket(Request $request)
     {
         $validated = $request->validate([
@@ -284,15 +338,241 @@ class StudentController extends Controller
             $screenshotPath = Storage::url($path);
         }
 
-        // Returns reactive dynamic state models instantly back to your front-facing layout framework 
-        return response()->json([
-            'status' => 'success',
-            'ticket_no' => '#ASC-' . rand(3000, 9999),
-            'subject' => $validated['subject'],
+        $ticketNo = 'SUP-' . rand(4000, 9999);
+        
+        $reporterName = auth()->user()->full_name ?? 'You Phatyuth';
+        $reporterEmail = auth()->user()->email ?? 'phatyuthyou9@gmail.com';
+
+        DB::table('support_tickets')->insert([
+            'ticket_no' => $ticketNo,
+            'reporter_name' => $reporterName,
+            'reporter_email' => $reporterEmail,
+            'user_type' => 'student',
+            'issue_category' => $validated['subject'],
             'description' => $validated['description'],
+            'priority' => 'high',
+            'status' => 'pending', 
             'screenshot' => $screenshotPath,
-            'status_badge' => 'PENDING',
-            'updated_at' => now()->format('M d, h:i A')
+            'admin_comment' => null,
+            'created_at' => now(),
+            'updated_at' => now(),
         ]);
+
+        $ticket = new \stdClass();
+        $ticket->ticket_no = $ticketNo;
+        $ticket->subject = $validated['subject'];
+        $ticket->description = $validated['description'];
+        $ticket->screenshot = $screenshotPath;
+        $ticket->urgency = 'High (Technical)';
+        $ticket->created_at = now()->format('h:i A');
+
+        return view('student.confirm_support', compact('ticket'));
+    }
+
+    /* --- CORE ASSIGNMENT CARD ACTIONS --- */
+
+    public function showExamDetails($id)
+    {
+        $exam = Exam::with('course')->findOrFail($id);
+        return view('student.exams.show_details', compact('exam'));
+    }
+
+    public function enterExamInterface($id)
+    {
+        $exam = Exam::with(['course', 'questions'])->findOrFail($id);
+        $user = Auth::user();
+
+        if (now()->lt(Carbon::parse($exam->start_time)) || now()->gt(Carbon::parse($exam->end_time))) {
+            return redirect()->route('student.exams')->with('error', 'This assessment pipeline environment is currently closed.');
+        }
+
+        return view('student.exams.live_workspace', compact('exam', 'user'));
+    }
+
+    /**
+     * Render the custom student feedback report tracking metrics.
+     */
+    public function viewExamFeedback($id)
+    {
+        $user = Auth::user();
+        
+        /* 🛠️ FIXED: Queries precisely by individual submission key to handle multi-attempt rows */
+        $submission = Submission::with('exam.course')
+            ->where('id', $id) 
+            ->where('user_id', $user->user_id)
+            ->firstOrFail();
+
+        return view('student.setting_feedback_report', compact('submission'));
+    }
+
+    public function startExamSession($id)
+    {
+        $exam = Exam::with(['course', 'questions'])->findOrFail($id);
+        $now = now();
+        
+        $start = $exam->start_time ? Carbon::parse($exam->start_time) : $now->copy();
+        
+        if ($exam->end_time) {
+            $end = Carbon::parse($exam->end_time);
+        } else {
+            $durationMinutes = $exam->duration ?? 120; 
+            $end = $start->copy()->addMinutes($durationMinutes);
+        }
+
+        if ($now->gt($end)) {
+            return redirect()->route('student.dashboard')->with('error', 'This assessment session window has closed.');
+        }
+
+        $secondsRemaining = $now->diffInSeconds($end, false);
+        if ($secondsRemaining < 0) { $secondsRemaining = 0; }
+
+        return view('student.live-test', compact('exam', 'secondsRemaining'));
+    }
+
+    public function logProctorViolation(Request $request)
+    {
+        $request->validate([
+            'exam_id' => 'required|string',
+            'strike'  => 'required|integer',
+        ]);
+
+        $user = Auth::user();
+
+        AuditLog::create([
+            'user_id'        => $user->id ?? $user->user_id,
+            'institution_id' => $user->institution_id ?? null,
+            'action'         => 'tab_switch_violation',
+            'model_type'     => 'App\Models\Exam',
+            'model_id'       => $request->input('exam_id'),
+            'payload'        => [
+                'strike_count' => $request->input('strike'),
+                'message'      => "Student shifted window focus away from active browser proctor environment."
+            ],
+            'ip_address'     => $request->ip(),
+            'created_at'     => now(),
+        ]);
+
+        return response()->json(['status' => 'success', 'logged' => true]);
+    }
+
+    public function streamProctorFrame(Request $request)
+    {
+        $request->validate([
+            'image_frame' => 'required|string'
+        ]);
+
+        $user = Auth::user();
+        $studentName = $user->full_name ?? 'Student';
+
+        broadcast(new StudentFrameSubmitted($studentName, $request->input('image_frame')))->toOthers();
+
+        return response()->json(['status' => 'success', 'broadcasted' => true]);
+    }
+
+    /**
+     * Process, auto-grade, and save completed student examination answers.
+     *
+     * FIXES APPLIED:
+     * 1. Reads answers from both 'questions' AND 'answers' field names (handles
+     *    whatever field name the student exam JS sends).
+     * 2. Correct answer key now reads $question->correct_option (matches addQuestion()).
+     *    Previously read ->correct_answer / ->answer which are always null.
+     * 3. Stores answers in submission_answers so GradingController can display them.
+     */
+    public function storeExamSubmission(Request $request)
+    {
+        $user   = Auth::user();
+        $examId = $request->input('exam_id');
+
+        $exam = Exam::with('questions')->findOrFail($examId);
+
+        // ✅ FIX 1: Accept answers from EITHER field name the JS may send
+        $submittedAnswers = $request->input('questions',
+                           $request->input('answers', []));
+
+        $totalQuestions        = $exam->questions->count();
+        $correctCount          = 0;
+        $requiresManualGrading = false;
+
+        foreach ($exam->questions as $question) {
+            $chosenOption = $submittedAnswers[$question->id] ?? null;
+
+            $qType = strtoupper($question->type ?? 'MCQ');
+
+            if ($qType === 'ESSAY') {
+                $requiresManualGrading = true;
+                continue;
+            }
+
+            // ✅ FIX 2: Use correct_option — that's what addQuestion() saves.
+            //    Old code used ->correct_answer ?? ->answer which are always null.
+            $correctAnswerKey = $question->correct_option;
+
+            if ($chosenOption !== null && $correctAnswerKey !== null) {
+                $studentStr = strtolower(trim(
+                    is_array($chosenOption) ? implode(',', $chosenOption) : (string)$chosenOption
+                ));
+                $correctStr = strtolower(trim(
+                    is_array($correctAnswerKey) ? implode(',', $correctAnswerKey) : (string)$correctAnswerKey
+                ));
+
+                if ($studentStr === $correctStr) {
+                    $correctCount++;
+                }
+            }
+        }
+
+        $mcqCount  = $exam->questions->where('type', 'MCQ')->count()
+                   + $exam->questions->where('type', 'True/False')->count();
+        $percentage = $mcqCount > 0 ? round(($correctCount / $mcqCount) * 100, 2) : 0;
+
+        // Upsert exam_sessions row
+        $activeSessionId = DB::table('exam_sessions')
+            ->where('exam_id', $exam->exam_id)
+            ->where('user_id', $user->user_id)
+            ->value('id');
+
+        if (!$activeSessionId) {
+            $activeSessionId = DB::table('exam_sessions')->insertGetId([
+                'exam_id'    => $exam->exam_id,
+                'user_id'    => $user->user_id,
+                'status'     => 'completed',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        }
+
+        // Create submission record
+        $submission = Submission::create([
+            'user_id'     => $user->user_id,
+            'exam_id'     => $exam->exam_id,
+            'session_id'  => $activeSessionId,
+            'started_at'  => now(),
+            'total_score' => $correctCount,
+            'percentage'  => $percentage,
+            'status'      => $requiresManualGrading ? 'pending_grading' : 'graded',
+            'created_at'  => now(),
+        ]);
+
+        // ✅ FIX 3: Save every submitted answer to submission_answers
+        //    GradingController::show() reads this table to display student answers.
+        foreach ($submittedAnswers as $qId => $answerValue) {
+            DB::table('submission_answers')->insert([
+                'submission_id' => $submission->id,
+                'question_id'   => $qId,
+                'answer_text'   => is_array($answerValue)
+                                    ? implode(',', $answerValue)
+                                    : (string) $answerValue,
+                'created_at'    => now(),
+            ]);
+        }
+
+        return redirect()->route('student.exams.success', ['id' => $submission->id]);
+    }
+
+    public function showExamSuccess($id)
+    {
+        $submission = Submission::with('exam.course')->findOrFail($id);
+        return view('student.exam_success', compact('submission'));
     }
 }

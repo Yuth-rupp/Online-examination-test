@@ -4,119 +4,116 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use App\Models\Submission;
+use App\Models\Exam;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Auth;
 
 class GradingController extends Controller
 {
     /**
-     * Display the main interactive workspace grading layout dashboard sheet form.
-     *
-     * @param  int  $submission_id
-     * @return \Illuminate\View\View
+     * Show the Master Queue overview page.
      */
-    public function show($submission_id)
+    public function queueIndex(Request $request)
     {
-        // 1. Fetch the exact single submission matching the requested profile path target
-        // Updated to explicitly look up via submission entry ID to protect route stability
-        $submission = Submission::with('student')->findOrFail($submission_id);
+        $submissions = Submission::with(['student', 'exam.course'])
+            ->orderBy('created_at', 'desc')
+            ->get();
 
-        // 2. Locate the sequential sorting boundaries for Previous and Next pagination hooks
-        $prev = Submission::where('exam_id', $submission->exam_id)
-            ->where('id', '<', $submission->id)
-            ->orderBy('id', 'desc')
-            ->first();
-
-        $next = Submission::where('exam_id', $submission->exam_id)
-            ->where('id', '>', $submission->id)
-            ->orderBy('id', 'asc')
-            ->first();
-
-        // 3. Render the interactive workspace panel form layer passing data states
-        return view('teacher.grading', compact('submission', 'prev', 'next'));
+        return view('teacher.grading_queue', compact('submissions'));
     }
 
     /**
-     * Process grading parameters form post array validation and handle persistence data operations.
+     * Display the individual student evaluation paper workspace.
      *
-     * @param  \Illuminate\Http\Request  $request
-     * @param  int  $submission_id
-     * @return \Illuminate\Http\RedirectResponse
+     * FIX: Now loads submission_answers so the blade can show what
+     *      the student selected vs the correct answer.
+     */
+    public function show($id)
+    {
+        $submission = Submission::with(['student', 'exam.questions', 'exam.course'])
+            ->where('id', $id)
+            ->firstOrFail();
+
+        // ✅ FIX: Load student's saved answers keyed by question_id
+        //    Without this, the blade has no data → shows "Not answered" for everything.
+        $submissionAnswers = DB::table('submission_answers')
+            ->where('submission_id', $submission->id)
+            ->pluck('answer_text', 'question_id');
+        //  $submissionAnswers is now a Collection like:
+        //  { "5": "A", "6": "TRUE", "7": "Some essay text..." }
+
+        $prev = Submission::where('id', '<', $submission->id)->orderBy('id', 'desc')->first();
+        $next = Submission::where('id', '>', $submission->id)->orderBy('id', 'asc')->first();
+
+        return view('teacher.grading.evaluate',
+            compact('submission', 'prev', 'next', 'submissionAnswers'));
+    }
+
+    /**
+     * Save the evaluated grade scores back to database storage tables.
      */
     public function store(Request $request, $submission_id)
     {
-        // 1. Validate form fields parameters coming from the user range sliders and feedback field
+        $submission = Submission::findOrFail($submission_id);
+
         $validated = $request->validate([
             'accuracy' => 'required|integer|min:0|max:10',
             'depth'    => 'required|integer|min:0|max:10',
             'clarity'  => 'required|integer|min:0|max:5',
-            'feedback' => 'nullable|string|max:1000',
-            'action'   => 'required|string|in:save,save_next'
+            'feedback' => 'nullable|string',
         ]);
 
-        // 2. Find matching model record data entity securely
-        $submission = Submission::findOrFail($submission_id);
+        // Read the hidden auto_score calculated inside the view layout context
+        $autoScore = (int)$request->input('auto_score', 0);
+        
+        $manualScore = (int)$validated['accuracy'] + (int)$validated['depth'] + (int)$validated['clarity'];
+        $finalScore = $autoScore + $manualScore;
+        $percentage = round(($finalScore / 40) * 100, 2);
 
-        // 3. Process score summation counters mappings 
-        $totalScore = $validated['accuracy'] + $validated['depth'] + $validated['clarity'];
-
-        // 4. Update the database record attributes cleanly
+        // Synchronize rubric metrics and save notes directly to feedback column
         $submission->update([
-            'accuracy_score' => $validated['accuracy'],
-            'depth_score'    => $validated['depth'],
-            'clarity_score'  => $validated['clarity'],
-            'total_score'    => $totalScore,
-            'feedback'       => $validated['feedback'],
-            'status'         => 'graded', // Updates state to flag assignment completion progress counters
+            'accuracy_score'   => $validated['accuracy'],
+            'depth_score'      => $validated['depth'],
+            'clarity_score'    => $validated['clarity'],
+            'total_score'      => $finalScore,
+            'percentage'       => $percentage,
+            'status'           => 'graded',
+            'teacher_feedback' => $validated['feedback'] ?? null, // Fixed mapping to look up model parameter label configuration exactly
+            'graded_by'        => Auth::id(),
+            'graded_at'        => now()
         ]);
 
-        // 5. If "Save & Next" was selected, send them to the intermediate confirmation/preview view layout
-        if ($validated['action'] === 'save_next') {
-            return redirect()->route('teacher.grading.success', $submission->id);
+        // Route fallback action check triggers redirect parameters with accurate explicit signature names
+        if ($request->input('action') === 'save_next') {
+            $next = Submission::where('id', '>', $submission->id)->orderBy('id', 'asc')->first();
+            if ($next) {
+                return redirect()->route('teacher.grading.show', ['id' => $next->id]);
+            }
         }
 
-        // Otherwise, reload current worksheet form with standard success popups alerts state
-        return redirect()->back()->with('success', 'Grade Saved Successfully!');
+        return redirect()->route('teacher.grading.queue')->with('success', 'Grading session updated successfully.');
     }
 
     /**
-     * Stream confirmation preview summary milestone layouts showing grading speed metrics tracking counters.
-     *
-     * @param  int  $submission_id
-     * @return \Illuminate\View\View
+     * Success landing after grading milestone completions.
      */
     public function success($submission_id)
     {
-        // 1. Fetch the exact single entity that was just evaluated with its student profile mapping
-        $lastGraded = Submission::with('student')->findOrFail($submission_id);
-
-        // 2. Fetch the immediate next pending student submission matching the exact same exam tree layout queue
+        $lastGraded = Submission::with('student', 'exam.course')->findOrFail($submission_id);
+        
         $nextStudent = Submission::with('student')
             ->where('exam_id', $lastGraded->exam_id)
-            ->where('id', '>', $lastGraded->id)
+            ->where('status', 'pending_grading')
             ->orderBy('id', 'asc')
             ->first();
 
-        // 3. Aggregate tracking statistics variables dynamically matching current status parameters
         $totalStudents = Submission::where('exam_id', $lastGraded->exam_id)->count();
-        
-        $completedCount = Submission::where('exam_id', $lastGraded->exam_id)
-            ->where('status', 'graded')
-            ->count();
-
+        $completedCount = Submission::where('exam_id', $lastGraded->exam_id)->where('status', 'graded')->count();
         $remainingCount = $totalStudents - $completedCount;
-        
-        $progressPercentage = $totalStudents > 0 
-            ? round(($completedCount / $totalStudents) * 100) 
-            : 0;
+        $progressPercentage = $totalStudents > 0 ? round(($completedCount / $totalStudents) * 100) : 0;
 
-        // 4. Send metrics payloads down to your beautifully styled confirmation view file layout
         return view('teacher.grading_confirmation', compact(
-            'lastGraded', 
-            'nextStudent', 
-            'totalStudents', 
-            'completedCount', 
-            'remainingCount', 
-            'progressPercentage'
+            'lastGraded', 'nextStudent', 'totalStudents', 'completedCount', 'remainingCount', 'progressPercentage'
         ));
     }
 }
