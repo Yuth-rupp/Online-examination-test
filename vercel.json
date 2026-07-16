@@ -16,5 +16,9 @@
             "dest": "/api/index.php"
         }
     ],
-    "outputDirectory": "public"
+    "outputDirectory": "public",
+    "env": {
+        "APP_STORAGE": "/tmp",
+        "VIEW_COMPILED_PATH": "/tmp/views"
+    }
 }
