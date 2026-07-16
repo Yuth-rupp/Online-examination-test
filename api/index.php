@@ -1,7 +1,5 @@
 <?php
 
-use Illuminate\Http\Request;
-
 // Forward static file requests straight to the public folder
 if (php_sapi_name() !== 'cli') {
     $uri = urldecode(parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH) ?? '');
@@ -10,16 +8,20 @@ if (php_sapi_name() !== 'cli') {
     }
 }
 
-define('LARAVEL_START', microtime(true));
+// Boot up Laravel framework
+require __DIR__ . '/../vendor/autoload.php';
+$app = require_once __DIR__ . '/../bootstrap/app.php';
 
-// Register the Composer autoloader...
-require __DIR__.'/../vendor/autoload.php';
-
-// Bootstrap Laravel and handle the request...
-$app = require_once __DIR__.'/../bootstrap/app.php';
-
-// Clear application internal state configs dynamically for Vercel
+// Force Vercel to use its own writable temporary storage
 $app->useStoragePath('/tmp');
 
-// Handle the incoming request (Laravel 11 syntax)
-$app->handleRequest(Request::capture());
+// Run the Laravel 10 Kernel
+$kernel = $app->make(Illuminate\Contracts\Http\Kernel::class);
+
+$response = $kernel->handle(
+    $request = Illuminate\Http\Request::capture()
+);
+
+$response->send();
+
+$kernel->terminate($request, $response);
