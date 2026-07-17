@@ -206,9 +206,9 @@ Route::middleware(['auth', 'role:super_admin'])->prefix('super-admin')->group(fu
     Route::get('/reports/departments',  [SuperAdminController::class, 'getReportsDepartmentDataApi'])->name('superadmin.reports.departments');
     Route::get('/reports/live',         [SuperAdminController::class, 'getReportsLiveCountersApi'])->name('superadmin.reports.live');
     Route::get('/backups',              [SuperAdminController::class, 'backups'])->name('superadmin.backups.index');
-    Route::post('/backups/trigger',     [SuperAdminController::class, 'updateSettings'])->name('admin.backup.trigger');
+    Route::post('/backups/trigger',     [SuperAdminController::class, 'updateSettings'])->name('superadmin.backup.trigger');
     Route::post('/backups/{id}/restore',[SuperAdminController::class, 'forceEndExam']);
-    Route::get('/backup-api-stream',    [SuperAdminController::class, 'getLiveActivityFeedApi'])->name('admin.backup.api');
+    Route::get('/backup-api-stream',    [SuperAdminController::class, 'getLiveActivityFeedApi'])->name('superadmin.backup.api');
     Route::get('/audit-logs',           [SuperAdminController::class, 'auditLogs'])->name('superadmin.audit-logs.index');
     Route::get('/audit-logs/export',    [SuperAdminController::class, 'exportAuditLogsCsv'])->name('superadmin.audit-logs.export');
 

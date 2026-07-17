@@ -687,7 +687,7 @@ function mockSnapshots(){
 // ============================================================
 async function fetchBackupTelemetry(){
     try{
-        const res=await fetch("{{ route('admin.backup.api') }}",{headers:{'Accept':'application/json'}});
+        const res=await fetch("{{ route('superadmin.backup.api') }}",{headers:{'Accept':'application/json'}});
         if(res.ok){
             const data=await res.json();
             if(data.snapshots)  allSnapshots=data.snapshots;
@@ -719,7 +719,7 @@ async function executeManualBackup(){
     text.textContent='Creating snapshot...';
 
     try{
-        const res=await fetch("{{ route('admin.backup.trigger') }}",{
+        const res=await fetch("{{ route('superadmin.backup.trigger') }}",{
             method:'POST',
             headers:{'X-CSRF-TOKEN':CSRF,'Accept':'application/json'}
         });
