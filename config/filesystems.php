@@ -30,21 +30,48 @@ return [
 
     'disks' => [
 
+        // NOTE: On Vercel, storage_path() is forced to /tmp (see api/index.php),
+        // which is wiped after every request/cold start. Anything saved to the
+        // 'local' or 'public' disks (profile photos, exam screenshots, backups)
+        // would vanish immediately. Set FILESYSTEM_LOCAL_DRIVER=s3 and
+        // FILESYSTEM_PUBLIC_DRIVER=s3 in Vercel's env vars to route these disks
+        // to Cloudflare R2 (or any S3-compatible bucket) instead. Local dev is
+        // unaffected since those env vars default to 'local'.
         'local' => [
-            'driver' => 'local',
-            'root' => storage_path('app/private'),
+            'driver' => env('FILESYSTEM_LOCAL_DRIVER', 'local'),
+            'root' => env('FILESYSTEM_LOCAL_DRIVER', 'local') === 's3'
+                ? 'private'
+                : storage_path('app/private'),
             'serve' => true,
             'throw' => false,
             'report' => false,
+            // S3/R2 keys below are only used when driver is 's3'
+            'key' => env('AWS_ACCESS_KEY_ID'),
+            'secret' => env('AWS_SECRET_ACCESS_KEY'),
+            'region' => env('AWS_DEFAULT_REGION', 'auto'),
+            'bucket' => env('AWS_BUCKET'),
+            'endpoint' => env('AWS_ENDPOINT'),
+            'use_path_style_endpoint' => env('AWS_USE_PATH_STYLE_ENDPOINT', true),
         ],
 
         'public' => [
-            'driver' => 'local',
-            'root' => storage_path('app/public'),
-            'url' => rtrim(env('APP_URL', 'http://localhost'), '/').'/storage',
+            'driver' => env('FILESYSTEM_PUBLIC_DRIVER', 'local'),
+            'root' => env('FILESYSTEM_PUBLIC_DRIVER', 'local') === 's3'
+                ? 'public'
+                : storage_path('app/public'),
+            'url' => env('FILESYSTEM_PUBLIC_DRIVER', 'local') === 's3'
+                ? env('AWS_URL')
+                : rtrim(env('APP_URL', 'http://localhost'), '/').'/storage',
             'visibility' => 'public',
             'throw' => false,
             'report' => false,
+            // S3/R2 keys below are only used when driver is 's3'
+            'key' => env('AWS_ACCESS_KEY_ID'),
+            'secret' => env('AWS_SECRET_ACCESS_KEY'),
+            'region' => env('AWS_DEFAULT_REGION', 'auto'),
+            'bucket' => env('AWS_BUCKET'),
+            'endpoint' => env('AWS_ENDPOINT'),
+            'use_path_style_endpoint' => env('AWS_USE_PATH_STYLE_ENDPOINT', true),
         ],
 
         's3' => [

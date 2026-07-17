@@ -530,7 +530,7 @@
       window.Echo = new Echo({
         broadcaster: 'pusher',
         key: 'examsystemkeyabc123',
-        wsHost: '127.0.0.1',
+        wsHost: '{{ config("broadcasting.connections.reverb.options.host", "127.0.0.1") }}',
         wsPort: 8080,
         cluster: 'mt1',
         forceTLS: false,
