@@ -535,10 +535,6 @@
               score: undefined
             },
             @endforeach
-          @else
-            { id: '26', title: 'Database Systems', code: 'DAT-464', dept: 'Database Department', date: 'Jul 09, 2026', time: '02:07 AM', duration: '100 mins', durationMins: 100, startTimeRaw: '2026-07-09 02:07:00', endTimeRaw: '2026-07-09 03:47:00', isSubmittedByStudent: true, status: 'completed', countdown: '', progressPct: 100, score: 87 },
-            { id: '27', title: 'Physics Mechanics', code: 'PHY-101', dept: 'Physics Department', date: 'Jul 16, 2026', time: '09:00 AM', duration: '90 mins', durationMins: 90, startTimeRaw: '2026-07-16 09:00:00', endTimeRaw: '2026-07-16 10:30:00', isSubmittedByStudent: false, status: 'upcoming', countdown: '', progressPct: 0, score: undefined },
-            { id: '28', title: 'Calculus II', code: 'MTH-202', dept: 'Mathematics Department', date: 'Jul 18, 2026', time: '02:00 PM', duration: '120 mins', durationMins: 120, startTimeRaw: '2026-07-18 14:00:00', endTimeRaw: '2026-07-18 16:00:00', isSubmittedByStudent: false, status: 'upcoming', countdown: '', progressPct: 0, score: undefined }
           @endif
         ],
 
