@@ -630,10 +630,6 @@
               },
               @endif
             @endforeach
-          @else
-            { id: '1', title: 'Database Systems', code: 'DAT-464', score: 88, maxScore: 100, percentage: 88, grade: 'A', percentile: 'Top 5%', submittedAt: 'Jul 09, 2026' },
-            { id: '2', title: 'Physics Mechanics', code: 'PHY-101', score: 74, maxScore: 100, percentage: 74, grade: 'B+', percentile: 'Top 12%', submittedAt: 'Jun 25, 2026' },
-            { id: '3', title: 'Calculus II', code: 'MTH-202', score: 62, maxScore: 100, percentage: 62, grade: 'C', percentile: 'Top 26%', submittedAt: 'Jun 10, 2026' }
           @endif
         ],
 
