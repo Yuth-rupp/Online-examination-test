@@ -196,13 +196,9 @@ class StudentController extends Controller
             ->where('status', 'active')
             ->pluck('course_id');
 
-        if ($enrolledCourseIds->isNotEmpty()) {
-            $exams = Exam::with('course')
-                ->whereIn('course_id', $enrolledCourseIds)
-                ->get();
-        } else {
-            $exams = Exam::with('course')->get();
-        }
+        $exams = Exam::with('course')
+            ->whereIn('course_id', $enrolledCourseIds)
+            ->get();
 
         $submissions = Submission::where('user_id', $user->user_id)->get();
 
