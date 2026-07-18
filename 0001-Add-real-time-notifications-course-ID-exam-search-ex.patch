@@ -1,0 +1,1145 @@
+From 757bfe3b526768fff76d88e8d3c2c7d685b21cc8 Mon Sep 17 00:00:00 2001
+From: Student <student@example.com>
+Date: Sat, 18 Jul 2026 15:45:02 +0000
+Subject: [PATCH] Add real-time notifications, course-ID exam search,
+ exam-publish alerts
+
+- Add missing NotificationController (routes referenced it but it never existed)
+- Add UserNotificationCreated broadcast event + NotificationObserver for
+  automatic real-time push on any Notification::create()
+- Fix routes/channels.php auth bug (User primary key is user_id, not id)
+- Add shared notification bell/dropdown partials, wire into Dashboard,
+  History, Exams (Settings already had it, added live push there too)
+- Exams page: search now matches course ID; fixed course_name bug
+  (Course model field is actually 'name'); added ?course_id= server filter
+- TeacherController: notify enrolled students in real time when an exam
+  is published
+- StudentController: notify student when profile photo upload succeeds
+- Add missing csrf-token meta tag to support.blade.php
+---
+ app/Events/UserNotificationCreated.php        |  58 +++++
+ .../Controllers/NotificationController.php    | 106 +++++++++
+ app/Http/Controllers/StudentController.php    |  40 +++-
+ app/Http/Controllers/TeacherController.php    |  36 +++
+ app/Observers/NotificationObserver.php        |  21 ++
+ app/Providers/AppServiceProvider.php          |   6 +
+ .../partials/notification-bell.blade.php      |  43 ++++
+ .../partials/notification-realtime.blade.php  | 216 ++++++++++++++++++
+ .../partials/notification-styles.blade.php    |  13 ++
+ resources/views/student/exams.blade.php       |  25 +-
+ resources/views/student/history.blade.php     |   9 +-
+ resources/views/student/settings.blade.php    | 141 ++++++++----
+ .../views/student/student_dashboard.blade.php |  10 +-
+ resources/views/student/support.blade.php     |   1 +
+ routes/channels.php                           |  12 +-
+ routes/web.php                                |   8 +
+ 16 files changed, 668 insertions(+), 77 deletions(-)
+ create mode 100644 app/Events/UserNotificationCreated.php
+ create mode 100644 app/Http/Controllers/NotificationController.php
+ create mode 100644 app/Observers/NotificationObserver.php
+ create mode 100644 resources/views/partials/notification-bell.blade.php
+ create mode 100644 resources/views/partials/notification-realtime.blade.php
+ create mode 100644 resources/views/partials/notification-styles.blade.php
+
+diff --git a/app/Events/UserNotificationCreated.php b/app/Events/UserNotificationCreated.php
+new file mode 100644
+index 0000000..9f53551
+--- /dev/null
++++ b/app/Events/UserNotificationCreated.php
+@@ -0,0 +1,58 @@
++<?php
++
++namespace App\Events;
++
++use App\Models\Notification;
++use Illuminate\Broadcasting\PrivateChannel;
++use Illuminate\Broadcasting\InteractsWithSockets;
++use Illuminate\Contracts\Broadcasting\ShouldBroadcastNow;
++use Illuminate\Foundation\Events\Dispatchable;
++use Illuminate\Queue\SerializesModels;
++
++/**
++ * Fired the instant a Notification row is written to the database.
++ * Pushes the notification straight to the owning user's private channel
++ * so the bell/drawer on Dashboard, History, Exams, Settings and Support
++ * update live, with no page refresh needed.
++ */
++class UserNotificationCreated implements ShouldBroadcastNow
++{
++    use Dispatchable, InteractsWithSockets, SerializesModels;
++
++    public Notification $notification;
++
++    public function __construct(Notification $notification)
++    {
++        $this->notification = $notification;
++    }
++
++    /**
++     * Private per-user channel. Only the owning user can subscribe
++     * (see routes/channels.php for the authorization check).
++     */
++    public function broadcastOn(): array
++    {
++        return [
++            new PrivateChannel('notifications.' . $this->notification->user_id),
++        ];
++    }
++
++    public function broadcastAs(): string
++    {
++        return 'NotificationCreated';
++    }
++
++    public function broadcastWith(): array
++    {
++        return [
++            'id'         => $this->notification->id,
++            'title'      => $this->notification->title,
++            'body'       => $this->notification->body,
++            'type'       => $this->notification->type,
++            'data'       => $this->notification->data,
++            'read'       => false,
++            'time'       => $this->notification->created_at?->diffForHumans() ?? 'just now',
++            'created_at' => $this->notification->created_at?->toIso8601String(),
++        ];
++    }
++}
+diff --git a/app/Http/Controllers/NotificationController.php b/app/Http/Controllers/NotificationController.php
+new file mode 100644
+index 0000000..08f4dc5
+--- /dev/null
++++ b/app/Http/Controllers/NotificationController.php
+@@ -0,0 +1,106 @@
++<?php
++
++namespace App\Http\Controllers;
++
++use App\Models\Notification;
++use Illuminate\Http\Request;
++use Illuminate\Support\Facades\Auth;
++
++/**
++ * Shared notification endpoint used by Dashboard, History, Exams,
++ * and Settings (and polled as a fallback by Support). The real-time
++ * push happens via App\Events\UserNotificationCreated over the
++ * `notifications.{userId}` private channel; these HTTP endpoints
++ * handle the initial load, read/unread state, and clearing.
++ */
++class NotificationController extends Controller
++{
++    /**
++     * Latest notifications for the authenticated user (any role).
++     */
++    public function index(Request $request)
++    {
++        $user = $request->user() ?? Auth::user();
++
++        $notifications = Notification::where('user_id', $user->user_id)
++            ->orderBy('created_at', 'desc')
++            ->limit(30)
++            ->get()
++            ->map(fn ($n) => [
++                'id'    => $n->id,
++                'title' => $n->title,
++                'body'  => $n->body,
++                'type'  => $n->type,
++                'data'  => $n->data,
++                'read'  => (bool) $n->read_at,
++                'time'  => $n->created_at?->diffForHumans(),
++            ]);
++
++        return response()->json([
++            'notifications' => $notifications,
++            'unread_count'  => $notifications->where('read', false)->count(),
++        ]);
++    }
++
++    /**
++     * Lightweight endpoint just for the bell badge count.
++     */
++    public function unreadCount(Request $request)
++    {
++        $user = $request->user() ?? Auth::user();
++
++        $count = Notification::where('user_id', $user->user_id)
++            ->whereNull('read_at')
++            ->count();
++
++        return response()->json(['unread_count' => $count]);
++    }
++
++    /**
++     * Mark a single notification as read.
++     */
++    public function markRead(Request $request, $id)
++    {
++        $user = $request->user() ?? Auth::user();
++
++        $notification = Notification::where('user_id', $user->user_id)
++            ->where('id', $id)
++            ->first();
++
++        if (!$notification) {
++            return response()->json(['success' => false, 'message' => 'Notification not found.'], 404);
++        }
++
++        if (!$notification->read_at) {
++            $notification->update(['read_at' => now()]);
++        }
++
++        return response()->json(['success' => true]);
++    }
++
++    /**
++     * Mark every notification for this user as read.
++     */
++    public function markAllRead(Request $request)
++    {
++        $user = $request->user() ?? Auth::user();
++
++        Notification::where('user_id', $user->user_id)
++            ->whereNull('read_at')
++            ->update(['read_at' => now()]);
++
++        return response()->json(['success' => true]);
++    }
++
++    /**
++     * Permanently delete all notifications for this user.
++     */
++    public function clearAll(Request $request)
++    {
++        $user = $request->user() ?? Auth::user();
++
++        Notification::where('user_id', $user->user_id)->delete();
++
++        return response()->json(['success' => true]);
++    }
++}
+diff --git a/app/Http/Controllers/StudentController.php b/app/Http/Controllers/StudentController.php
+index 8daebfb..859efc3 100644
+--- a/app/Http/Controllers/StudentController.php
++++ b/app/Http/Controllers/StudentController.php
+@@ -106,6 +106,13 @@ public function updateProfile(Request $request)
+             'full_name' => $data['full_name']
+         ]);
+ 
++        \App\Models\Notification::create([
++            'user_id' => $user->user_id,
++            'title'   => 'Profile Updated',
++            'body'    => 'Your display name was updated successfully.',
++            'type'    => 'success',
++        ]);
++
+         return redirect()->route('student.settings')->with('success', 'Profile updated successfully.');
+     }
+ 
+@@ -121,14 +128,21 @@ public function uploadProfilePhoto(Request $request)
+         $user = $request->user() ?? Auth::user();
+ 
+         if ($request->hasFile('profile_photo')) {
+-            if ($user->profile_photo && Storage::disk('public')->exists($user->profile_photo)) {
+-                Storage::disk('public')->delete($user->profile_photo);
++            if ($user->profile_image && Storage::disk('public')->exists($user->profile_image)) {
++                Storage::disk('public')->delete($user->profile_image);
+             }
+ 
+             $path = $request->file('profile_photo')->store('profile_photos', 'public');
+             
+             $user->update([
+-                'profile_photo' => $path
++                'profile_image' => $path
++            ]);
++
++            \App\Models\Notification::create([
++                'user_id' => $user->user_id,
++                'title'   => 'Profile Photo Updated',
++                'body'    => 'Your profile picture was updated successfully.',
++                'type'    => 'success',
+             ]);
+ 
+             if ($request->wantsJson()) {
+@@ -196,9 +210,14 @@ public function exams(Request $request)
+             ->where('status', 'active')
+             ->pluck('course_id');
+ 
+-        $exams = Exam::with('course')
+-            ->whereIn('course_id', $enrolledCourseIds)
+-            ->get();
++        $examsQuery = Exam::with('course')
++            ->whereIn('course_id', $enrolledCourseIds);
++
++        if ($request->filled('course_id')) {
++            $examsQuery->where('course_id', $request->input('course_id'));
++        }
++
++        $exams = $examsQuery->get();
+ 
+         $submissions = Submission::where('user_id', $user->user_id)->get();
+ 
+@@ -550,6 +569,15 @@ public function storeExamSubmission(Request $request)
+             'created_at'  => now(),
+         ]);
+ 
++        \App\Models\Notification::create([
++            'user_id' => $user->user_id,
++            'title'   => $requiresManualGrading ? 'Exam Submitted' : 'Exam Graded',
++            'body'    => $requiresManualGrading
++                ? "Your submission for \"{$exam->title}\" is awaiting manual grading."
++                : "You scored {$percentage}% on \"{$exam->title}\".",
++            'type'    => $requiresManualGrading ? 'warn' : 'success',
++        ]);
++
+         // ✅ FIX 3: Save every submitted answer to submission_answers
+         //    GradingController::show() reads this table to display student answers.
+         foreach ($submittedAnswers as $qId => $answerValue) {
+diff --git a/app/Http/Controllers/TeacherController.php b/app/Http/Controllers/TeacherController.php
+index 09b78fa..53775e8 100644
+--- a/app/Http/Controllers/TeacherController.php
++++ b/app/Http/Controllers/TeacherController.php
+@@ -10,6 +10,8 @@
+ use App\Models\User;
+ use App\Models\Institution;
+ use App\Models\Question;
++use App\Models\Enrollment;
++use App\Models\Notification;
+ use Illuminate\Support\Facades\DB;
+ use Illuminate\Support\Facades\Storage;
+ use Illuminate\Support\Facades\Auth;
+@@ -172,9 +174,41 @@ public function createExam(Request $request)
+             'status'      => 'published'
+         ]);
+ 
++        $this->notifyEnrolledStudents($exam, $course);
++
+         return redirect()->route('teacher.dashboard')->with('success', "Exam Session Generated: {$exam->access_code}");
+     }
+ 
++    /**
++     * Push a "new exam published" notification to every student actively
++     * enrolled in the exam's course. Each Notification::create() below
++     * is picked up by NotificationObserver and broadcast live to that
++     * student's bell on Dashboard, History, Exams, and Settings.
++     */
++    private function notifyEnrolledStudents(Exam $exam, ?Course $course): void
++    {
++        if (!$course) {
++            return;
++        }
++
++        $studentIds = Enrollment::where('course_id', $course->id)
++            ->where('status', 'active')
++            ->pluck('user_id');
++
++        foreach ($studentIds as $studentId) {
++            Notification::create([
++                'user_id' => $studentId,
++                'title'   => 'New Exam Published',
++                'body'    => "\"{$exam->title}\" is now available for {$course->name} (Course ID: {$course->id}).",
++                'type'    => 'info',
++                'data'    => [
++                    'exam_id'   => $exam->exam_id,
++                    'course_id' => $course->id,
++                ],
++            ]);
++        }
++    }
++
+     /**
+      * Store a newly created exam session generated via the real-time API (Question Bank Modal).
+      */
+@@ -208,6 +242,8 @@ public function storeApiExam(Request $request)
+ 
+             Question::whereIn('id', $request->question_ids)->update(['exam_id' => $exam->exam_id]);
+ 
++            $this->notifyEnrolledStudents($exam, $defaultCourse);
++
+             return response()->json([
+                 'success' => true,
+                 'token'   => $cleanSingleUseCode
+diff --git a/app/Observers/NotificationObserver.php b/app/Observers/NotificationObserver.php
+new file mode 100644
+index 0000000..a7ad6bd
+--- /dev/null
++++ b/app/Observers/NotificationObserver.php
+@@ -0,0 +1,21 @@
++<?php
++
++namespace App\Observers;
++
++use App\Events\UserNotificationCreated;
++use App\Models\Notification;
++
++/**
++ * Whenever ANY code in the app does `Notification::create([...])`
++ * (profile updates, exam published, support ticket resolved, etc.)
++ * this observer automatically pushes it live over the websocket
++ * to that user's private channel. No controller needs to remember
++ * to broadcast manually — it just happens.
++ */
++class NotificationObserver
++{
++    public function created(Notification $notification): void
++    {
++        broadcast(new UserNotificationCreated($notification));
++    }
++}
+diff --git a/app/Providers/AppServiceProvider.php b/app/Providers/AppServiceProvider.php
+index c922382..0e822e7 100644
+--- a/app/Providers/AppServiceProvider.php
++++ b/app/Providers/AppServiceProvider.php
+@@ -4,6 +4,8 @@
+ 
+ use Illuminate\Support\ServiceProvider;
+ use Illuminate\Support\Facades\App;
++use App\Models\Notification;
++use App\Observers\NotificationObserver;
+ 
+ class AppServiceProvider extends ServiceProvider
+ {
+@@ -24,5 +26,9 @@ public function boot(): void
+         if (env('APP_ENV') === 'production') {
+             App::useStoragePath('/tmp');
+         }
++
++        // Every Notification::create(...) anywhere in the app now
++        // broadcasts live to the owning user's private channel.
++        Notification::observe(NotificationObserver::class);
+     }
+ }
+\ No newline at end of file
+diff --git a/resources/views/partials/notification-bell.blade.php b/resources/views/partials/notification-bell.blade.php
+new file mode 100644
+index 0000000..4ff06a1
+--- /dev/null
++++ b/resources/views/partials/notification-bell.blade.php
+@@ -0,0 +1,43 @@
++        <!-- ── Notification Bell (real-time) ── -->
++        <div class="relative" id="notif-wrapper">
++          <button id="notif-bell-btn" type="button"
++                  class="relative p-2.5 rounded-xl cursor-pointer transition-colors"
++                  :class="darkMode?'bg-slate-800 text-slate-400 hover:bg-slate-700':'bg-slate-100 text-slate-500 hover:bg-slate-200'">
++            <i data-lucide="bell" class="w-4 h-4" id="bell-icon"></i>
++            <span id="notif-unread-badge"
++                  class="hidden absolute -top-1 -right-1 min-w-[16px] h-4 px-1 bg-red-500 text-white text-[9px] font-black rounded-full items-center justify-center border border-white dark:border-slate-900 leading-none"></span>
++          </button>
++
++          <!-- Dropdown panel -->
++          <div id="notif-dropdown"
++               class="notif-dropdown hidden absolute right-0 top-12 w-80 rounded-2xl border shadow-2xl overflow-hidden z-50"
++               :class="darkMode?'bg-slate-900 border-slate-700':'bg-white border-slate-100'">
++
++            <div class="px-4 py-3 border-b flex items-center justify-between"
++                 :class="darkMode?'border-slate-800':'border-slate-100'">
++              <div class="flex items-center gap-2">
++                <span class="text-xs font-black" :class="darkMode?'text-white':'text-slate-900'">Notifications</span>
++                <span id="notif-unread-pill" class="hidden px-1.5 py-0.5 text-[10px] font-black bg-red-500 text-white rounded-md"></span>
++              </div>
++              <button type="button" id="notif-clear-all-btn"
++                      class="text-[11px] font-bold text-indigo-500 hover:text-indigo-600 cursor-pointer transition-colors">
++                Clear all
++              </button>
++            </div>
++
++            <div class="max-h-72 overflow-y-auto" id="notif-list-body">
++              <div class="py-10 text-center" id="notif-empty-state">
++                <i data-lucide="bell-off" class="w-8 h-8 mx-auto mb-2" :class="darkMode?'text-slate-700':'text-slate-200'"></i>
++                <p class="text-xs text-slate-400 font-medium">You're all caught up!</p>
++              </div>
++            </div>
++
++            <div class="px-4 py-2.5 border-t" :class="darkMode?'border-slate-800':'border-slate-100'">
++              <a href="{{ route('student.support') }}"
++                 class="w-full flex items-center justify-center gap-1.5 text-xs font-bold text-indigo-500 hover:text-indigo-600 transition-colors py-1">
++                <i data-lucide="external-link" class="w-3 h-3"></i>
++                Go to Support
++              </a>
++            </div>
++          </div>
++        </div>
+diff --git a/resources/views/partials/notification-realtime.blade.php b/resources/views/partials/notification-realtime.blade.php
+new file mode 100644
+index 0000000..22eb508
+--- /dev/null
++++ b/resources/views/partials/notification-realtime.blade.php
+@@ -0,0 +1,216 @@
++  {{-- ═══════════════════════════════════════
++       REAL-TIME NOTIFICATIONS
++       (websocket via Laravel Reverb/Pusher broadcasting
++       + 20s polling fallback if the socket ever drops)
++  ════════════════════════════════════════ --}}
++  <script src="https://cdnjs.cloudflare.com/ajax/libs/pusher/8.3.0/pusher.min.js"></script>
++  <script src="https://cdn.jsdelivr.net/npm/laravel-echo@1.16.0/dist/echo.iife.js"></script>
++
++  <script>
++    (function () {
++      const CSRF_TOKEN = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
++      const AUTH_USER_ID = {{ (Auth::user()->user_id ?? 'null') }};
++
++      let notifCache = [];
++      let unreadCache = 0;
++
++      // ── Bootstrap Echo (Pusher-compatible, works with Reverb or Pusher Cloud) ──
++      function initEcho() {
++        if (!AUTH_USER_ID || window.Echo) return;
++
++        window.Pusher = Pusher;
++        window.Echo = new Echo({
++          broadcaster: 'pusher',
++          key: '{{ config('broadcasting.connections.pusher.key') ?: 'examsystemkeyabc123' }}',
++          cluster: '{{ config('broadcasting.connections.pusher.options.cluster') ?: 'mt1' }}',
++          forceTLS: true,
++          authEndpoint: '{{ url('/broadcasting/auth') }}',
++          auth: {
++            headers: {
++              'X-CSRF-TOKEN': CSRF_TOKEN,
++              'Accept': 'application/json',
++            }
++          }
++        });
++
++        window.Echo.private('notifications.' + AUTH_USER_ID)
++          .listen('.NotificationCreated', (payload) => {
++            // Prepend the fresh notification and refresh the UI instantly —
++            // no refetch needed, the server already sent us the full record.
++            notifCache.unshift({ ...payload, read: false });
++            unreadCache += 1;
++            renderNotifDropdown();
++            updateBellBadge();
++            shakeBell();
++            showNotifToast(payload.title, payload.body);
++          });
++
++        window.Echo.connector.pusher.connection.bind('connected', () => console.log('[Notifications] Live channel connected'));
++        window.Echo.connector.pusher.connection.bind('error', (err) => console.warn('[Notifications] Socket error, falling back to polling', err));
++      }
++
++      // ── Initial + fallback fetch over plain HTTP ──
++      async function fetchNotifications() {
++        try {
++          const res = await fetch('{{ route('student.notifications') }}', {
++            headers: { 'Accept': 'application/json' }
++          });
++          if (!res.ok) return;
++          const data = await res.json();
++          notifCache = data.notifications || [];
++          unreadCache = data.unread_count || 0;
++          renderNotifDropdown();
++          updateBellBadge();
++        } catch (e) {
++          console.warn('Failed to load notifications', e);
++        }
++      }
++
++      function iconFor(type) {
++        if (type === 'success') return { icon: 'check-circle-2', wrap: 'bg-emerald-50 dark:bg-emerald-500/10', color: 'text-emerald-500' };
++        if (type === 'warn' || type === 'warning') return { icon: 'alert-triangle', wrap: 'bg-amber-50 dark:bg-amber-500/10', color: 'text-amber-500' };
++        return { icon: 'info', wrap: 'bg-indigo-50 dark:bg-indigo-500/10', color: 'text-indigo-500' };
++      }
++
++      function renderNotifDropdown() {
++        const body = document.getElementById('notif-list-body');
++        if (!body) return;
++        const isDark = document.documentElement.classList.contains('dark');
++
++        if (!notifCache.length) {
++          body.innerHTML = `
++            <div class="py-10 text-center">
++              <i data-lucide="bell-off" class="w-8 h-8 mx-auto mb-2 ${isDark ? 'text-slate-700' : 'text-slate-200'}"></i>
++              <p class="text-xs text-slate-400 font-medium">You're all caught up!</p>
++            </div>`;
++          if (window.lucide) lucide.createIcons();
++          return;
++        }
++
++        body.innerHTML = notifCache.map(n => {
++          const meta = iconFor(n.type);
++          return `
++            <div class="px-4 py-3 border-b flex items-start gap-3 cursor-pointer transition-colors notif-row ${isDark ? 'border-slate-800 hover:bg-slate-800' : 'border-slate-50 hover:bg-slate-50'} ${n.read ? 'opacity-55' : ''}" data-id="${n.id}">
++              <div class="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 mt-0.5 ${meta.wrap}">
++                <i data-lucide="${meta.icon}" class="w-4 h-4 ${meta.color}"></i>
++              </div>
++              <div class="flex-1 min-w-0">
++                <p class="text-xs font-bold leading-snug ${isDark ? 'text-white' : 'text-slate-800'}">${n.title ?? ''}</p>
++                <p class="text-[11px] text-slate-400 mt-0.5 leading-relaxed">${n.body ?? ''}</p>
++                <p class="text-[10px] text-slate-400 mt-1">${n.time ?? ''}</p>
++              </div>
++              ${!n.read ? '<span class="w-2 h-2 bg-indigo-500 rounded-full flex-shrink-0 mt-2 pulse-dot"></span>' : ''}
++            </div>`;
++        }).join('');
++
++        body.querySelectorAll('.notif-row').forEach(row => {
++          row.addEventListener('click', () => markNotifRead(row.dataset.id));
++        });
++
++        if (window.lucide) lucide.createIcons();
++      }
++
++      function updateBellBadge() {
++        const badge = document.getElementById('notif-unread-badge');
++        const pill  = document.getElementById('notif-unread-pill');
++        if (badge) {
++          if (unreadCache > 0) {
++            badge.textContent = unreadCache > 99 ? '99+' : unreadCache;
++            badge.classList.remove('hidden');
++            badge.classList.add('flex');
++          } else {
++            badge.classList.add('hidden');
++            badge.classList.remove('flex');
++          }
++        }
++        if (pill) {
++          if (unreadCache > 0) {
++            pill.textContent = unreadCache;
++            pill.classList.remove('hidden');
++          } else {
++            pill.classList.add('hidden');
++          }
++        }
++      }
++
++      function shakeBell() {
++        const bellIcon = document.getElementById('bell-icon');
++        if (!bellIcon) return;
++        bellIcon.classList.add('bell-ring');
++        setTimeout(() => bellIcon.classList.remove('bell-ring'), 500);
++      }
++
++      function showNotifToast(title, body) {
++        let container = document.getElementById('toast-container');
++        if (!container) {
++          container = document.createElement('div');
++          container.id = 'toast-container';
++          container.className = 'fixed bottom-6 right-6 z-50 space-y-2 pointer-events-none';
++          document.body.appendChild(container);
++        }
++        const toast = document.createElement('div');
++        toast.className = 'toast pointer-events-auto flex items-start gap-3 px-5 py-3.5 rounded-2xl shadow-xl text-sm font-bold bg-indigo-600 text-white max-w-xs';
++        toast.style.animation = 'toastIn 0.3s ease, toastOut 0.3s ease 4.7s forwards';
++        toast.innerHTML = `<i data-lucide="bell" class="w-4 h-4 flex-shrink-0 mt-0.5"></i><div><div>${title || 'New notification'}</div><div class="text-[11px] font-medium opacity-90 mt-0.5">${body || ''}</div></div>`;
++        container.appendChild(toast);
++        if (window.lucide) lucide.createIcons();
++        setTimeout(() => toast.remove(), 5200);
++      }
++
++      async function markNotifRead(id) {
++        const notif = notifCache.find(n => String(n.id) === String(id));
++        if (notif && !notif.read) {
++          notif.read = true;
++          unreadCache = Math.max(0, unreadCache - 1);
++          renderNotifDropdown();
++          updateBellBadge();
++          try {
++            await fetch(`/student/notifications/${id}/read`, {
++              method: 'POST',
++              headers: { 'X-CSRF-TOKEN': CSRF_TOKEN, 'Accept': 'application/json' }
++            });
++          } catch (e) { console.warn('Failed to mark notification read', e); }
++        }
++      }
++
++      async function clearAllNotifs() {
++        notifCache = [];
++        unreadCache = 0;
++        renderNotifDropdown();
++        updateBellBadge();
++        document.getElementById('notif-dropdown')?.classList.add('hidden');
++        try {
++          await fetch('{{ route('student.notifications.clear') }}', {
++            method: 'POST',
++            headers: { 'X-CSRF-TOKEN': CSRF_TOKEN, 'Accept': 'application/json' }
++          });
++        } catch (e) { console.warn('Failed to clear notifications', e); }
++      }
++
++      document.addEventListener('DOMContentLoaded', () => {
++        const bellBtn = document.getElementById('notif-bell-btn');
++        const dropdown = document.getElementById('notif-dropdown');
++        const wrapper = document.getElementById('notif-wrapper');
++        const clearBtn = document.getElementById('notif-clear-all-btn');
++
++        if (bellBtn && dropdown && wrapper) {
++          bellBtn.addEventListener('click', (e) => {
++            e.stopPropagation();
++            const wasHidden = dropdown.classList.contains('hidden');
++            dropdown.classList.toggle('hidden');
++            if (wasHidden) shakeBell();
++          });
++          document.addEventListener('click', (e) => {
++            if (!wrapper.contains(e.target)) dropdown.classList.add('hidden');
++          });
++        }
++        if (clearBtn) clearBtn.addEventListener('click', clearAllNotifs);
++
++        initEcho();
++        fetchNotifications();
++        // Fallback polling in case the websocket connection ever drops
++        // (e.g. serverless cold start, network hiccup).
++        setInterval(fetchNotifications, 20000);
++      });
++    })();
++  </script>
+diff --git a/resources/views/partials/notification-styles.blade.php b/resources/views/partials/notification-styles.blade.php
+new file mode 100644
+index 0000000..294e369
+--- /dev/null
++++ b/resources/views/partials/notification-styles.blade.php
+@@ -0,0 +1,13 @@
++  <style>
++    /* Notification dropdown (shared across Dashboard, History, Exams, Settings) */
++    .notif-dropdown { animation: dropIn 0.18s ease; transform-origin: top right; }
++    @keyframes dropIn { from { opacity:0; transform:scale(0.96) translateY(-6px); } to { opacity:1; transform:scale(1) translateY(0); } }
++    @keyframes bellShake {
++      0%, 100% { transform: rotate(0deg); }
++      20% { transform: rotate(-15deg); }
++      40% { transform: rotate(15deg); }
++      60% { transform: rotate(-10deg); }
++      80% { transform: rotate(8deg); }
++    }
++    .bell-ring { animation: bellShake 0.45s ease; }
++  </style>
+diff --git a/resources/views/student/exams.blade.php b/resources/views/student/exams.blade.php
+index e4f22d5..2be0a65 100644
+--- a/resources/views/student/exams.blade.php
++++ b/resources/views/student/exams.blade.php
+@@ -5,6 +5,7 @@
+   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+   <title>ExamSystem - My Exams</title>
+   <meta name="description" content="View your upcoming, live, and completed exams on ExamSystem Student Portal.">
++  <meta name="csrf-token" content="{{ csrf_token() }}">
+ 
+   <!-- Anti-Flash Dark Mode -->
+   <script>
+@@ -55,6 +56,7 @@
+     /* Tab active transition */
+     .tab-pill { transition: all 0.2s cubic-bezier(0.4,0,0.2,1); }
+   </style>
++  @include('partials.notification-styles')
+ </head>
+ 
+ <body class="min-h-screen flex antialiased transition-colors duration-300"
+@@ -158,7 +160,7 @@ class="p-1.5 rounded-lg text-slate-400 hover:text-red-400 hover:bg-red-50 dark:h
+         <i data-lucide="search" class="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none"></i>
+         <input type="text"
+                x-model="searchQuery"
+-               placeholder="Search exams, courses…"
++               placeholder="Search by exam title, course name, or course ID…"
+                class="w-full pl-10 pr-4 py-2.5 rounded-xl text-sm font-medium border-none focus:outline-none focus:ring-2 focus:ring-indigo-500/25 transition-all"
+                :class="darkMode ? 'bg-slate-800 text-white placeholder-slate-500' : 'bg-slate-100 text-slate-800 placeholder-slate-400'">
+       </div>
+@@ -170,11 +172,7 @@ class="p-2.5 rounded-xl transition-colors cursor-pointer"
+           <i data-lucide="sun" class="w-4 h-4" x-show="darkMode"></i>
+           <i data-lucide="moon" class="w-4 h-4" x-show="!darkMode"></i>
+         </button>
+-        <button class="relative p-2.5 rounded-xl transition-colors cursor-pointer"
+-                :class="darkMode ? 'bg-slate-800 text-slate-400 hover:bg-slate-700' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'">
+-          <i data-lucide="bell" class="w-4 h-4"></i>
+-          <span class="absolute top-2 right-2 w-1.5 h-1.5 bg-red-500 rounded-full"></span>
+-        </button>
++        @include('partials.notification-bell')
+         <div class="w-px h-6 mx-1" :class="darkMode ? 'bg-slate-700' : 'bg-slate-200'"></div>
+         <div class="flex items-center gap-2.5 pl-1">
+           <div class="w-8 h-8 rounded-xl bg-gradient-to-br from-amber-400 to-orange-400 flex items-center justify-center text-[11px] font-black text-amber-900 shadow-sm">
+@@ -520,8 +518,9 @@ class="px-5 py-2 brand-gradient text-white text-xs font-bold rounded-xl shadow-s
+             {
+               id: '{{ $exam->exam_id }}',
+               title: '{{ addslashes($exam->title) }}',
++              courseId: '{{ $exam->course->id ?? $exam->course_id }}',
+               code: '{{ addslashes($exam->course->code ?? "DAT-464") }}',
+-              dept: '{{ addslashes($exam->course->course_name ?? "Database Department") }}',
++              dept: '{{ addslashes($exam->course->name ?? "Database Department") }}',
+               date: '{{ \Carbon\Carbon::parse($exam->start_time)->format("M d, Y") }}',
+               time: '{{ \Carbon\Carbon::parse($exam->start_time)->format("h:i A") }}',
+               duration: '{{ $exam->duration ?? 100 }} mins',
+@@ -541,10 +540,13 @@ class="px-5 py-2 brand-gradient text-white text-xs font-bold rounded-xl shadow-s
+         get filteredExams() {
+           return this.exams.filter(e => {
+             const matchStatus = e.status === this.activeTab;
+-            const matchSearch = this.searchQuery === '' ||
+-              e.title.toLowerCase().includes(this.searchQuery.toLowerCase()) ||
+-              e.code.toLowerCase().includes(this.searchQuery.toLowerCase()) ||
+-              e.dept.toLowerCase().includes(this.searchQuery.toLowerCase());
++            const q = this.searchQuery.toLowerCase().trim();
++            const matchSearch = q === '' ||
++              e.title.toLowerCase().includes(q) ||
++              e.code.toLowerCase().includes(q) ||
++              e.dept.toLowerCase().includes(q) ||
++              String(e.courseId).toLowerCase() === q ||
++              String(e.courseId).toLowerCase().includes(q);
+             return matchStatus && matchSearch;
+           });
+         },
+@@ -638,5 +640,6 @@ class="px-5 py-2 brand-gradient text-white text-xs font-bold rounded-xl shadow-s
+       }));
+     });
+   </script>
++  @include('partials.notification-realtime')
+ </body>
+ </html>
+\ No newline at end of file
+diff --git a/resources/views/student/history.blade.php b/resources/views/student/history.blade.php
+index 53b7117..82fe2fb 100644
+--- a/resources/views/student/history.blade.php
++++ b/resources/views/student/history.blade.php
+@@ -5,6 +5,7 @@
+   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+   <title>ExamSystem - Results & History</title>
+   <meta name="description" content="View your full exam performance history, scores, and grade trends on ExamSystem.">
++  <meta name="csrf-token" content="{{ csrf_token() }}">
+ 
+   <!-- Anti-Flash Dark Mode -->
+   <script>
+@@ -54,6 +55,7 @@
+     /* Table row hover */
+     .table-row { transition: background-color 0.15s ease; }
+   </style>
++  @include('partials.notification-styles')
+ </head>
+ 
+ <body class="min-h-screen flex antialiased transition-colors duration-300"
+@@ -166,11 +168,7 @@ class="p-2.5 rounded-xl transition-colors cursor-pointer"
+           <i data-lucide="sun" class="w-4 h-4" x-show="darkMode"></i>
+           <i data-lucide="moon" class="w-4 h-4" x-show="!darkMode"></i>
+         </button>
+-        <button class="relative p-2.5 rounded-xl transition-colors cursor-pointer"
+-                :class="darkMode ? 'bg-slate-800 text-slate-400 hover:bg-slate-700' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'">
+-          <i data-lucide="bell" class="w-4 h-4"></i>
+-          <span class="absolute top-2 right-2 w-1.5 h-1.5 bg-red-500 rounded-full"></span>
+-        </button>
++        @include('partials.notification-bell')
+         <div class="w-px h-6 mx-1" :class="darkMode ? 'bg-slate-700' : 'bg-slate-200'"></div>
+         <div class="flex items-center gap-2.5 pl-1">
+           <div class="w-8 h-8 rounded-xl bg-gradient-to-br from-amber-400 to-orange-400 flex items-center justify-center text-[11px] font-black text-amber-900 shadow-sm">
+@@ -845,5 +843,6 @@ class="px-5 py-2 brand-gradient text-white text-xs font-bold rounded-xl shadow-s
+       }));
+     });
+   </script>
++  @include('partials.notification-realtime')
+ </body>
+ </html>
+\ No newline at end of file
+diff --git a/resources/views/student/settings.blade.php b/resources/views/student/settings.blade.php
+index 9b4ea4b..3c1f8ad 100644
+--- a/resources/views/student/settings.blade.php
++++ b/resources/views/student/settings.blade.php
+@@ -5,6 +5,7 @@
+   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+   <title>ExamSystem - Settings & Profile</title>
+   <meta name="description" content="Manage your profile and view academic performance on ExamSystem.">
++  <meta name="csrf-token" content="{{ csrf_token() }}">
+ 
+   <script>
+     (function () {
+@@ -16,6 +17,8 @@
+   <script>tailwind.config = { darkMode: 'class' }</script>
+   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+   <script src="https://unpkg.com/lucide@latest"></script>
++  <script src="https://cdnjs.cloudflare.com/ajax/libs/pusher/8.3.0/pusher.min.js"></script>
++  <script src="https://cdn.jsdelivr.net/npm/laravel-echo@1.16.0/dist/echo.iife.js"></script>
+   <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+ 
+   <style>
+@@ -121,8 +124,8 @@
+       <div class="flex items-center gap-3">
+         <div class="relative flex-shrink-0">
+           <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-amber-400 to-orange-400 flex items-center justify-center overflow-hidden shadow-sm">
+-            @if($user->profile_photo)
+-              <img src="{{ Storage::url($user->profile_photo) }}" class="w-full h-full object-cover">
++            @if($user->profile_image)
++              <img src="{{ Storage::url($user->profile_image) }}" class="w-full h-full object-cover">
+             @else
+               <span class="text-xs font-black text-amber-900 uppercase">{{ strtoupper(substr($user->full_name,0,2)) }}</span>
+             @endif
+@@ -240,8 +243,8 @@ class="w-full flex items-center justify-center gap-1.5 text-xs font-bold text-in
+ 
+         <div class="flex items-center gap-2.5 pl-1">
+           <div class="w-8 h-8 rounded-xl overflow-hidden bg-gradient-to-br from-amber-400 to-orange-400 flex items-center justify-center text-[11px] font-black text-amber-900 shadow-sm">
+-            @if($user->profile_photo)
+-              <img src="{{ Storage::url($user->profile_photo) }}" class="w-full h-full object-cover">
++            @if($user->profile_image)
++              <img src="{{ Storage::url($user->profile_image) }}" class="w-full h-full object-cover">
+             @else
+               {{ strtoupper(substr($user->full_name,0,2)) }}
+             @endif
+@@ -285,8 +288,8 @@ class="w-full flex items-center justify-center gap-1.5 text-xs font-bold text-in
+               <div class="avatar-wrap relative cursor-pointer rounded-2xl border-4 shadow-xl overflow-hidden w-24 h-24"
+                    :class="darkMode?'border-slate-900':'border-white'"
+                    onclick="document.getElementById('img-uploader').click()">
+-                @if($user->profile_photo)
+-                  <img src="{{ Storage::url($user->profile_photo) }}" class="w-full h-full object-cover">
++                @if($user->profile_image)
++                  <img src="{{ Storage::url($user->profile_image) }}" class="w-full h-full object-cover">
+                 @else
+                   <div class="w-full h-full bg-gradient-to-br from-amber-400 to-orange-400 flex items-center justify-center">
+                     <span class="text-2xl font-black text-amber-900 uppercase">{{ strtoupper(substr($user->full_name,0,2)) }}</span>
+@@ -663,26 +666,8 @@ class="fixed inset-0 bg-slate-950/60 backdrop-blur-sm z-50 flex items-center jus
+     </div>
+   </div>
+ 
+-  <!-- ════ ALPINE + NOTIFICATION LOGIC ════ -->
++  <!-- ════ ALPINE + REAL-TIME NOTIFICATION LOGIC ════ -->
+   <script>
+-    // ── All defined notifications (source of truth)
+-    const ALL_NOTIFICATIONS = [
+-      { id: 'n1', type: 'info',    title: 'New Exam Scheduled', body: 'Physics Mechanics exam is scheduled for Jul 18.',  time: 'Just now',  cleared: false },
+-      { id: 'n2', type: 'success', title: 'Profile Updated',    body: 'Your display name was updated successfully.',       time: '5 min ago', cleared: false },
+-      { id: 'n3', type: 'warn',    title: 'Exam Reminder',      body: 'Your Calculus II exam starts in 3 days.',           time: '1 hour ago', cleared: false },
+-    ];
+-
+-    // ── Load persisted read/cleared state from localStorage
+-    function loadNotifications() {
+-      const readIds    = JSON.parse(localStorage.getItem('notif_read')    || '[]');
+-      const clearedIds = JSON.parse(localStorage.getItem('notif_cleared') || '[]');
+-      return ALL_NOTIFICATIONS.map(n => ({
+-        ...n,
+-        read:    readIds.includes(n.id),
+-        cleared: clearedIds.includes(n.id),
+-      }));
+-    }
+-
+     document.addEventListener('alpine:init', () => {
+       Alpine.data('settingsApp', () => ({
+         darkMode: localStorage.getItem('darkMode') === 'true',
+@@ -692,10 +677,23 @@ function loadNotifications() {
+         liveTime: '',
+         liveDate: '',
+ 
+-        notifications: loadNotifications(),
+-
+-        get unreadCount() {
+-          return this.notifications.filter(n => !n.read && !n.cleared).length;
++        notifications: [],
++        unreadCount: 0,
++
++        // ── Pull the latest notifications + unread count from the server
++        async fetchNotifications() {
++          try {
++            const res = await fetch('{{ route('student.notifications') }}', {
++              headers: { 'Accept': 'application/json' }
++            });
++            if (!res.ok) return;
++            const data = await res.json();
++            this.notifications = data.notifications.map(n => ({ ...n, cleared: false }));
++            this.unreadCount = data.unread_count;
++            lucide.createIcons();
++          } catch (e) {
++            console.error('Failed to load notifications', e);
++          }
+         },
+ 
+         metrics: {
+@@ -712,35 +710,58 @@ function loadNotifications() {
+             @foreach($submissions->take(7)->reverse() as $sub)
+               { score: {{ round($sub->percentage ?? 0) }}, label: '{{ \Carbon\Carbon::parse($sub->created_at)->format("M d") }}' },
+             @endforeach
+-          @else
+-            { score: 72, label: 'Jun 01' },
+-            { score: 80, label: 'Jun 10' },
+-            { score: 65, label: 'Jun 20' },
+-            { score: 88, label: 'Jul 01' },
+-            { score: 91, label: 'Jul 09' },
+           @endif
+         ],
+ 
+-        // ── Mark a single notification as read and save to localStorage
+-        markRead(id) {
++        // ── Real-time: receive a notification the instant it's created server-side
++        handleLiveNotification(payload) {
++          this.notifications.unshift({ ...payload, read: false, cleared: false });
++          this.unreadCount += 1;
++          const bellIcon = document.getElementById('bell-icon');
++          if (bellIcon) {
++            bellIcon.classList.add('bell-ring');
++            setTimeout(() => bellIcon.classList.remove('bell-ring'), 500);
++          }
++          lucide.createIcons();
++        },
++
++        // ── Mark a single notification as read on the server
++        async markRead(id) {
+           const notif = this.notifications.find(n => n.id === id);
+-          if (notif) {
++          if (notif && !notif.read) {
+             notif.read = true;
+-            const readIds = JSON.parse(localStorage.getItem('notif_read') || '[]');
+-            if (!readIds.includes(id)) readIds.push(id);
+-            localStorage.setItem('notif_read', JSON.stringify(readIds));
+-            lucide.createIcons();
++            this.unreadCount = Math.max(0, this.unreadCount - 1);
++            try {
++              await fetch(`/student/notifications/${id}/read`, {
++                method: 'POST',
++                headers: {
++                  'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
++                  'Accept': 'application/json'
++                }
++              });
++            } catch (e) {
++              console.error('Failed to mark notification as read', e);
++            }
+           }
+         },
+ 
+-        // ── Clear all notifications and save to localStorage
+-        clearAllNotifications() {
+-          const clearedIds = this.notifications.map(n => n.id);
++        // ── Permanently clear all notifications on the server
++        async clearAllNotifications() {
+           this.notifications.forEach(n => { n.cleared = true; n.read = true; });
+-          localStorage.setItem('notif_cleared', JSON.stringify(clearedIds));
+-          localStorage.setItem('notif_read', JSON.stringify(clearedIds));
+-          // Close dropdown after clear
++          this.unreadCount = 0;
+           document.getElementById('notif-dropdown').classList.add('hidden');
++          try {
++            await fetch('{{ route('student.notifications.clear') }}', {
++              method: 'POST',
++              headers: {
++                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
++                'Accept': 'application/json'
++              }
++            });
++            this.notifications = [];
++          } catch (e) {
++            console.error('Failed to clear notifications', e);
++          }
+         },
+ 
+         updateClock() {
+@@ -753,6 +774,30 @@ function loadNotifications() {
+           this.$watch('darkMode', val => localStorage.setItem('darkMode', val));
+           this.updateClock();
+           setInterval(() => this.updateClock(), 1000);
++
++          // Real-time notifications: load immediately, then poll every 20s as a fallback
++          this.fetchNotifications();
++          setInterval(() => this.fetchNotifications(), 20000);
++
++          // Live push over websocket — updates the bell the instant something happens,
++          // no need to wait for the next poll.
++          const userId = {{ Auth::user()->user_id ?? 'null' }};
++          if (userId && !window.Echo) {
++            window.Pusher = Pusher;
++            window.Echo = new Echo({
++              broadcaster: 'pusher',
++              key: '{{ config('broadcasting.connections.pusher.key') ?: 'examsystemkeyabc123' }}',
++              cluster: '{{ config('broadcasting.connections.pusher.options.cluster') ?: 'mt1' }}',
++              forceTLS: true,
++              authEndpoint: '{{ url('/broadcasting/auth') }}',
++              auth: { headers: { 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '', 'Accept': 'application/json' } }
++            });
++          }
++          if (userId && window.Echo) {
++            window.Echo.private('notifications.' + userId)
++              .listen('.NotificationCreated', (payload) => this.handleLiveNotification(payload));
++          }
++
+           lucide.createIcons();
+         }
+       }));
+diff --git a/resources/views/student/student_dashboard.blade.php b/resources/views/student/student_dashboard.blade.php
+index 0af1ae6..4963e76 100644
+--- a/resources/views/student/student_dashboard.blade.php
++++ b/resources/views/student/student_dashboard.blade.php
+@@ -5,6 +5,7 @@
+   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+   <title>ExamSystem - Student Dashboard</title>
+   <meta name="description" content="ExamSystem student portal — view your exams, track performance, and access assessment tools.">
++  <meta name="csrf-token" content="{{ csrf_token() }}">
+ 
+   <!-- Anti-Flash Dark Mode Script -->
+   <script>
+@@ -75,6 +76,7 @@
+     .modal-box { animation: modalIn 0.22s ease; }
+     @keyframes modalIn { from { opacity:0; transform:scale(0.96) translateY(8px); } to { opacity:1; transform:scale(1) translateY(0); } }
+   </style>
++  @include('partials.notification-styles')
+ </head>
+ 
+ <body class="min-h-screen flex antialiased transition-colors duration-300"
+@@ -196,12 +198,7 @@ class="p-2.5 rounded-xl transition-colors cursor-pointer"
+           <i data-lucide="moon" class="w-4 h-4" x-show="!darkMode"></i>
+         </button>
+ 
+-        <!-- Notification Bell -->
+-        <button class="relative p-2.5 rounded-xl transition-colors cursor-pointer"
+-                :class="darkMode ? 'bg-slate-800 text-slate-400 hover:bg-slate-700' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'">
+-          <i data-lucide="bell" class="w-4 h-4"></i>
+-          <span class="absolute top-2 right-2 w-1.5 h-1.5 bg-red-500 rounded-full"></span>
+-        </button>
++        @include('partials.notification-bell')
+ 
+         <!-- Divider -->
+         <div class="w-px h-6 mx-1" :class="darkMode ? 'bg-slate-700' : 'bg-slate-200'"></div>
+@@ -657,5 +654,6 @@ class="px-5 py-2 brand-gradient text-white text-xs font-bold rounded-xl shadow-s
+       }));
+     });
+   </script>
++  @include('partials.notification-realtime')
+ </body>
+ </html>
+\ No newline at end of file
+diff --git a/resources/views/student/support.blade.php b/resources/views/student/support.blade.php
+index 11156f2..8a41753 100644
+--- a/resources/views/student/support.blade.php
++++ b/resources/views/student/support.blade.php
+@@ -5,6 +5,7 @@
+   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+   <title>ExamSystem - Support & Help</title>
+   <meta name="description" content="Get help and submit support tickets on ExamSystem Student Portal.">
++  <meta name="csrf-token" content="{{ csrf_token() }}">
+ 
+   <!-- Anti-Flash Dark Mode -->
+   <script>
+diff --git a/routes/channels.php b/routes/channels.php
+index 26e082e..36d0a1e 100644
+--- a/routes/channels.php
++++ b/routes/channels.php
+@@ -18,7 +18,17 @@
+  * Used for targeted system notifications to specific users.
+  */
+ Broadcast::channel('App.Models.User.{id}', function ($user, $id) {
+-    return (int) $user->id === (int) $id;
++    // NOTE: this app's User primary key is `user_id`, not `id` — fixed below.
++    return (int) $user->user_id === (int) $id;
++});
++
++/**
++ * 1b. Real-Time Notification Channel
++ * Powers the notification bell on Dashboard, History, Exams, Settings
++ * and Support. Each user only gets access to their own notification feed.
++ */
++Broadcast::channel('notifications.{userId}', function ($user, $userId) {
++    return (int) $user->user_id === (int) $userId;
+ });
+ 
+ /**
+diff --git a/routes/web.php b/routes/web.php
+index 8ddd436..5d134fa 100644
+--- a/routes/web.php
++++ b/routes/web.php
+@@ -6,6 +6,7 @@
+ use Illuminate\Support\Facades\Storage;
+ use App\Http\Controllers\Api\AuthController;
+ use App\Http\Controllers\StudentController;
++use App\Http\Controllers\NotificationController;
+ use App\Http\Controllers\TeacherController;
+ use App\Http\Controllers\GradingController;
+ use App\Http\Controllers\ProctorHandshakeController;
+@@ -163,6 +164,13 @@ function () { return view('teacher.monitoring'); }
+     )->name('student.exams.streamFrame');
+     // ── END STUDENT PROCTORING ──────────────────────────────────────────────
+ 
++    // ── REAL-TIME NOTIFICATIONS (used by dashboard, exams, history, settings) ──
++    Route::get('/student/notifications',               [NotificationController::class, 'index'])->name('student.notifications');
++    Route::get('/student/notifications/unread-count',  [NotificationController::class, 'unreadCount'])->name('student.notifications.unreadCount');
++    Route::post('/student/notifications/{id}/read',    [NotificationController::class, 'markRead'])->name('student.notifications.markRead');
++    Route::post('/student/notifications/read-all',     [NotificationController::class, 'markAllRead'])->name('student.notifications.markAllRead');
++    Route::post('/student/notifications/clear',        [NotificationController::class, 'clearAll'])->name('student.notifications.clear');
++
+     Route::get('/student/support',                [StudentController::class, 'support'])->name('student.support');
+     Route::post('/student/support',               [StudentController::class, 'storeSupportTicket'])->name('student.support.store');
+     Route::get('/student/support/notifications',  [StudentController::class, 'pollSupportNotifications'])->name('student.support.notifications');
+-- 
+2.43.0

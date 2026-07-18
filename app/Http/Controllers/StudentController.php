@@ -106,6 +106,13 @@ class StudentController extends Controller
             'full_name' => $data['full_name']
         ]);
 
+        \App\Models\Notification::create([
+            'user_id' => $user->user_id,
+            'title'   => 'Profile Updated',
+            'body'    => 'Your display name was updated successfully.',
+            'type'    => 'success',
+        ]);
+
         return redirect()->route('student.settings')->with('success', 'Profile updated successfully.');
     }
 
@@ -121,14 +128,21 @@ class StudentController extends Controller
         $user = $request->user() ?? Auth::user();
 
         if ($request->hasFile('profile_photo')) {
-            if ($user->profile_photo && Storage::disk('public')->exists($user->profile_photo)) {
-                Storage::disk('public')->delete($user->profile_photo);
+            if ($user->profile_image && Storage::disk('public')->exists($user->profile_image)) {
+                Storage::disk('public')->delete($user->profile_image);
             }
 
             $path = $request->file('profile_photo')->store('profile_photos', 'public');
             
             $user->update([
-                'profile_photo' => $path
+                'profile_image' => $path
+            ]);
+
+            \App\Models\Notification::create([
+                'user_id' => $user->user_id,
+                'title'   => 'Profile Photo Updated',
+                'body'    => 'Your profile picture was updated successfully.',
+                'type'    => 'success',
             ]);
 
             if ($request->wantsJson()) {
@@ -196,9 +210,14 @@ class StudentController extends Controller
             ->where('status', 'active')
             ->pluck('course_id');
 
-        $exams = Exam::with('course')
-            ->whereIn('course_id', $enrolledCourseIds)
-            ->get();
+        $examsQuery = Exam::with('course')
+            ->whereIn('course_id', $enrolledCourseIds);
+
+        if ($request->filled('course_id')) {
+            $examsQuery->where('course_id', $request->input('course_id'));
+        }
+
+        $exams = $examsQuery->get();
 
         $submissions = Submission::where('user_id', $user->user_id)->get();
 
@@ -548,6 +567,15 @@ class StudentController extends Controller
             'percentage'  => $percentage,
             'status'      => $requiresManualGrading ? 'pending_grading' : 'graded',
             'created_at'  => now(),
+        ]);
+
+        \App\Models\Notification::create([
+            'user_id' => $user->user_id,
+            'title'   => $requiresManualGrading ? 'Exam Submitted' : 'Exam Graded',
+            'body'    => $requiresManualGrading
+                ? "Your submission for \"{$exam->title}\" is awaiting manual grading."
+                : "You scored {$percentage}% on \"{$exam->title}\".",
+            'type'    => $requiresManualGrading ? 'warn' : 'success',
         ]);
 
         // ✅ FIX 3: Save every submitted answer to submission_answers

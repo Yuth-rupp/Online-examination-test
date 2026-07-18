@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>ExamSystem - Student Dashboard</title>
   <meta name="description" content="ExamSystem student portal — view your exams, track performance, and access assessment tools.">
+  <meta name="csrf-token" content="{{ csrf_token() }}">
 
   <!-- Anti-Flash Dark Mode Script -->
   <script>
@@ -75,6 +76,7 @@
     .modal-box { animation: modalIn 0.22s ease; }
     @keyframes modalIn { from { opacity:0; transform:scale(0.96) translateY(8px); } to { opacity:1; transform:scale(1) translateY(0); } }
   </style>
+  @include('partials.notification-styles')
 </head>
 
 <body class="min-h-screen flex antialiased transition-colors duration-300"
@@ -196,12 +198,7 @@
           <i data-lucide="moon" class="w-4 h-4" x-show="!darkMode"></i>
         </button>
 
-        <!-- Notification Bell -->
-        <button class="relative p-2.5 rounded-xl transition-colors cursor-pointer"
-                :class="darkMode ? 'bg-slate-800 text-slate-400 hover:bg-slate-700' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'">
-          <i data-lucide="bell" class="w-4 h-4"></i>
-          <span class="absolute top-2 right-2 w-1.5 h-1.5 bg-red-500 rounded-full"></span>
-        </button>
+        @include('partials.notification-bell')
 
         <!-- Divider -->
         <div class="w-px h-6 mx-1" :class="darkMode ? 'bg-slate-700' : 'bg-slate-200'"></div>
@@ -657,5 +654,6 @@
       }));
     });
   </script>
+  @include('partials.notification-realtime')
 </body>
 </html>

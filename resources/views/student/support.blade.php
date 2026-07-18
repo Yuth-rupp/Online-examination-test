@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>ExamSystem - Support & Help</title>
   <meta name="description" content="Get help and submit support tickets on ExamSystem Student Portal.">
+  <meta name="csrf-token" content="{{ csrf_token() }}">
 
   <!-- Anti-Flash Dark Mode -->
   <script>

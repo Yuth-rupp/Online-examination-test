@@ -6,6 +6,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\StudentController;
+use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\TeacherController;
 use App\Http\Controllers\GradingController;
 use App\Http\Controllers\ProctorHandshakeController;
@@ -162,6 +163,13 @@ Route::middleware(['auth', 'role:student'])->group(function () {
         [ProctorHandshakeController::class, 'streamProctorFrame']
     )->name('student.exams.streamFrame');
     // ── END STUDENT PROCTORING ──────────────────────────────────────────────
+
+    // ── REAL-TIME NOTIFICATIONS (used by dashboard, exams, history, settings) ──
+    Route::get('/student/notifications',               [NotificationController::class, 'index'])->name('student.notifications');
+    Route::get('/student/notifications/unread-count',  [NotificationController::class, 'unreadCount'])->name('student.notifications.unreadCount');
+    Route::post('/student/notifications/{id}/read',    [NotificationController::class, 'markRead'])->name('student.notifications.markRead');
+    Route::post('/student/notifications/read-all',     [NotificationController::class, 'markAllRead'])->name('student.notifications.markAllRead');
+    Route::post('/student/notifications/clear',        [NotificationController::class, 'clearAll'])->name('student.notifications.clear');
 
     Route::get('/student/support',                [StudentController::class, 'support'])->name('student.support');
     Route::post('/student/support',               [StudentController::class, 'storeSupportTicket'])->name('student.support.store');

@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>ExamSystem - Settings & Profile</title>
   <meta name="description" content="Manage your profile and view academic performance on ExamSystem.">
+  <meta name="csrf-token" content="{{ csrf_token() }}">
 
   <script>
     (function () {
@@ -16,6 +17,8 @@
   <script>tailwind.config = { darkMode: 'class' }</script>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
   <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pusher/8.3.0/pusher.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/laravel-echo@1.16.0/dist/echo.iife.js"></script>
   <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
 
   <style>
@@ -121,8 +124,8 @@
       <div class="flex items-center gap-3">
         <div class="relative flex-shrink-0">
           <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-amber-400 to-orange-400 flex items-center justify-center overflow-hidden shadow-sm">
-            @if($user->profile_photo)
-              <img src="{{ Storage::url($user->profile_photo) }}" class="w-full h-full object-cover">
+            @if($user->profile_image)
+              <img src="{{ Storage::url($user->profile_image) }}" class="w-full h-full object-cover">
             @else
               <span class="text-xs font-black text-amber-900 uppercase">{{ strtoupper(substr($user->full_name,0,2)) }}</span>
             @endif
@@ -240,8 +243,8 @@
 
         <div class="flex items-center gap-2.5 pl-1">
           <div class="w-8 h-8 rounded-xl overflow-hidden bg-gradient-to-br from-amber-400 to-orange-400 flex items-center justify-center text-[11px] font-black text-amber-900 shadow-sm">
-            @if($user->profile_photo)
-              <img src="{{ Storage::url($user->profile_photo) }}" class="w-full h-full object-cover">
+            @if($user->profile_image)
+              <img src="{{ Storage::url($user->profile_image) }}" class="w-full h-full object-cover">
             @else
               {{ strtoupper(substr($user->full_name,0,2)) }}
             @endif
@@ -285,8 +288,8 @@
               <div class="avatar-wrap relative cursor-pointer rounded-2xl border-4 shadow-xl overflow-hidden w-24 h-24"
                    :class="darkMode?'border-slate-900':'border-white'"
                    onclick="document.getElementById('img-uploader').click()">
-                @if($user->profile_photo)
-                  <img src="{{ Storage::url($user->profile_photo) }}" class="w-full h-full object-cover">
+                @if($user->profile_image)
+                  <img src="{{ Storage::url($user->profile_image) }}" class="w-full h-full object-cover">
                 @else
                   <div class="w-full h-full bg-gradient-to-br from-amber-400 to-orange-400 flex items-center justify-center">
                     <span class="text-2xl font-black text-amber-900 uppercase">{{ strtoupper(substr($user->full_name,0,2)) }}</span>
@@ -663,26 +666,8 @@
     </div>
   </div>
 
-  <!-- ════ ALPINE + NOTIFICATION LOGIC ════ -->
+  <!-- ════ ALPINE + REAL-TIME NOTIFICATION LOGIC ════ -->
   <script>
-    // ── All defined notifications (source of truth)
-    const ALL_NOTIFICATIONS = [
-      { id: 'n1', type: 'info',    title: 'New Exam Scheduled', body: 'Physics Mechanics exam is scheduled for Jul 18.',  time: 'Just now',  cleared: false },
-      { id: 'n2', type: 'success', title: 'Profile Updated',    body: 'Your display name was updated successfully.',       time: '5 min ago', cleared: false },
-      { id: 'n3', type: 'warn',    title: 'Exam Reminder',      body: 'Your Calculus II exam starts in 3 days.',           time: '1 hour ago', cleared: false },
-    ];
-
-    // ── Load persisted read/cleared state from localStorage
-    function loadNotifications() {
-      const readIds    = JSON.parse(localStorage.getItem('notif_read')    || '[]');
-      const clearedIds = JSON.parse(localStorage.getItem('notif_cleared') || '[]');
-      return ALL_NOTIFICATIONS.map(n => ({
-        ...n,
-        read:    readIds.includes(n.id),
-        cleared: clearedIds.includes(n.id),
-      }));
-    }
-
     document.addEventListener('alpine:init', () => {
       Alpine.data('settingsApp', () => ({
         darkMode: localStorage.getItem('darkMode') === 'true',
@@ -692,10 +677,23 @@
         liveTime: '',
         liveDate: '',
 
-        notifications: loadNotifications(),
+        notifications: [],
+        unreadCount: 0,
 
-        get unreadCount() {
-          return this.notifications.filter(n => !n.read && !n.cleared).length;
+        // ── Pull the latest notifications + unread count from the server
+        async fetchNotifications() {
+          try {
+            const res = await fetch('{{ route('student.notifications') }}', {
+              headers: { 'Accept': 'application/json' }
+            });
+            if (!res.ok) return;
+            const data = await res.json();
+            this.notifications = data.notifications.map(n => ({ ...n, cleared: false }));
+            this.unreadCount = data.unread_count;
+            lucide.createIcons();
+          } catch (e) {
+            console.error('Failed to load notifications', e);
+          }
         },
 
         metrics: {
@@ -712,35 +710,58 @@
             @foreach($submissions->take(7)->reverse() as $sub)
               { score: {{ round($sub->percentage ?? 0) }}, label: '{{ \Carbon\Carbon::parse($sub->created_at)->format("M d") }}' },
             @endforeach
-          @else
-            { score: 72, label: 'Jun 01' },
-            { score: 80, label: 'Jun 10' },
-            { score: 65, label: 'Jun 20' },
-            { score: 88, label: 'Jul 01' },
-            { score: 91, label: 'Jul 09' },
           @endif
         ],
 
-        // ── Mark a single notification as read and save to localStorage
-        markRead(id) {
+        // ── Real-time: receive a notification the instant it's created server-side
+        handleLiveNotification(payload) {
+          this.notifications.unshift({ ...payload, read: false, cleared: false });
+          this.unreadCount += 1;
+          const bellIcon = document.getElementById('bell-icon');
+          if (bellIcon) {
+            bellIcon.classList.add('bell-ring');
+            setTimeout(() => bellIcon.classList.remove('bell-ring'), 500);
+          }
+          lucide.createIcons();
+        },
+
+        // ── Mark a single notification as read on the server
+        async markRead(id) {
           const notif = this.notifications.find(n => n.id === id);
-          if (notif) {
+          if (notif && !notif.read) {
             notif.read = true;
-            const readIds = JSON.parse(localStorage.getItem('notif_read') || '[]');
-            if (!readIds.includes(id)) readIds.push(id);
-            localStorage.setItem('notif_read', JSON.stringify(readIds));
-            lucide.createIcons();
+            this.unreadCount = Math.max(0, this.unreadCount - 1);
+            try {
+              await fetch(`/student/notifications/${id}/read`, {
+                method: 'POST',
+                headers: {
+                  'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
+                  'Accept': 'application/json'
+                }
+              });
+            } catch (e) {
+              console.error('Failed to mark notification as read', e);
+            }
           }
         },
 
-        // ── Clear all notifications and save to localStorage
-        clearAllNotifications() {
-          const clearedIds = this.notifications.map(n => n.id);
+        // ── Permanently clear all notifications on the server
+        async clearAllNotifications() {
           this.notifications.forEach(n => { n.cleared = true; n.read = true; });
-          localStorage.setItem('notif_cleared', JSON.stringify(clearedIds));
-          localStorage.setItem('notif_read', JSON.stringify(clearedIds));
-          // Close dropdown after clear
+          this.unreadCount = 0;
           document.getElementById('notif-dropdown').classList.add('hidden');
+          try {
+            await fetch('{{ route('student.notifications.clear') }}', {
+              method: 'POST',
+              headers: {
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
+                'Accept': 'application/json'
+              }
+            });
+            this.notifications = [];
+          } catch (e) {
+            console.error('Failed to clear notifications', e);
+          }
         },
 
         updateClock() {
@@ -753,6 +774,30 @@
           this.$watch('darkMode', val => localStorage.setItem('darkMode', val));
           this.updateClock();
           setInterval(() => this.updateClock(), 1000);
+
+          // Real-time notifications: load immediately, then poll every 20s as a fallback
+          this.fetchNotifications();
+          setInterval(() => this.fetchNotifications(), 20000);
+
+          // Live push over websocket — updates the bell the instant something happens,
+          // no need to wait for the next poll.
+          const userId = {{ Auth::user()->user_id ?? 'null' }};
+          if (userId && !window.Echo) {
+            window.Pusher = Pusher;
+            window.Echo = new Echo({
+              broadcaster: 'pusher',
+              key: '{{ config('broadcasting.connections.pusher.key') ?: 'examsystemkeyabc123' }}',
+              cluster: '{{ config('broadcasting.connections.pusher.options.cluster') ?: 'mt1' }}',
+              forceTLS: true,
+              authEndpoint: '{{ url('/broadcasting/auth') }}',
+              auth: { headers: { 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '', 'Accept': 'application/json' } }
+            });
+          }
+          if (userId && window.Echo) {
+            window.Echo.private('notifications.' + userId)
+              .listen('.NotificationCreated', (payload) => this.handleLiveNotification(payload));
+          }
+
           lucide.createIcons();
         }
       }));

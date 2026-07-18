@@ -18,7 +18,17 @@ use Illuminate\Support\Facades\Broadcast;
  * Used for targeted system notifications to specific users.
  */
 Broadcast::channel('App.Models.User.{id}', function ($user, $id) {
-    return (int) $user->id === (int) $id;
+    // NOTE: this app's User primary key is `user_id`, not `id` — fixed below.
+    return (int) $user->user_id === (int) $id;
+});
+
+/**
+ * 1b. Real-Time Notification Channel
+ * Powers the notification bell on Dashboard, History, Exams, Settings
+ * and Support. Each user only gets access to their own notification feed.
+ */
+Broadcast::channel('notifications.{userId}', function ($user, $userId) {
+    return (int) $user->user_id === (int) $userId;
 });
 
 /**

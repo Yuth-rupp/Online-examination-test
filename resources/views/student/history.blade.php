@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>ExamSystem - Results & History</title>
   <meta name="description" content="View your full exam performance history, scores, and grade trends on ExamSystem.">
+  <meta name="csrf-token" content="{{ csrf_token() }}">
 
   <!-- Anti-Flash Dark Mode -->
   <script>
@@ -54,6 +55,7 @@
     /* Table row hover */
     .table-row { transition: background-color 0.15s ease; }
   </style>
+  @include('partials.notification-styles')
 </head>
 
 <body class="min-h-screen flex antialiased transition-colors duration-300"
@@ -166,11 +168,7 @@
           <i data-lucide="sun" class="w-4 h-4" x-show="darkMode"></i>
           <i data-lucide="moon" class="w-4 h-4" x-show="!darkMode"></i>
         </button>
-        <button class="relative p-2.5 rounded-xl transition-colors cursor-pointer"
-                :class="darkMode ? 'bg-slate-800 text-slate-400 hover:bg-slate-700' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'">
-          <i data-lucide="bell" class="w-4 h-4"></i>
-          <span class="absolute top-2 right-2 w-1.5 h-1.5 bg-red-500 rounded-full"></span>
-        </button>
+        @include('partials.notification-bell')
         <div class="w-px h-6 mx-1" :class="darkMode ? 'bg-slate-700' : 'bg-slate-200'"></div>
         <div class="flex items-center gap-2.5 pl-1">
           <div class="w-8 h-8 rounded-xl bg-gradient-to-br from-amber-400 to-orange-400 flex items-center justify-center text-[11px] font-black text-amber-900 shadow-sm">
@@ -845,5 +843,6 @@
       }));
     });
   </script>
+  @include('partials.notification-realtime')
 </body>
 </html>

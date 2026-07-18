@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>ExamSystem - My Exams</title>
   <meta name="description" content="View your upcoming, live, and completed exams on ExamSystem Student Portal.">
+  <meta name="csrf-token" content="{{ csrf_token() }}">
 
   <!-- Anti-Flash Dark Mode -->
   <script>
@@ -55,6 +56,7 @@
     /* Tab active transition */
     .tab-pill { transition: all 0.2s cubic-bezier(0.4,0,0.2,1); }
   </style>
+  @include('partials.notification-styles')
 </head>
 
 <body class="min-h-screen flex antialiased transition-colors duration-300"
@@ -158,7 +160,7 @@
         <i data-lucide="search" class="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none"></i>
         <input type="text"
                x-model="searchQuery"
-               placeholder="Search exams, courses…"
+               placeholder="Search by exam title, course name, or course ID…"
                class="w-full pl-10 pr-4 py-2.5 rounded-xl text-sm font-medium border-none focus:outline-none focus:ring-2 focus:ring-indigo-500/25 transition-all"
                :class="darkMode ? 'bg-slate-800 text-white placeholder-slate-500' : 'bg-slate-100 text-slate-800 placeholder-slate-400'">
       </div>
@@ -170,11 +172,7 @@
           <i data-lucide="sun" class="w-4 h-4" x-show="darkMode"></i>
           <i data-lucide="moon" class="w-4 h-4" x-show="!darkMode"></i>
         </button>
-        <button class="relative p-2.5 rounded-xl transition-colors cursor-pointer"
-                :class="darkMode ? 'bg-slate-800 text-slate-400 hover:bg-slate-700' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'">
-          <i data-lucide="bell" class="w-4 h-4"></i>
-          <span class="absolute top-2 right-2 w-1.5 h-1.5 bg-red-500 rounded-full"></span>
-        </button>
+        @include('partials.notification-bell')
         <div class="w-px h-6 mx-1" :class="darkMode ? 'bg-slate-700' : 'bg-slate-200'"></div>
         <div class="flex items-center gap-2.5 pl-1">
           <div class="w-8 h-8 rounded-xl bg-gradient-to-br from-amber-400 to-orange-400 flex items-center justify-center text-[11px] font-black text-amber-900 shadow-sm">
@@ -520,8 +518,9 @@
             {
               id: '{{ $exam->exam_id }}',
               title: '{{ addslashes($exam->title) }}',
+              courseId: '{{ $exam->course->id ?? $exam->course_id }}',
               code: '{{ addslashes($exam->course->code ?? "DAT-464") }}',
-              dept: '{{ addslashes($exam->course->course_name ?? "Database Department") }}',
+              dept: '{{ addslashes($exam->course->name ?? "Database Department") }}',
               date: '{{ \Carbon\Carbon::parse($exam->start_time)->format("M d, Y") }}',
               time: '{{ \Carbon\Carbon::parse($exam->start_time)->format("h:i A") }}',
               duration: '{{ $exam->duration ?? 100 }} mins',
@@ -541,10 +540,13 @@
         get filteredExams() {
           return this.exams.filter(e => {
             const matchStatus = e.status === this.activeTab;
-            const matchSearch = this.searchQuery === '' ||
-              e.title.toLowerCase().includes(this.searchQuery.toLowerCase()) ||
-              e.code.toLowerCase().includes(this.searchQuery.toLowerCase()) ||
-              e.dept.toLowerCase().includes(this.searchQuery.toLowerCase());
+            const q = this.searchQuery.toLowerCase().trim();
+            const matchSearch = q === '' ||
+              e.title.toLowerCase().includes(q) ||
+              e.code.toLowerCase().includes(q) ||
+              e.dept.toLowerCase().includes(q) ||
+              String(e.courseId).toLowerCase() === q ||
+              String(e.courseId).toLowerCase().includes(q);
             return matchStatus && matchSearch;
           });
         },
@@ -638,5 +640,6 @@
       }));
     });
   </script>
+  @include('partials.notification-realtime')
 </body>
 </html>

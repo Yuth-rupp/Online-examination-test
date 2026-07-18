@@ -10,6 +10,8 @@ use App\Models\Submission;
 use App\Models\User;
 use App\Models\Institution;
 use App\Models\Question;
+use App\Models\Enrollment;
+use App\Models\Notification;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Auth;
@@ -172,7 +174,39 @@ class TeacherController extends Controller
             'status'      => 'published'
         ]);
 
+        $this->notifyEnrolledStudents($exam, $course);
+
         return redirect()->route('teacher.dashboard')->with('success', "Exam Session Generated: {$exam->access_code}");
+    }
+
+    /**
+     * Push a "new exam published" notification to every student actively
+     * enrolled in the exam's course. Each Notification::create() below
+     * is picked up by NotificationObserver and broadcast live to that
+     * student's bell on Dashboard, History, Exams, and Settings.
+     */
+    private function notifyEnrolledStudents(Exam $exam, ?Course $course): void
+    {
+        if (!$course) {
+            return;
+        }
+
+        $studentIds = Enrollment::where('course_id', $course->id)
+            ->where('status', 'active')
+            ->pluck('user_id');
+
+        foreach ($studentIds as $studentId) {
+            Notification::create([
+                'user_id' => $studentId,
+                'title'   => 'New Exam Published',
+                'body'    => "\"{$exam->title}\" is now available for {$course->name} (Course ID: {$course->id}).",
+                'type'    => 'info',
+                'data'    => [
+                    'exam_id'   => $exam->exam_id,
+                    'course_id' => $course->id,
+                ],
+            ]);
+        }
     }
 
     /**
@@ -207,6 +241,8 @@ class TeacherController extends Controller
             ]);
 
             Question::whereIn('id', $request->question_ids)->update(['exam_id' => $exam->exam_id]);
+
+            $this->notifyEnrolledStudents($exam, $defaultCourse);
 
             return response()->json([
                 'success' => true,
