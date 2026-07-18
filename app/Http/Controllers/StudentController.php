@@ -256,7 +256,23 @@ class StudentController extends Controller
     public function printHallTicket(Request $request)
     {
         $user = $request->user() ?? Auth::user();
-        return view('student.print_ticket', compact('user'));
+
+        $institution = \App\Models\Institution::find($user->institution_id);
+
+        $enrolledCourseIds = Enrollment::where('user_id', $user->user_id)
+            ->where('status', 'active')
+            ->pluck('course_id');
+
+        $exams = Exam::with('course')
+            ->whereIn('course_id', $enrolledCourseIds)
+            ->where('status', 'published')
+            ->where('end_time', '>=', now())
+            ->orderBy('start_time', 'asc')
+            ->get();
+
+        $ticketNo = 'HT-' . str_pad($user->user_id, 6, '0', STR_PAD_LEFT) . '-' . now()->format('y');
+
+        return view('student.print_ticket', compact('user', 'institution', 'exams', 'ticketNo'));
     }
 
     /**

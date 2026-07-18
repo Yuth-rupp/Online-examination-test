@@ -34,6 +34,7 @@ class User extends Authenticatable
         'status',
         'institution_id',   // ✅ Required for registration workflows[cite: 6]
         'institutional_id', // ✅ Kept the correct column name matching schema metrics[cite: 6]
+        'profile_image',
     ];
 
     /**
