@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>ExamSystem – Analytics</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -129,22 +130,23 @@
 
                 {{-- Notification --}}
                 <div class="relative" id="notifWrap">
-                    <button onclick="toggleNotif(event)"
+                    <button onclick="toggleNotif(event)" id="notif-bell-btn-analytics"
                             class="w-9 h-9 rounded-xl flex items-center justify-center transition-all relative"
                             style="background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.18)">
                         <i class="fa-solid fa-bell text-white/80 text-sm"></i>
-                        @if(count($notifications) > 0)
-                        <span class="absolute top-1.5 right-1.5 w-2 h-2 bg-red-400 rounded-full border border-white/50"></span>
-                        @endif
+                        <span id="teacher-notif-dot-analytics"
+                              class="absolute top-1.5 right-1.5 w-2 h-2 bg-red-400 rounded-full border border-white/50 {{ count($notifications) > 0 ? '' : 'hidden' }}"></span>
                     </button>
                     <div id="notifBox">
                         <div class="flex items-center justify-between px-4 py-3 border-b border-slate-100" style="background:#F8FAFC">
                             <span class="text-[10px] font-black text-slate-700 uppercase tracking-widest">System Alerts</span>
-                            @if(count($notifications) > 0)
-                            <span class="text-[9px] font-black text-white bg-red-500 px-2 py-0.5 rounded-full">{{ count($notifications) }}</span>
-                            @endif
+                            <div class="flex items-center gap-2">
+                                <span id="teacher-notif-pill-analytics"
+                                      class="text-[9px] font-black text-white bg-red-500 px-2 py-0.5 rounded-full {{ count($notifications) > 0 ? '' : 'hidden' }}">{{ count($notifications) }}</span>
+                                <button type="button" id="teacher-notif-clear-analytics" class="text-[9px] font-bold text-slate-400 hover:text-blue-600 transition-colors">Clear</button>
+                            </div>
                         </div>
-                        <div class="max-h-60 overflow-y-auto divide-y divide-slate-50">
+                        <div class="max-h-60 overflow-y-auto divide-y divide-slate-50" id="teacher-notif-list-analytics">
                             @forelse($notifications as $item)
                             <div class="flex gap-3 px-4 py-3 hover:bg-slate-50 transition-colors cursor-pointer">
                                 <div class="w-7 h-7 rounded-lg bg-blue-100 flex items-center justify-center text-blue-600 flex-shrink-0 mt-0.5">
@@ -664,5 +666,8 @@ function exportCSV(){
 // ── INIT ───────────────────────────
 document.addEventListener('DOMContentLoaded', processUpdate);
 </script>
+
+@include('partials.teacher-notification-realtime')
+
 </body>
 </html>

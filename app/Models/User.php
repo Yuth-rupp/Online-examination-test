@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens; // 🌟 Sanctum import preserved cleanly[cite: 6]
+use Illuminate\Support\Str;
 
 class User extends Authenticatable
 {
@@ -70,6 +71,20 @@ class User extends Authenticatable
      */
     public function getAvatarUrlAttribute()
     {
-        return $this->profile?->avatar_url;
+        $path = $this->profile?->avatar_url;
+
+        if (empty($path)) {
+            return null;
+        }
+
+        // Already an absolute URL (e.g. re-saved value) — return as-is.
+        if (Str::startsWith($path, ['http://', 'https://'])) {
+            return $path;
+        }
+
+        // Stored as a relative path like "uploads/avatars/foo.png" — this must
+        // be resolved from the site root, not from whatever page is currently
+        // rendering it, otherwise it breaks on any page that isn't "/".
+        return asset($path);
     }
 }

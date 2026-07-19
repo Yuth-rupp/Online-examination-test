@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>ExamSystem - Teacher Dashboard</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -217,7 +218,8 @@
             <button onclick="toggleDrawer()" id="bell-btn"
                     class="relative w-9 h-9 flex items-center justify-center rounded-xl border border-[#E2E8F0] bg-white text-[#64748B] hover:bg-[#F8FAFC] hover:text-[#1E293B] transition-all">
                 <i class="fa-regular fa-bell text-sm"></i>
-                <span class="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full border-2 border-white"></span>
+                <span id="teacher-notif-bell-dot"
+                      class="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full border-2 border-white {{ ($unreadNotificationCount ?? 0) > 0 ? '' : 'hidden' }}"></span>
             </button>
 
             <!-- Avatar -->
@@ -368,7 +370,8 @@
                 <button onclick="toggleDrawer()"
                         class="inline-flex items-center gap-2 bg-white border border-[#E2E8F0] text-[#475569] hover:text-[#1E293B] hover:border-[#CBD5E1] text-xs font-semibold px-4 py-2 rounded-xl transition-all">
                     <i class="fa-regular fa-bell text-[#EF4444]"></i> Alerts
-                    <span class="bg-red-500 text-white text-[9px] font-bold rounded-full w-4 h-4 flex items-center justify-center">3</span>
+                    <span id="teacher-alerts-count"
+                          class="bg-red-500 text-white text-[9px] font-bold rounded-full w-4 h-4 flex items-center justify-center {{ ($unreadNotificationCount ?? 0) > 0 ? '' : 'hidden' }}">{{ $unreadNotificationCount ?? 0 }}</span>
                 </button>
                 <a href="{{ route('teacher.monitoring.show') }}"
                    class="inline-flex items-center gap-2 bg-white border border-[#E2E8F0] text-[#475569] hover:text-[#1E293B] hover:border-[#CBD5E1] text-xs font-semibold px-4 py-2 rounded-xl transition-all">
@@ -738,43 +741,25 @@
             </div>
             <div>
                 <h2 class="text-sm font-bold text-[#0F172A]">Live Notifications</h2>
-                <p class="text-[10px] text-[#94A3B8]">3 new alerts</p>
+                <p class="text-[10px] text-[#94A3B8]" id="teacher-notif-subtitle">Loading…</p>
             </div>
         </div>
-        <button onclick="toggleDrawer()" class="w-8 h-8 flex items-center justify-center rounded-xl text-[#64748B] hover:bg-[#F1F5F9] hover:text-[#1E293B] transition-colors">
-            <i class="fa-solid fa-xmark text-sm"></i>
-        </button>
+        <div class="flex items-center gap-1">
+            <button id="teacher-notif-clear-dashboard" class="text-[10px] font-bold text-[#94A3B8] hover:text-[#2563EB] px-2 py-1 rounded-lg hover:bg-[#F1F5F9] transition-colors">
+                Clear all
+            </button>
+            <button onclick="toggleDrawer()" class="w-8 h-8 flex items-center justify-center rounded-xl text-[#64748B] hover:bg-[#F1F5F9] hover:text-[#1E293B] transition-colors">
+                <i class="fa-solid fa-xmark text-sm"></i>
+            </button>
+        </div>
     </div>
 
     <!-- Drawer Body -->
-    <div class="flex-1 overflow-y-auto p-4 space-y-3">
-
-        <div class="p-4 bg-[#FEF2F2] border border-[#FECACA] rounded-2xl space-y-2">
-            <div class="flex items-center justify-between">
-                <span class="text-[10px] font-extrabold bg-[#FEE2E2] text-[#991B1B] px-2 py-0.5 rounded-md uppercase tracking-wider">🔴 High Alert</span>
-                <span class="text-[10px] text-[#EF4444] font-medium">Just Now</span>
-            </div>
-            <p class="text-xs font-semibold text-[#7F1D1D] leading-relaxed">Suspicious tab navigation detected on candidate J. Doe — Database Systems Midterm.</p>
-            <button class="text-[11px] font-bold text-[#EF4444] hover:underline">View Student →</button>
+    <div class="flex-1 overflow-y-auto p-4 space-y-3" id="teacher-notif-drawer-list">
+        <div class="py-14 text-center">
+            <i class="fa-regular fa-bell-slash text-3xl text-[#CBD5E1] mb-3 block"></i>
+            <p class="text-xs font-bold text-[#94A3B8]">Loading notifications…</p>
         </div>
-
-        <div class="p-4 bg-[#FFFBEB] border border-[#FDE68A] rounded-2xl space-y-2">
-            <div class="flex items-center justify-between">
-                <span class="text-[10px] font-extrabold bg-[#FEF3C7] text-[#92400E] px-2 py-0.5 rounded-md uppercase tracking-wider">⚠️ Warning</span>
-                <span class="text-[10px] text-[#F59E0B] font-medium">4 min ago</span>
-            </div>
-            <p class="text-xs font-semibold text-[#78350F] leading-relaxed">Marcus Reid switched tabs 3 times during Physics 101 Final Exam.</p>
-            <button class="text-[11px] font-bold text-[#D97706] hover:underline">Send Warning →</button>
-        </div>
-
-        <div class="p-4 bg-[#EFF6FF] border border-[#BFDBFE] rounded-2xl space-y-2">
-            <div class="flex items-center justify-between">
-                <span class="text-[10px] font-extrabold bg-[#DBEAFE] text-[#1E40AF] px-2 py-0.5 rounded-md uppercase tracking-wider">ℹ️ Info</span>
-                <span class="text-[10px] text-[#2563EB] font-medium">12 min ago</span>
-            </div>
-            <p class="text-xs font-semibold text-[#1E3A8A] leading-relaxed">Kevin Adams reconnected to Calculus Problem Set after a disconnection.</p>
-        </div>
-
     </div>
 
     <!-- Drawer Footer -->
@@ -936,6 +921,8 @@ setInterval(() => {
     else el.textContent = Math.floor(secondsAgo / 60) + 'm ago';
 }, 1000);
 </script>
+
+@include('partials.teacher-notification-realtime')
 
 </body>
 </html>

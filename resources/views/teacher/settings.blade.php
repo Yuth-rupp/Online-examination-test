@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>ExamSystem – Settings</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -98,7 +99,7 @@
     <div class="p-2.5 border-t border-slate-100 flex-shrink-0">
         <div class="flex items-center gap-2.5 px-2 py-2 rounded-xl">
             <div class="w-8 h-8 rounded-full overflow-hidden border-2 border-slate-200 flex-shrink-0">
-                <img src="{{ Auth::user()->avatar_url ?? 'https://api.dicebear.com/7.x/bottts/svg?seed='.(Auth::user()->full_name ?? 'I') }}" class="w-full h-full object-cover">
+                <img id="sidebarAvatar" src="{{ Auth::user()->avatar_url ?? 'https://api.dicebear.com/7.x/bottts/svg?seed='.(Auth::user()->full_name ?? 'I') }}" class="w-full h-full object-cover">
             </div>
             <div class="min-w-0">
                 <p class="text-xs font-black text-slate-900 truncate">{{ Auth::user()->full_name ?? 'Yun Dalin' }}</p>
@@ -173,7 +174,7 @@
                                  src="{{ Auth::user()->avatar_url ?? 'https://api.dicebear.com/7.x/bottts/svg?seed='.(Auth::user()->full_name ?? 'I') }}"
                                  class="w-full h-full object-cover" alt="Profile">
                         </div>
-                        <input type="file" id="avatarInput" name="avatar" accept="image/*" class="hidden" onchange="previewAvatar(this)">
+                        <input type="file" id="avatarInput" name="avatar" accept="image/*" class="hidden" onchange="handleAvatarUpload(this)">
                         <input type="hidden" id="removeAvatarFlag" name="remove_avatar" value="0">
                         <button type="button" onclick="document.getElementById('avatarInput').click()"
                                 class="absolute -bottom-2 -right-2 w-8 h-8 rounded-xl flex items-center justify-center text-white text-xs border-2 border-white shadow-lg transition-all hover:scale-110"
@@ -592,20 +593,86 @@ function toast(m,t='success'){
     setTimeout(()=>{el.style.transition='all .3s';el.style.opacity='0';el.style.transform='translateY(8px)';setTimeout(()=>el.remove(),300)},3500);
 }
 
-// ── AVATAR ──
+// ── AVATAR (instant, real-time — no page reload needed) ──
+const CSRF_TOKEN = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
 const FALLBACK = "https://api.dicebear.com/7.x/bottts/svg?seed={{ Auth::user()->full_name ?? 'I' }}";
-function previewAvatar(inp){
-    if(inp.files&&inp.files[0]){
-        const r=new FileReader();
-        r.onload=e=>{ document.getElementById('avatarPreview').src=e.target.result; document.getElementById('removeAvatarFlag').value='0'; };
-        r.readAsDataURL(inp.files[0]);
+
+function setAllAvatars(src) {
+    const preview = document.getElementById('avatarPreview');
+    const sidebar = document.getElementById('sidebarAvatar');
+    if (preview) preview.src = src;
+    if (sidebar) sidebar.src = src;
+}
+
+function setAvatarUploading(isUploading) {
+    const preview = document.getElementById('avatarPreview');
+    if (preview) preview.style.opacity = isUploading ? '.5' : '1';
+}
+
+async function handleAvatarUpload(inp) {
+    if (!(inp.files && inp.files[0])) return;
+    const file = inp.files[0];
+
+    // Instant local preview so it never looks frozen while uploading.
+    const reader = new FileReader();
+    reader.onload = e => setAllAvatars(e.target.result);
+    reader.readAsDataURL(file);
+
+    setAvatarUploading(true);
+    const fd = new FormData();
+    fd.append('avatar', file);
+
+    try {
+        const res = await fetch('{{ route('teacher.settings.avatar') }}', {
+            method: 'POST',
+            headers: { 'X-CSRF-TOKEN': CSRF_TOKEN, 'Accept': 'application/json' },
+            body: fd
+        });
+        const data = await res.json();
+        setAvatarUploading(false);
+
+        if (res.ok && data.success) {
+            setAllAvatars(data.avatar_url || FALLBACK);
+            document.getElementById('removeAvatarFlag').value = '0';
+            inp.value = ''; // avoid re-uploading the same file if the profile form is submitted later
+            toast('Profile photo updated', 'success');
+        } else {
+            setAllAvatars(FALLBACK);
+            toast(data.message || 'Photo must be under 800KB (JPG, PNG or GIF)', 'error');
+        }
+    } catch (e) {
+        setAvatarUploading(false);
+        toast('Failed to upload photo — check your connection', 'error');
     }
 }
-function removeAvatar(){
-    if(confirm('Remove your profile photo?')){
-        document.getElementById('avatarPreview').src=FALLBACK;
-        document.getElementById('avatarInput').value='';
-        document.getElementById('removeAvatarFlag').value='1';
+
+async function removeAvatar() {
+    if (!confirm('Remove your profile photo?')) return;
+
+    setAvatarUploading(true);
+    const fd = new FormData();
+    fd.append('remove', '1');
+
+    try {
+        const res = await fetch('{{ route('teacher.settings.avatar') }}', {
+            method: 'POST',
+            headers: { 'X-CSRF-TOKEN': CSRF_TOKEN, 'Accept': 'application/json' },
+            body: fd
+        });
+        const data = await res.json();
+        setAvatarUploading(false);
+
+        if (res.ok && data.success) {
+            setAllAvatars(FALLBACK);
+            document.getElementById('avatarInput').value = '';
+            document.getElementById('removeAvatarFlag').value = '1';
+            toast('Profile photo removed', 'success');
+        } else {
+            toast('Failed to remove photo', 'error');
+        }
+    } catch (e) {
+        setAvatarUploading(false);
+        toast('Failed to remove photo — check your connection', 'error');
     }
 }
 

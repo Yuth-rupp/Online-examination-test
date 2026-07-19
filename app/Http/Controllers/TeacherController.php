@@ -79,6 +79,12 @@ class TeacherController extends Controller
               )
             : 0;
 
+        // Real unread notification count for the bell/"Alerts" badges.
+        // For a freshly registered account this is simply 0 — no fake numbers.
+        $unreadNotificationCount = Notification::where('user_id', $user->user_id)
+            ->whereNull('read_at')
+            ->count();
+
         return view('teacher.dashboard', compact(
             'totalExams',
             'activeExams',
@@ -90,7 +96,8 @@ class TeacherController extends Controller
             'pendingGradingCount',
             'gradedCount',
             'gradingCompletionPercent',
-            'passRate'
+            'passRate',
+            'unreadNotificationCount'
         ));
     }
 
@@ -405,11 +412,18 @@ class TeacherController extends Controller
                 return $q;
             })->sortByDesc('fail_rate');
 
-        // 4. Operational System Notifications array logs
-        $notifications = [
-            ['id' => 1, 'text' => 'New exam submission received for Math Midterm.', 'time' => '5 mins ago'],
-            ['id' => 2, 'text' => 'Proctor flagged a window-switching violation.', 'time' => '12 mins ago']
-        ];
+        // 4. Real system notifications for this teacher (empty for a fresh account —
+        //    no more fake "New exam submission..." placeholders).
+        $notifications = Notification::where('user_id', $user->user_id)
+            ->orderBy('created_at', 'desc')
+            ->limit(15)
+            ->get()
+            ->map(fn ($n) => [
+                'id'    => $n->id,
+                'text'  => $n->title . ($n->body ? ' — ' . $n->body : ''),
+                'time'  => $n->created_at?->diffForHumans(),
+                'read'  => (bool) $n->read_at,
+            ]);
 
         $monthsLabels = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
@@ -425,6 +439,53 @@ class TeacherController extends Controller
             'teacherExams',
             'liveSubmissionsRaw'
         ));
+    }
+
+    /**
+     * Instantly upload (or remove) the teacher's profile photo via AJAX.
+     * Used by Settings so the avatar updates immediately without a full
+     * page/form submit — and always returns an absolute URL so the image
+     * never breaks regardless of which page it's rendered on.
+     */
+    public function uploadAvatar(Request $request)
+    {
+        $user = Auth::user();
+        $profile = $user->profile ?? $user->profile()->create(['first_name' => $user->full_name, 'last_name' => '']);
+
+        // ── Removal ──
+        if ($request->boolean('remove')) {
+            if (!empty($profile->avatar_url) && file_exists(public_path($profile->avatar_url))) {
+                @unlink(public_path($profile->avatar_url));
+            }
+            $profile->avatar_url = null;
+            $profile->save();
+
+            return response()->json([
+                'success'    => true,
+                'avatar_url' => null,
+            ]);
+        }
+
+        // ── Upload ──
+        $request->validate([
+            'avatar' => 'required|image|mimes:jpeg,png,jpg,gif|max:800',
+        ]);
+
+        if (!empty($profile->avatar_url) && file_exists(public_path($profile->avatar_url))) {
+            @unlink(public_path($profile->avatar_url));
+        }
+
+        $avatarFile = $request->file('avatar');
+        $avatarName = 'avatar_' . $user->user_id . '_' . time() . '.' . $avatarFile->getClientOriginalExtension();
+        $avatarFile->move(public_path('uploads/avatars'), $avatarName);
+
+        $profile->avatar_url = 'uploads/avatars/' . $avatarName;
+        $profile->save();
+
+        return response()->json([
+            'success'    => true,
+            'avatar_url' => asset($profile->avatar_url),
+        ]);
     }
 
     /**
@@ -445,7 +506,10 @@ class TeacherController extends Controller
         $user->email = $validatedData['email'];
         $user->save();
 
-        // Every user needs a profile row to hang the avatar off of.
+        // Avatar is now handled instantly by uploadAvatar() via AJAX as soon as the
+        // file is chosen on Settings, so this form submit only needs to cover the
+        // case where JS didn't run (e.g. no-JS fallback) — the input will be empty
+        // in the normal flow since it's cleared right after the AJAX upload succeeds.
         $profile = $user->profile ?? $user->profile()->create(['first_name' => $user->full_name, 'last_name' => '']);
 
         if ($request->boolean('remove_avatar')) {
