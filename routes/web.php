@@ -80,8 +80,9 @@ Route::middleware(['auth', 'role:teacher'])->group(function () {
     // Asynchronous avatar upload handler
     Route::post('/teacher/settings/avatar', [TeacherController::class, 'updateAvatar'])->name('teacher.settings.avatar');
 
-    // Real-time Teacher Notification Endpoints (Fixes error matching partials/teacher-notification-realtime.blade.php)
+    // Real-time Teacher Notification Endpoints
     Route::get('/teacher/notifications', [NotificationController::class, 'index'])->name('teacher.notifications');
+    Route::post('/teacher/notifications/clear', [NotificationController::class, 'clearAll'])->name('teacher.notifications.clear');
 
     Route::get('/teacher/courses/create',    [TeacherController::class, 'createCourse'])->name('teacher.courses.create');
     Route::post('/teacher/courses/store',    [TeacherController::class, 'storeCourse'])->name('teacher.courses.store');
