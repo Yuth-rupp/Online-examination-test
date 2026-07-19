@@ -77,8 +77,11 @@ Route::middleware(['auth', 'role:teacher'])->group(function () {
     Route::post('/teacher/settings',  [TeacherController::class, 'updateSettings'])->name('teacher.settings.update');
     Route::post('/teacher/settings/password', [TeacherController::class, 'updatePassword'])->name('teacher.settings.update.password');
     
-    // Asynchronous avatar upload handler (Fixes Symfony\Component\Routing\Exception\RouteNotFoundException)
+    // Asynchronous avatar upload handler
     Route::post('/teacher/settings/avatar', [TeacherController::class, 'updateAvatar'])->name('teacher.settings.avatar');
+
+    // Real-time Teacher Notification Endpoints (Fixes error matching partials/teacher-notification-realtime.blade.php)
+    Route::get('/teacher/notifications', [NotificationController::class, 'index'])->name('teacher.notifications');
 
     Route::get('/teacher/courses/create',    [TeacherController::class, 'createCourse'])->name('teacher.courses.create');
     Route::post('/teacher/courses/store',    [TeacherController::class, 'storeCourse'])->name('teacher.courses.store');
