@@ -98,7 +98,7 @@
     <div class="p-2.5 border-t border-slate-100 flex-shrink-0">
         <div class="flex items-center gap-2.5 px-2 py-2 rounded-xl">
             <div class="w-8 h-8 rounded-full overflow-hidden border-2 border-slate-200 flex-shrink-0">
-                <img src="https://api.dicebear.com/7.x/bottts/svg?seed={{ Auth::user()->full_name ?? 'I' }}" class="w-full h-full object-cover">
+                <img src="{{ Auth::user()->avatar_url ?? 'https://api.dicebear.com/7.x/bottts/svg?seed='.(Auth::user()->full_name ?? 'I') }}" class="w-full h-full object-cover">
             </div>
             <div class="min-w-0">
                 <p class="text-xs font-black text-slate-900 truncate">{{ Auth::user()->full_name ?? 'Yun Dalin' }}</p>

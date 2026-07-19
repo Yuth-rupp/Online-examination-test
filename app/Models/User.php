@@ -63,4 +63,13 @@ class User extends Authenticatable
     {
         return $this->hasOne(UserProfile::class, 'user_id', 'user_id'); // Match data variables keys accurately[cite: 6]
     }
+
+    /**
+     * Accessor so views can use Auth::user()->avatar_url directly instead of
+     * having to reach through the profile relationship every time.
+     */
+    public function getAvatarUrlAttribute()
+    {
+        return $this->profile?->avatar_url;
+    }
 }

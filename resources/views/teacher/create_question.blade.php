@@ -153,7 +153,7 @@
     <div class="p-3 border-t border-[#E2E8F0]">
         <a href="{{ route('teacher.settings') }}" class="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-[#F8FAFC] transition-colors">
             <div class="w-9 h-9 rounded-full overflow-hidden border-2 border-[#E2E8F0] flex-shrink-0">
-                <img src="https://api.dicebear.com/7.x/bottts/svg?seed={{ Auth::user()->full_name ?? 'Alex' }}" class="w-full h-full object-cover" alt="Avatar">
+                <img src="{{ Auth::user()->avatar_url ?? 'https://api.dicebear.com/7.x/bottts/svg?seed='.(Auth::user()->full_name ?? 'Alex') }}" class="w-full h-full object-cover" alt="Avatar">
             </div>
             <div class="flex-1 min-w-0">
                 <p class="text-sm font-bold text-[#0F172A] truncate">{{ Auth::user()->full_name ?? 'Yun Dalin' }}</p>

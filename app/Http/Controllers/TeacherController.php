@@ -436,12 +436,36 @@ class TeacherController extends Controller
 
         $validatedData = $request->validate([
             'full_name'     => 'required|string|max:255',
-            'email'         => 'required|email|max:255|unique:users,email,' . $user->user_id . ',user_id'
+            'email'         => 'required|email|max:255|unique:users,email,' . $user->user_id . ',user_id',
+            'avatar'        => 'nullable|image|mimes:jpeg,png,jpg,gif|max:800',
+            'remove_avatar' => 'nullable|in:0,1',
         ]);
 
         $user->full_name = $validatedData['full_name'];
         $user->email = $validatedData['email'];
         $user->save();
+
+        // Every user needs a profile row to hang the avatar off of.
+        $profile = $user->profile ?? $user->profile()->create(['first_name' => $user->full_name, 'last_name' => '']);
+
+        if ($request->boolean('remove_avatar')) {
+            if (!empty($profile->avatar_url) && file_exists(public_path($profile->avatar_url))) {
+                @unlink(public_path($profile->avatar_url));
+            }
+            $profile->avatar_url = null;
+            $profile->save();
+        } elseif ($request->hasFile('avatar')) {
+            if (!empty($profile->avatar_url) && file_exists(public_path($profile->avatar_url))) {
+                @unlink(public_path($profile->avatar_url));
+            }
+
+            $avatarFile = $request->file('avatar');
+            $avatarName = 'avatar_' . $user->user_id . '_' . time() . '.' . $avatarFile->getClientOriginalExtension();
+            $avatarFile->move(public_path('uploads/avatars'), $avatarName);
+
+            $profile->avatar_url = 'uploads/avatars/' . $avatarName;
+            $profile->save();
+        }
 
         return redirect()->back()->with('success', 'Profile updated successfully.');
     }

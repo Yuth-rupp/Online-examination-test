@@ -177,7 +177,7 @@
         <a href="{{ route('teacher.settings') }}"
            class="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-[#F8FAFC] transition-colors cursor-pointer">
             <div class="w-9 h-9 rounded-full overflow-hidden border-2 border-[#E2E8F0] flex-shrink-0">
-                <img src="https://api.dicebear.com/7.x/bottts/svg?seed={{ Auth::user()->full_name ?? 'Instructor' }}"
+                <img src="{{ Auth::user()->avatar_url ?? 'https://api.dicebear.com/7.x/bottts/svg?seed='.(Auth::user()->full_name ?? 'Instructor') }}"
                      class="w-full h-full object-cover" alt="Avatar">
             </div>
             <div class="flex-1 min-w-0">
@@ -224,7 +224,7 @@
             <div class="flex items-center gap-2.5 pl-3 border-l border-[#E2E8F0] cursor-pointer hover:opacity-80 transition-opacity"
                  onclick="window.location.href='{{ route('teacher.settings') }}'">
                 <div class="w-8 h-8 rounded-full overflow-hidden border-2 border-[#E2E8F0]">
-                    <img src="https://api.dicebear.com/7.x/bottts/svg?seed={{ Auth::user()->full_name ?? 'Instructor' }}"
+                    <img src="{{ Auth::user()->avatar_url ?? 'https://api.dicebear.com/7.x/bottts/svg?seed='.(Auth::user()->full_name ?? 'Instructor') }}"
                          class="w-full h-full object-cover" alt="Avatar">
                 </div>
                 <span class="text-sm font-semibold text-[#475569] hidden sm:block">{{ Auth::user()->full_name ?? 'Yun Dalin' }}</span>

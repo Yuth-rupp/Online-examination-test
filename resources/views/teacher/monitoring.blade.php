@@ -86,7 +86,7 @@
 {{-- ═══════════════════════════════════════════════════════════
      SIDEBAR — matches all other teacher pages exactly
 ══════════════════════════════════════════════════════════════ --}}
-<aside class="w-56 bg-white border-r border-slate-100 flex flex-col flex-shrink-0 h-screen z-20 shadow-sm">
+<aside class="w-[260px] bg-white border-r border-slate-100 flex flex-col flex-shrink-0 h-screen z-20 shadow-sm">
 
     <a href="{{ route('teacher.dashboard') }}"
        class="h-16 flex items-center px-4 gap-3 border-b border-slate-100 hover:opacity-90 transition-opacity flex-shrink-0">
@@ -111,7 +111,7 @@
     <div class="p-2.5 border-t border-slate-100 flex-shrink-0">
         <div class="flex items-center gap-2.5 px-2 py-2 rounded-xl">
             <div class="w-8 h-8 rounded-full overflow-hidden border-2 border-slate-200 flex-shrink-0">
-                <img src="https://api.dicebear.com/7.x/bottts/svg?seed={{ Auth::user()->full_name ?? 'T' }}"
+                <img src="{{ Auth::user()->avatar_url ?? 'https://api.dicebear.com/7.x/bottts/svg?seed='.(Auth::user()->full_name ?? 'T') }}"
                      class="w-full h-full object-cover" alt="avatar">
             </div>
             <div class="min-w-0">
