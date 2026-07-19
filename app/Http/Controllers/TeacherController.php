@@ -28,7 +28,11 @@ class TeacherController extends Controller
     {
         $user = $request->user() ?? Auth::user();
 
-        $totalExams = Exam::where('created_by', $user->user_id)->count();
+        // Base collections scoped strictly to THIS teacher's own data.
+        $teacherExams   = Exam::where('created_by', $user->user_id)->get();
+        $teacherExamIds = $teacherExams->pluck('exam_id');
+
+        $totalExams = $teacherExams->count();
 
         $activeExams = Exam::with('course')
             ->where('created_by', $user->user_id)
@@ -37,7 +41,57 @@ class TeacherController extends Controller
 
         $courses = Course::where('teacher_id', $user->user_id)->get();
 
-        return view('teacher.dashboard', compact('totalExams', 'activeExams', 'courses'));
+        // "+X this week" — real count of exams this teacher created in the last 7 days.
+        $examsThisWeek = $teacherExams->where('created_at', '>=', now()->subDays(7))->count();
+
+        // Currently live/published exam sessions belonging to this teacher.
+        $activeSessionsCount = $teacherExams->where('status', 'published')->count();
+
+        // Distinct students enrolled in THIS teacher's courses (not the whole platform).
+        $courseIds = $courses->pluck('id');
+        $enrolledStudentsCount = Enrollment::whereIn('course_id', $courseIds)
+            ->where('status', 'active')
+            ->distinct('user_id')
+            ->count('user_id');
+
+        // Grading stats scoped to submissions for exams THIS teacher created.
+        $totalSubmissions = Submission::whereIn('exam_id', $teacherExamIds)->count();
+
+        $pendingGradingCount = Submission::whereIn('exam_id', $teacherExamIds)
+            ->where('status', 'pending_grading')
+            ->count();
+
+        $gradedCount = Submission::whereIn('exam_id', $teacherExamIds)
+            ->where('status', 'graded')
+            ->count();
+
+        $gradingCompletionPercent = $totalSubmissions > 0
+            ? round(($gradedCount / $totalSubmissions) * 100)
+            : 0;
+
+        // Pass rate calculated only from this teacher's graded submissions.
+        $passRate = $gradedCount > 0
+            ? round(
+                Submission::whereIn('exam_id', $teacherExamIds)
+                    ->where('status', 'graded')
+                    ->where('is_passed', true)
+                    ->count() / $gradedCount * 100
+              )
+            : 0;
+
+        return view('teacher.dashboard', compact(
+            'totalExams',
+            'activeExams',
+            'courses',
+            'examsThisWeek',
+            'activeSessionsCount',
+            'enrolledStudentsCount',
+            'totalSubmissions',
+            'pendingGradingCount',
+            'gradedCount',
+            'gradingCompletionPercent',
+            'passRate'
+        ));
     }
 
     /**

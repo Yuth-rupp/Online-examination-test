@@ -15,7 +15,14 @@ class GradingController extends Controller
      */
     public function queueIndex(Request $request)
     {
+        $user = $request->user() ?? Auth::user();
+
+        // Only exams THIS teacher created — otherwise every teacher account
+        // (including a brand-new one) sees every submission in the system.
+        $teacherExamIds = Exam::where('created_by', $user->user_id)->pluck('exam_id');
+
         $submissions = Submission::with(['student', 'exam.course'])
+            ->whereIn('exam_id', $teacherExamIds)
             ->orderBy('created_at', 'desc')
             ->get();
 
@@ -30,8 +37,12 @@ class GradingController extends Controller
      */
     public function show($id)
     {
+        $user = Auth::user();
+        $teacherExamIds = Exam::where('created_by', $user->user_id)->pluck('exam_id');
+
         $submission = Submission::with(['student', 'exam.questions', 'exam.course'])
             ->where('id', $id)
+            ->whereIn('exam_id', $teacherExamIds)
             ->firstOrFail();
 
         // ✅ FIX: Load student's saved answers keyed by question_id

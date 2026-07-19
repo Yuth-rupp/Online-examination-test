@@ -152,7 +152,9 @@
            class="nav-link {{ request()->routeIs('teacher.grading.*') ? 'active' : '' }}">
             <span class="nav-icon-wrap"><i class="fa-solid fa-pen-to-square"></i></span>
             <span>Grading</span>
-            <span class="ml-auto text-[10px] font-bold bg-red-500 text-white rounded-full px-2 py-0.5">45</span>
+            @if(($pendingGradingCount ?? 0) > 0)
+            <span class="ml-auto text-[10px] font-bold bg-red-500 text-white rounded-full px-2 py-0.5">{{ $pendingGradingCount }}</span>
+            @endif
         </a>
 
         <a href="{{ route('teacher.analytics') }}"
@@ -269,13 +271,19 @@
                         <div class="w-10 h-10 rounded-xl bg-[#EFF6FF] flex items-center justify-center text-[#2563EB]">
                             <i class="fa-regular fa-file-lines text-lg"></i>
                         </div>
-                        <span class="text-[10px] font-bold bg-[#DCFCE7] text-[#15803D] px-2 py-0.5 rounded-full">+2 this week</span>
+                        @if(($examsThisWeek ?? 0) > 0)
+                        <span class="text-[10px] font-bold bg-[#DCFCE7] text-[#15803D] px-2 py-0.5 rounded-full">+{{ $examsThisWeek }} this week</span>
+                        @endif
                     </div>
                     <p class="text-[10px] font-bold text-[#94A3B8] uppercase tracking-widest mb-1">Total Exams</p>
-                    <p class="text-4xl font-black text-[#0F172A] leading-none">{{ $totalExams ?? 12 }}</p>
+                    <p class="text-4xl font-black text-[#0F172A] leading-none">{{ $totalExams ?? 0 }}</p>
+                    @if(($totalExams ?? 0) > 0)
                     <p class="text-[11px] text-[#10B981] font-semibold mt-2 flex items-center gap-1">
-                        <i class="fa-solid fa-arrow-trend-up text-[10px]"></i> 18% from last month
+                        <i class="fa-solid fa-arrow-trend-up text-[10px]"></i> {{ $examsThisWeek ?? 0 }} created this week
                     </p>
+                    @else
+                    <p class="text-[11px] text-[#94A3B8] font-semibold mt-2">No exams yet</p>
+                    @endif
                     <!-- sparkline -->
                     <div class="sparkline mt-3" id="spark-exams"></div>
                 </div>
@@ -291,9 +299,9 @@
                         </span>
                     </div>
                     <p class="text-[10px] font-bold text-[#94A3B8] uppercase tracking-widest mb-1">Active Sessions</p>
-                    <p class="text-4xl font-black text-[#0F172A] leading-none" id="stat-active">0</p>
+                    <p class="text-4xl font-black text-[#0F172A] leading-none" id="stat-active">{{ $activeSessionsCount ?? 0 }}</p>
                     <p class="text-[11px] text-[#64748B] font-semibold mt-2 flex items-center gap-1">
-                        <i class="fa-solid fa-users text-[10px]"></i> <span id="stat-online">87</span> students online
+                        <i class="fa-solid fa-users text-[10px]"></i> <span id="stat-online">{{ $enrolledStudentsCount ?? 0 }}</span> students enrolled
                     </p>
                     <div class="sparkline mt-3" id="spark-sessions"></div>
                 </div>
@@ -309,16 +317,16 @@
                     </div>
                     <p class="text-[10px] font-bold text-[#94A3B8] uppercase tracking-widest mb-1">Pending Grading</p>
                     <div class="flex items-end justify-between">
-                        <p class="text-4xl font-black text-[#0F172A] leading-none">45</p>
+                        <p class="text-4xl font-black text-[#0F172A] leading-none">{{ $pendingGradingCount ?? 0 }}</p>
                         <span class="text-[11px] font-bold text-[#2563EB] opacity-0 group-hover:opacity-100 transition-all translate-x-1 group-hover:translate-x-0 flex items-center gap-1">
                             Grade now <i class="fa-solid fa-arrow-right text-[10px]"></i>
                         </span>
                     </div>
                     <div class="mt-3 space-y-1">
                         <div class="flex justify-between text-[10px] font-semibold text-[#94A3B8]">
-                            <span>Completion</span><span>72%</span>
+                            <span>Completion</span><span>{{ $gradingCompletionPercent ?? 0 }}%</span>
                         </div>
-                        <div class="prog-bar"><div class="prog-fill" style="width:72%;background:linear-gradient(90deg,#8B5CF6,#A78BFA);"></div></div>
+                        <div class="prog-bar"><div class="prog-fill" style="width:{{ $gradingCompletionPercent ?? 0 }}%;background:linear-gradient(90deg,#8B5CF6,#A78BFA);"></div></div>
                     </div>
                 </a>
 
@@ -331,12 +339,16 @@
                         <span class="text-[10px] font-bold bg-[#FEF3C7] text-[#92400E] px-2 py-0.5 rounded-full">Avg Score</span>
                     </div>
                     <p class="text-[10px] font-bold text-[#94A3B8] uppercase tracking-widest mb-1">Pass Rate</p>
-                    <p class="text-4xl font-black text-[#0F172A] leading-none">78<span class="text-2xl font-bold">%</span></p>
+                    <p class="text-4xl font-black text-[#0F172A] leading-none">{{ $passRate ?? 0 }}<span class="text-2xl font-bold">%</span></p>
+                    @if(($gradedCount ?? 0) > 0)
                     <p class="text-[11px] text-[#10B981] font-semibold mt-2 flex items-center gap-1">
-                        <i class="fa-solid fa-arrow-trend-up text-[10px]"></i> 5% from last exam
+                        <i class="fa-solid fa-chart-simple text-[10px]"></i> Based on {{ $gradedCount }} graded paper{{ $gradedCount == 1 ? '' : 's' }}
                     </p>
+                    @else
+                    <p class="text-[11px] text-[#94A3B8] font-semibold mt-2">No graded papers yet</p>
+                    @endif
                     <div class="mt-3 space-y-1">
-                        <div class="prog-bar"><div class="prog-fill" style="width:78%;background:linear-gradient(90deg,#F97316,#FB923C);"></div></div>
+                        <div class="prog-bar"><div class="prog-fill" style="width:{{ $passRate ?? 0 }}%;background:linear-gradient(90deg,#F97316,#FB923C);"></div></div>
                     </div>
                 </div>
 
