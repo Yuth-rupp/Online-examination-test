@@ -479,30 +479,12 @@
                             </div>
                             @endforeach
                         @else
-                            <!-- Mockup / Placeholder Courses caught by safe JS handlers -->
-                            <div class="mock-course-badge flex items-center gap-2 bg-white border border-[#E2E8F0] rounded-xl px-3 py-1.5 text-xs shadow-sm" id="mock-course-1">
-                                <div class="w-2 h-2 rounded-full bg-[#2563EB]"></div>
-                                <span class="font-bold text-[#1E293B]">Database</span>
-                                <span class="text-[10px] text-[#94A3B8] font-mono">(DAT-464)</span>
-                                <button type="button" onclick="removeMockCourse('mock-course-1', 'Database', 'demo-row-1', 'act-item-database', 'opt-course-database')" class="text-[#CBD5E1] hover:text-red-400 transition-colors pl-1 border-l border-[#E2E8F0] ml-1">
-                                    <i class="fa-solid fa-xmark text-[10px]"></i>
-                                </button>
-                            </div>
-                            <div class="mock-course-badge flex items-center gap-2 bg-white border border-[#E2E8F0] rounded-xl px-3 py-1.5 text-xs shadow-sm" id="mock-course-2">
-                                <div class="w-2 h-2 rounded-full bg-[#10B981]"></div>
-                                <span class="font-bold text-[#1E293B]">Physics</span>
-                                <span class="text-[10px] text-[#94A3B8] font-mono">(PHY-454)</span>
-                                <button type="button" onclick="removeMockCourse('mock-course-2', 'Physics', 'demo-row-2', 'act-item-physics', 'opt-course-physics')" class="text-[#CBD5E1] hover:text-red-400 transition-colors pl-1 border-l border-[#E2E8F0] ml-1">
-                                    <i class="fa-solid fa-xmark text-[10px]"></i>
-                                </button>
-                            </div>
-                            <div class="mock-course-badge flex items-center gap-2 bg-white border border-[#E2E8F0] rounded-xl px-3 py-1.5 text-xs shadow-sm" id="mock-course-3">
-                                <div class="w-2 h-2 rounded-full bg-[#8B5CF6]"></div>
-                                <span class="font-bold text-[#1E293B]">Calculus</span>
-                                <span class="text-[10px] text-[#94A3B8] font-mono">(CAL-192)</span>
-                                <button type="button" onclick="removeMockCourse('mock-course-3', 'Calculus', null, 'act-item-calculus', 'opt-course-calculus')" class="text-[#CBD5E1] hover:text-red-400 transition-colors pl-1 border-l border-[#E2E8F0] ml-1">
-                                    <i class="fa-solid fa-xmark text-[10px]"></i>
-                                </button>
+                            <div class="w-full flex items-center justify-between gap-3 py-1">
+                                <p class="text-xs text-[#94A3B8]">You haven't created any courses yet.</p>
+                                <a href="{{ route('teacher.courses.create') }}"
+                                   class="text-[11px] font-bold text-[#2563EB] hover:text-[#1D4ED8] flex items-center gap-1 whitespace-nowrap">
+                                    <i class="fa-solid fa-plus text-[10px]"></i> Create your first course
+                                </a>
                             </div>
                         @endif
                     </div>
@@ -812,104 +794,17 @@
      SCRIPTS
 ════════════════════════════════════════ -->
 <script>
-// ── SAFE MOCK DISMISSAL HANDLER ──────────
-function removeMockCourse(badgeElementId, courseName, tableRowId, activityId, optionMenuId) {
-    if (confirm(`Remove this placeholder course?`)) {
-        // Save the deleted course status inside localStorage tracker state[cite: 3]
-        localStorage.setItem(`deleted_mock_${badgeElementId}`, 'true');
-
-        // Execute removal actions[cite: 3]
-        executeMockUiRemoval(badgeElementId, tableRowId, activityId, optionMenuId);
-        showToast(`Removed placeholder: ${courseName}`, 'success');
-        updateLiveDashboardStats();
-    }
-}
-
-function executeMockUiRemoval(badgeElementId, tableRowId, activityId, optionMenuId) {
-    const badge = document.getElementById(badgeElementId);
-    if (badge) badge.remove();
-    
-    if (tableRowId) {
-        const tableRow = document.getElementById(tableRowId);
-        if (tableRow) tableRow.remove();
-    }
-
-    if (activityId) {
-        const activityItem = document.getElementById(activityId);
-        if (activityItem) activityItem.remove();
-    }
-
-    if (optionMenuId) {
-        const selectOptionNode = document.getElementById(optionMenuId);
-        if (selectOptionNode) selectOptionNode.remove();
-    }
-}
-
-function updateLiveDashboardStats() {
-    const currentActiveEl = document.getElementById('stat-active');
-    const currentOnlineEl = document.getElementById('stat-online');
-    const liveLabelEl = document.getElementById('live-count-label');
-
-    // If dynamic active database routes exist, bypass placeholder calculations entirely[cite: 3]
-    const hasLiveDbRecords = @json(isset($courses) && count($courses) > 0);
-    const hasLiveSessions = @json(isset($activeExams) && count($activeExams) > 0);
-    
-    if (hasLiveDbRecords) {
-        const activeExamCount = @json(isset($activeExams) ? count($activeExams) : 0);
-        currentActiveEl.textContent = activeExamCount;
-        liveLabelEl.textContent = `${activeExamCount} Sessions Live`;
-        currentOnlineEl.textContent = hasLiveSessions ? '87' : '0';
-        return;
-    }
-
-    // Placeholder view mode active[cite: 3]
-    const remainingBadges = document.querySelectorAll('.mock-course-badge');
-    currentActiveEl.textContent = remainingBadges.length;
-    liveLabelEl.textContent = `${remainingBadges.length} Sessions Live`;
-
-    if (remainingBadges.length === 0) {
-        currentOnlineEl.textContent = '0';
-        document.getElementById('bottom-layout-data-grid').classList.add('hidden');
-        document.getElementById('empty-state-placeholder-card').classList.remove('hidden');
-        document.getElementById('empty-state-placeholder-card').classList.add('flex');
-    } else {
-        currentOnlineEl.textContent = Math.max(30, remainingBadges.length * 43);
-    }
-}
-
-// ── INITIALIZE PERSISTENT LOCALSTORAGE STATE ──
+// ── CLEAR ANY LEFTOVER DEMO ROWS ──────────
+// If there are no active exam sessions, the demo/placeholder rows inside
+// the (already CSS-hidden) sessions table and activity feed are removed
+// outright so they can never accidentally be shown or counted as real data.
 document.addEventListener('DOMContentLoaded', () => {
-    const hasLiveDbRecords = @json(isset($courses) && count($courses) > 0);
     const hasLiveSessions = @json(isset($activeExams) && count($activeExams) > 0);
 
-    if (hasLiveDbRecords) {
-        // A real database course exists! Completely force delete the mockup elements right now.[cite: 3]
+    if (!hasLiveSessions) {
         document.querySelectorAll('.placeholder-row-node').forEach(el => el.remove());
         document.querySelectorAll('.placeholder-activity-node').forEach(el => el.remove());
-
-        if (!hasLiveSessions) {
-            // No live assessment session running for this new course yet, drop the table panel completely[cite: 3]
-            document.getElementById('bottom-layout-data-grid').innerHTML = '';
-            document.getElementById('bottom-layout-data-grid').classList.add('hidden');
-            
-            // Force show clean container placeholder workspace
-            document.getElementById('empty-state-placeholder-card').classList.remove('hidden');
-            document.getElementById('empty-state-placeholder-card').classList.add('flex');
-        }
-    } else {
-        // Fallback View Mode active: apply local profile filters safely profile profiles[cite: 3]
-        if (localStorage.getItem('deleted_mock_mock-course-1') === 'true') {
-            executeMockUiRemoval('mock-course-1', 'demo-row-1', 'act-item-database', 'opt-course-database');
-        }
-        if (localStorage.getItem('deleted_mock_mock-course-2') === 'true') {
-            executeMockUiRemoval('mock-course-2', 'demo-row-2', 'act-item-physics', 'opt-course-physics');
-        }
-        if (localStorage.getItem('deleted_mock_mock-course-3') === 'true') {
-            executeMockUiRemoval('mock-course-3', null, 'act-item-calculus', 'opt-course-calculus');
-        }
     }
-
-    updateLiveDashboardStats();
 });
 
 // ── CLOCK ────────────────────────────────
