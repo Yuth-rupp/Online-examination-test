@@ -408,13 +408,7 @@ function queueApp(){
                 },
                 @endforeach
             @else
-                // ── DEMO DATA (remove when connected to backend) ──
-                { id:'1', student_name:'Sophea Dara',     institutional_id:'STU-2024-001', subject_title:'Database Systems',     course_code:'DAT-464', clean_exam_id:'5c27474d', status:'pending_grading', total_score:0  },
-                { id:'2', student_name:'Virak Chan',      institutional_id:'STU-2024-002', subject_title:'Web Development',      course_code:'WEB-201', clean_exam_id:'a3f81b2c', status:'graded',          total_score:34 },
-                { id:'3', student_name:'Bopha Meas',      institutional_id:'STU-2024-003', subject_title:'Data Structures',      course_code:'CSC-301', clean_exam_id:'9d4e22f1', status:'pending_grading', total_score:0  },
-                { id:'4', student_name:'Rathana Keo',     institutional_id:'STU-2024-004', subject_title:'Database Systems',     course_code:'DAT-464', clean_exam_id:'5c27474d', status:'graded',          total_score:28 },
-                { id:'5', student_name:'Mengly Phorn',    institutional_id:'STU-2024-005', subject_title:'Operating Systems',    course_code:'CSC-401', clean_exam_id:'e7b19a3d', status:'pending_grading', total_score:0  },
-                { id:'6', student_name:'Dalin Chhun',     institutional_id:'STU-2024-006', subject_title:'Web Development',      course_code:'WEB-201', clean_exam_id:'a3f81b2c', status:'graded',          total_score:38 },
+                // No submissions yet for this teacher's exams.
             @endif
         ],
 

@@ -418,12 +418,10 @@
                                         class="form-input w-full appearance-none bg-[#F8FAFC] border border-[#E2E8F0] rounded-xl px-3.5 py-2.5 text-sm text-[#1E293B] font-medium pr-9 transition-all">
                                     @if(isset($courses) && count($courses) > 0)
                                         @foreach($courses as $courseItem)
-                                            <option value="{{ $courseItem->id }}">{{ $courseItem->name }}</option>
+                                            <option value="{{ $courseItem->id }}">{{ $courseItem->name }} ({{ $courseItem->code }})</option>
                                         @endforeach
                                     @else
-                                        <option value="1" id="opt-course-database">Database (DAT-464)</option>
-                                        <option value="2" id="opt-course-physics">Physics (PHY-454)</option>
-                                        <option value="3" id="opt-course-calculus">Calculus (CAL-192)</option>
+                                        <option value="" disabled selected>Create a course first</option>
                                     @endif
                                 </select>
                                 <i class="fa-solid fa-chevron-down text-[10px] text-[#94A3B8] absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none"></i>
@@ -451,7 +449,8 @@
                         <!-- Submit -->
                         <div>
                             <button type="submit"
-                                    class="w-full flex items-center justify-center gap-2 bg-[#2563EB] hover:bg-[#1D4ED8] active:scale-[.98] text-white text-sm font-bold py-[11px] px-4 rounded-xl transition-all shadow-md shadow-blue-500/15">
+                                    @if(!isset($courses) || count($courses) == 0) disabled @endif
+                                    class="w-full flex items-center justify-center gap-2 bg-[#2563EB] hover:bg-[#1D4ED8] active:scale-[.98] text-white text-sm font-bold py-[11px] px-4 rounded-xl transition-all shadow-md shadow-blue-500/15 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-[#2563EB]">
                                 <i class="fa-solid fa-bolt"></i> Generate Access Token
                             </button>
                         </div>

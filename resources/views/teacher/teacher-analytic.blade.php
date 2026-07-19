@@ -62,7 +62,7 @@
 <div class="flex h-screen overflow-hidden">
 
 {{-- ═══════════════════════ SIDEBAR ═══════════════════════ --}}
-<aside class="w-56 bg-white border-r border-slate-100 flex flex-col flex-shrink-0 h-screen z-20 shadow-sm">
+<aside class="w-[260px] bg-white border-r border-slate-100 flex flex-col flex-shrink-0 h-screen z-20 shadow-sm">
     <a href="{{ route('teacher.dashboard') }}"
        class="h-16 flex items-center px-4 gap-3 border-b border-slate-100 hover:opacity-90 transition-opacity flex-shrink-0">
         <div class="w-8 h-8 rounded-xl flex items-center justify-center text-white flex-shrink-0"
