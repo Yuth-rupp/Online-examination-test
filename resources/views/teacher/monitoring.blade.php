@@ -86,41 +86,7 @@
 {{-- ═══════════════════════════════════════════════════════════
      SIDEBAR — matches all other teacher pages exactly
 ══════════════════════════════════════════════════════════════ --}}
-<aside class="w-[260px] bg-white border-r border-slate-100 flex flex-col flex-shrink-0 h-screen z-20 shadow-sm">
-
-    <a href="{{ route('teacher.dashboard') }}"
-       class="h-16 flex items-center px-4 gap-3 border-b border-slate-100 hover:opacity-90 transition-opacity flex-shrink-0">
-        <div class="w-8 h-8 rounded-xl flex items-center justify-center text-white flex-shrink-0"
-             style="background:linear-gradient(135deg,#2563EB,#1E40AF);box-shadow:0 3px 10px rgba(37,99,235,.4)">
-            <i class="fa-solid fa-graduation-cap text-sm"></i>
-        </div>
-        <span class="font-black text-[16px] text-slate-900 tracking-tight">ExamSystem</span>
-    </a>
-
-    <nav class="flex-1 px-2.5 py-3 space-y-0.5 overflow-y-auto">
-        <p class="text-[9px] font-black text-slate-400 uppercase tracking-widest px-2 pt-1 pb-1.5">Menu</p>
-        <a href="{{ route('teacher.dashboard') }}"        class="nl"><span class="ni"><i class="fa-solid fa-house text-xs"></i></span><span>Dashboard</span></a>
-        <a href="{{ route('teacher.question-bank') }}"   class="nl"><span class="ni"><i class="fa-solid fa-database text-xs"></i></span><span>Question Bank</span></a>
-        <a href="{{ route('teacher.monitoring.show') }}" class="nl act"><span class="ni"><i class="fa-solid fa-display text-xs"></i></span><span>Monitoring</span></a>
-        <a href="{{ route('teacher.grading.queue') }}"   class="nl"><span class="ni"><i class="fa-solid fa-pen-to-square text-xs"></i></span><span>Grading</span></a>
-        <a href="{{ route('teacher.analytics') }}"       class="nl"><span class="ni"><i class="fa-solid fa-chart-line text-xs"></i></span><span>Analytics</span></a>
-        <p class="text-[9px] font-black text-slate-400 uppercase tracking-widest px-2 pt-3 pb-1.5">Account</p>
-        <a href="{{ route('teacher.settings') }}"        class="nl"><span class="ni"><i class="fa-solid fa-gear text-xs"></i></span><span>Settings</span></a>
-    </nav>
-
-    <div class="p-2.5 border-t border-slate-100 flex-shrink-0">
-        <div class="flex items-center gap-2.5 px-2 py-2 rounded-xl">
-            <div class="w-8 h-8 rounded-full overflow-hidden border-2 border-slate-200 flex-shrink-0">
-                <img src="{{ Auth::user()->avatar_url ?? 'https://api.dicebear.com/7.x/bottts/svg?seed='.(Auth::user()->full_name ?? 'T') }}"
-                     class="w-full h-full object-cover" alt="avatar">
-            </div>
-            <div class="min-w-0">
-                <p class="text-xs font-black text-slate-900 truncate">{{ Auth::user()->full_name ?? 'Teacher' }}</p>
-                <p class="text-[10px] text-slate-400">Proctor</p>
-            </div>
-        </div>
-    </div>
-</aside>
+@include('partials.teacher-sidebar')
 
 {{-- ═══════════════════════════════════════════════════════════
      MAIN CONTENT
@@ -129,7 +95,7 @@
 
     {{-- ── PREMIUM GRADIENT HEADER ── --}}
     <div class="flex-shrink-0"
-         style="background:linear-gradient(135deg,#0F172A 0%,#1E3A5F 55%,#1E40AF 100%)">
+         style="background:linear-gradient(135deg,#0B1836 0%,#152C5E 55%,#1E3A8A 100%)">
         <div class="px-6 py-3.5 flex items-center gap-4 flex-wrap">
 
             {{-- Title --}}

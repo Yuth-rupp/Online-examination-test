@@ -103,72 +103,7 @@
 <!-- ══════════════════════════════════════
      SIDEBAR
 ══════════════════════════════════════ -->
-<aside class="w-[260px] bg-white border-r border-[#E2E8F0] flex flex-col flex-shrink-0 sticky top-0 h-screen z-20">
-
-    <!-- Logo -->
-    <a href="{{ route('teacher.dashboard') }}"
-       class="h-[72px] flex items-center px-5 gap-3 border-b border-[#E2E8F0] hover:opacity-90 transition-opacity">
-        <div class="w-9 h-9 rounded-xl flex items-center justify-center text-white flex-shrink-0"
-             style="background:linear-gradient(135deg,#2563EB 0%,#1E40AF 100%);box-shadow:0 4px 12px rgba(37,99,235,.35);">
-            <i class="fa-solid fa-graduation-cap text-base"></i>
-        </div>
-        <span class="font-black text-[18px] text-[#0F172A] tracking-tight">ExamSystem</span>
-    </a>
-
-    <!-- Nav -->
-    <nav class="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
-        <p class="text-[10px] font-bold text-[#94A3B8] uppercase tracking-widest px-3 pt-1 pb-2">Main Menu</p>
-
-        <a href="{{ route('teacher.dashboard') }}" class="nav-link">
-            <span class="nav-icon"><i class="fa-solid fa-house"></i></span>
-            <span>Dashboard</span>
-        </a>
-
-        <a href="{{ route('teacher.question-bank') }}" class="nav-link active">
-            <span class="nav-icon"><i class="fa-solid fa-database"></i></span>
-            <span>Question Bank</span>
-        </a>
-
-        <a href="{{ route('teacher.monitoring.show') }}" class="nav-link">
-            <span class="nav-icon"><i class="fa-solid fa-display"></i></span>
-            <span>Monitoring</span>
-        </a>
-
-        <a href="{{ route('teacher.grading.queue') }}" class="nav-link">
-            <span class="nav-icon"><i class="fa-solid fa-pen-to-square"></i></span>
-            <span>Grading</span>
-            <span class="ml-auto text-[10px] font-bold bg-red-500 text-white rounded-full px-2 py-0.5">45</span>
-        </a>
-
-        <a href="{{ route('teacher.analytics') }}" class="nav-link">
-            <span class="nav-icon"><i class="fa-solid fa-chart-line"></i></span>
-            <span>Analytics</span>
-        </a>
-
-        <p class="text-[10px] font-bold text-[#94A3B8] uppercase tracking-widest px-3 pt-4 pb-2">Account</p>
-
-        <a href="{{ route('teacher.settings') }}" class="nav-link">
-            <span class="nav-icon"><i class="fa-solid fa-gear"></i></span>
-            <span>Settings</span>
-        </a>
-    </nav>
-
-    <!-- User -->
-    <div class="p-3 border-t border-[#E2E8F0]">
-        <a href="{{ route('teacher.settings') }}"
-           class="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-[#F8FAFC] transition-colors">
-            <div class="w-9 h-9 rounded-full overflow-hidden border-2 border-[#E2E8F0] flex-shrink-0">
-                <img src="{{ Auth::user()->avatar_url ?? 'https://api.dicebear.com/7.x/bottts/svg?seed='.(Auth::user()->full_name ?? 'Alex') }}"
-                     class="w-full h-full object-cover" alt="Avatar">
-            </div>
-            <div class="flex-1 min-w-0">
-                <p class="text-sm font-bold text-[#0F172A] truncate">{{ Auth::user()->full_name ?? 'Yun Dalin' }}</p>
-                <p class="text-xs text-[#94A3B8] font-medium">Senior Faculty</p>
-            </div>
-            <i class="fa-solid fa-ellipsis-vertical text-[#94A3B8] text-sm"></i>
-        </a>
-    </div>
-</aside>
+@include('partials.teacher-sidebar')
 
 <!-- ══════════════════════════════════════
      MAIN CONTENT
@@ -176,27 +111,31 @@
 <div class="flex-1 flex flex-col min-w-0">
 
     <!-- HEADER -->
-    <header class="h-[72px] bg-white border-b border-[#E2E8F0] flex items-center justify-between px-7 sticky top-0 z-10 flex-shrink-0">
+    <header class="h-[72px] flex items-center justify-between px-7 sticky top-0 z-10 flex-shrink-0"
+            style="background:linear-gradient(135deg,#0B1836 0%,#152C5E 55%,#1E3A8A 100%)">
         <div class="flex items-center gap-4">
             <div>
-                <h1 class="text-xl font-black text-[#0F172A] tracking-tight">Question Bank</h1>
-                <p class="text-[11px] text-[#94A3B8] font-medium mt-0.5">Manage your exam question library</p>
+                <h1 class="text-xl font-black text-white tracking-tight">Question Bank</h1>
+                <p class="text-[11px] text-white/50 font-medium mt-0.5">Manage your exam question library</p>
             </div>
             <!-- Live count pill -->
-            <div class="hidden sm:flex items-center gap-1.5 text-[11px] font-bold text-blue-700 bg-blue-50 border border-blue-200 px-3 py-1 rounded-full">
-                <span class="w-1.5 h-1.5 rounded-full bg-blue-500 live-dot"></span>
+            <div class="hidden sm:flex items-center gap-1.5 text-[11px] font-bold text-blue-200 px-3 py-1 rounded-full"
+                 style="background:rgba(96,165,250,.15);border:1px solid rgba(96,165,250,.3)">
+                <span class="w-1.5 h-1.5 rounded-full bg-blue-400 live-dot"></span>
                 <span>{{ $questions->total() }} questions</span>
             </div>
         </div>
 
         <div class="flex items-center gap-3">
             <!-- Live clock -->
-            <div class="hidden md:block text-xs font-bold text-[#64748B] bg-[#F8FAFC] border border-[#E2E8F0] px-3 py-2 rounded-lg font-mono tabular-nums" id="live-clock">--:--:--</div>
+            <div class="hidden md:block text-xs font-bold text-white/70 px-3 py-2 rounded-lg font-mono tabular-nums"
+                 style="background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12)" id="live-clock">--:--:--</div>
 
             <!-- Shuffle toggle -->
-            <div class="hidden sm:flex items-center gap-2.5 bg-[#F8FAFC] border border-[#E2E8F0] px-3 py-2 rounded-xl">
-                <i class="fa-solid fa-shuffle text-[11px] text-[#64748B]"></i>
-                <span class="text-[11px] font-semibold text-[#64748B]">Shuffle</span>
+            <div class="hidden sm:flex items-center gap-2.5 px-3 py-2 rounded-xl"
+                 style="background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12)">
+                <i class="fa-solid fa-shuffle text-[11px] text-white/60"></i>
+                <span class="text-[11px] font-semibold text-white/70">Shuffle</span>
                 <div class="toggle-track on" id="shuffle-toggle-ui" onclick="handleShuffle(this)">
                     <div class="toggle-thumb"></div>
                     <input type="checkbox" id="shuffle-toggle" checked class="hidden">
@@ -213,7 +152,7 @@
 
             <!-- Add question -->
             <a href="{{ route('questions.create') }}"
-               class="flex items-center gap-2 bg-[#2563EB] hover:bg-[#1D4ED8] text-white font-bold px-4 py-2 rounded-xl text-sm shadow-md shadow-blue-500/15 transition-all">
+               class="flex items-center gap-2 bg-white hover:bg-slate-100 text-[#1E3A8A] font-bold px-4 py-2 rounded-xl text-sm shadow-md transition-all">
                 <i class="fa-solid fa-plus"></i> Add Question
             </a>
         </div>

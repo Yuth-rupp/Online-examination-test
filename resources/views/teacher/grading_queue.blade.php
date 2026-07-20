@@ -133,24 +133,28 @@
 <div class="flex-1 flex flex-col min-w-0">
 
     <!-- HEADER -->
-    <header class="h-[72px] bg-white border-b border-[#E2E8F0] flex items-center justify-between px-7 sticky top-0 z-10 flex-shrink-0">
+    <header class="h-[72px] flex items-center justify-between px-7 sticky top-0 z-10 flex-shrink-0"
+            style="background:linear-gradient(135deg,#0B1836 0%,#152C5E 55%,#1E3A8A 100%)">
         <div class="flex items-center gap-4">
             <div>
-                <h1 class="text-xl font-black text-[#0F172A] tracking-tight">Grading Queue</h1>
-                <p class="text-[11px] text-[#94A3B8] font-medium mt-0.5">Student submissions awaiting your review</p>
+                <h1 class="text-xl font-black text-white tracking-tight">Grading Queue</h1>
+                <p class="text-[11px] text-white/50 font-medium mt-0.5">Student submissions awaiting your review</p>
             </div>
-            <div class="hidden sm:flex items-center gap-1.5 text-[11px] font-bold text-amber-700 bg-amber-50 border border-amber-200 px-3 py-1 rounded-full">
-                <span class="w-1.5 h-1.5 rounded-full bg-amber-500 ldot"></span>
+            <div class="hidden sm:flex items-center gap-1.5 text-[11px] font-bold text-amber-200 px-3 py-1 rounded-full"
+                 style="background:rgba(251,191,36,.15);border:1px solid rgba(251,191,36,.3)">
+                <span class="w-1.5 h-1.5 rounded-full bg-amber-400 ldot"></span>
                 <span x-text="pendingCount + ' pending'"></span>
             </div>
         </div>
         <div class="flex items-center gap-3">
-            <div class="hidden md:block text-xs font-bold text-[#64748B] bg-[#F8FAFC] border border-[#E2E8F0] px-3 py-2 rounded-lg font-mono tabular-nums" id="live-clock">--:--:--</div>
+            <div class="hidden md:block text-xs font-bold text-white/70 px-3 py-2 rounded-lg font-mono tabular-nums"
+                 style="background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12)" id="live-clock">--:--:--</div>
             <div class="relative">
-                <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-1/2 -translate-y-1/2 text-[#94A3B8] text-xs pointer-events-none"></i>
+                <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-1/2 -translate-y-1/2 text-white/40 text-xs pointer-events-none"></i>
                 <input type="text" x-model="searchQuery"
                        placeholder="Search student or exam…"
-                       class="w-60 pl-9 pr-4 py-2.5 border border-[#E2E8F0] bg-[#F8FAFC] rounded-xl text-xs font-medium focus:outline-none focus:border-[#2563EB] focus:bg-white transition-all">
+                       class="w-60 pl-9 pr-4 py-2.5 rounded-xl text-xs font-medium text-white placeholder-white/40 focus:outline-none transition-all"
+                       style="background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12)">
             </div>
         </div>
     </header>
