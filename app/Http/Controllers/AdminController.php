@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Auth;
+use App\Support\InstitutionalIdGenerator;
 
 class AdminController extends Controller
 {
@@ -192,7 +193,8 @@ class AdminController extends Controller
             'email' => $request->input('email'),
             'role' => $request->input('role'),
             'password_hash' => Hash::make($request->input('password')),
-            'status' => 'active'
+            'status' => 'active',
+            'institutional_id' => InstitutionalIdGenerator::generate($request->input('role')),
         ]);
 
         $this->logSecurityEvent(Auth::id(), 'uploaded', 'User Directory', 'Compiled new application profile space for ' . $newUser->full_name);

@@ -83,9 +83,9 @@
                             <span class="absolute inset-y-0 left-0 flex items-center pl-4 text-gray-400 text-xs">
                                 <i class="fa-regular fa-id-card"></i>
                             </span>
-                            <input type="text" name="institutional_id" value="{{ old('institutional_id') }}" required
-                                class="w-full pl-11 pr-4 py-3 bg-[#f0f2f5] border border-transparent rounded-xl text-sm text-gray-700 placeholder-gray-400/80 focus:outline-none focus:bg-white focus:border-blue-500 transition-all shadow-inner"
-                                placeholder="e.g. STU-1122-3344">
+                            <div class="w-full pl-11 pr-4 py-3 bg-[#f0f2f5] border border-transparent rounded-xl text-sm text-gray-400 italic shadow-inner">
+                                Assigned automatically after you register
+                            </div>
                         </div>
                     </div>
 

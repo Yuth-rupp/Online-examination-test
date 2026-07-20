@@ -79,6 +79,14 @@
                     </p>
                 </div>
 
+                @if(session('registered_institutional_id'))
+                    <div class="bg-[#F4F6F9] border border-gray-100 rounded-lg p-4 text-left">
+                        <p class="text-[10px] font-bold tracking-wider text-gray-400 uppercase mb-1">Your Institutional ID</p>
+                        <p class="text-lg font-bold text-[#1E4277] tracking-wide">{{ session('registered_institutional_id') }}</p>
+                        <p class="text-xs text-gray-500 mt-1">Save this ID -- you'll use it to identify yourself on campus.</p>
+                    </div>
+                @endif
+
                 <div class="bg-[#F4F6F9] border border-gray-100 rounded-lg p-4 flex items-start space-x-3 text-left">
                     <i class="far fa-envelope text-[#1E4277] mt-0.5 text-base"></i>
                     <p class="text-xs text-gray-500 leading-normal font-normal">
