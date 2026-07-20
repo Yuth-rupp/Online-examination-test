@@ -267,13 +267,29 @@
 
         <!-- PAGE TITLE -->
         <div class="mb-6">
-            <h2 class="text-xl font-bold text-slate-900 flex items-center gap-2.5">
-                <span class="w-8 h-8 rounded-lg flex items-center justify-center text-blue-600" style="background:#eff6ff;border:1px solid #bfdbfe">
-                    <i class="fa-solid fa-users-gear text-sm"></i>
+            <div class="flex items-center justify-between flex-wrap gap-2">
+                <h2 class="text-xl font-bold text-slate-900 flex items-center gap-2.5">
+                    <span class="w-8 h-8 rounded-lg flex items-center justify-center text-blue-600" style="background:#eff6ff;border:1px solid #bfdbfe">
+                        <i class="fa-solid fa-users-gear text-sm"></i>
+                    </span>
+                    User Management
+                </h2>
+                <span class="inline-flex items-center gap-1.5 text-[11px] font-semibold text-slate-400">
+                    <span class="relative flex items-center justify-center w-2 h-2">
+                        <span class="pulse-dot absolute inline-flex w-full h-full rounded-full bg-emerald-400 opacity-70"></span>
+                        <span class="relative inline-flex w-2 h-2 rounded-full bg-emerald-500"></span>
+                    </span>
+                    Live · updates every 5s
                 </span>
-                User Management
-            </h2>
+            </div>
             <p class="text-sm text-slate-400 mt-1">Manage platform accounts, access levels, and account status.</p>
+        </div>
+
+        <!-- New user toast slot -->
+        <div id="new-user-banner" class="hidden mb-4 p-3.5 rounded-xl flex items-center gap-2.5 text-sm font-medium text-blue-700" style="background:#eff6ff;border:1px solid #bfdbfe">
+            <i class="fa-solid fa-user-plus text-blue-500"></i>
+            <span id="new-user-banner-text"></span>
+            <button type="button" onclick="location.reload()" class="ml-auto text-xs font-bold text-blue-600 hover:text-blue-800 underline">Refresh list</button>
         </div>
 
         <!-- METRIC CARDS -->

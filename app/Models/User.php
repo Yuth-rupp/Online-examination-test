@@ -71,7 +71,10 @@ class User extends Authenticatable
      */
     public function getAvatarUrlAttribute()
     {
-        $path = $this->profile?->avatar_url;
+        // Prefer the dedicated profile row (used by teacher uploads), then
+        // fall back to the users.profile_image column (used by student/admin
+        // uploads) so every role resolves the same accessor consistently.
+        $path = $this->profile?->avatar_url ?: $this->profile_image;
 
         if (empty($path)) {
             return null;
@@ -80,6 +83,14 @@ class User extends Authenticatable
         // Already an absolute URL (e.g. re-saved value) — return as-is.
         if (Str::startsWith($path, ['http://', 'https://'])) {
             return $path;
+        }
+
+        // profile_image is stored via Storage::disk('public') as
+        // "profile_photos/xyz.jpg", which resolves through the storage
+        // symlink at /storage/... — everything else is a relative public
+        // path like "uploads/avatars/foo.png" served straight from /public.
+        if (Str::startsWith($path, 'profile_photos/') || Str::startsWith($path, 'avatars/')) {
+            return asset('storage/' . $path);
         }
 
         // Stored as a relative path like "uploads/avatars/foo.png" — this must

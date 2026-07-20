@@ -252,10 +252,18 @@ Route::middleware(['auth', 'role:admin,super_admin'])->group(function () {
     Route::get('/admin/dashboard',              [AdminController::class, 'index'])->name('admin.dashboard');
     Route::get('/admin/dashboard/telemetry-api',[AdminController::class, 'getTelemetryApi'])->name('admin.dashboard.api');
 
+    Route::get('/admin/notifications',              [NotificationController::class, 'index'])->name('admin.notifications');
+    Route::get('/admin/notifications/unread-count',  [NotificationController::class, 'unreadCount'])->name('admin.notifications.unreadCount');
+    Route::post('/admin/notifications/{id}/read',    [NotificationController::class, 'markRead'])->name('admin.notifications.markRead');
+    Route::post('/admin/notifications/read-all',     [NotificationController::class, 'markAllRead'])->name('admin.notifications.markAllRead');
+    Route::post('/admin/notifications/clear',        [NotificationController::class, 'clearAll'])->name('admin.notifications.clear');
+
     Route::get('/admin/exams',                  [AdminController::class, 'examWorkspace'])->name('admin.exams');
+    Route::get('/admin/exams/api',              [AdminController::class, 'getExamsTelemetryApi'])->name('admin.exams.api');
     Route::post('/admin/exams/store',           [AdminController::class, 'storeExam'])->name('admin.exams.store');
 
     Route::get('/admin/users',                  [AdminController::class, 'userManagement'])->name('admin.users');
+    Route::get('/admin/users/telemetry-stream', [AdminController::class, 'getUsersTelemetryApi'])->name('admin.users.api');
     Route::post('/admin/users/store',           [AdminController::class, 'storeUser'])->name('admin.users.store');
     Route::put('/admin/users/{id}/update',      [AdminController::class, 'updateUser'])->name('admin.users.update');
     Route::delete('/admin/users/{id}',          [AdminController::class, 'destroyUser'])->name('admin.users.destroy');

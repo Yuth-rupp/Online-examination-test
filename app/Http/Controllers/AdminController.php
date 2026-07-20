@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Models\User;
 use App\Models\Exam;
+use App\Models\Submission;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Hash;
@@ -44,9 +45,11 @@ class AdminController extends Controller
     }
 
     /**
-     * Display the main administrator dashboard interface workspace.
+     * Compute the live dashboard metrics straight from the database —
+     * no placeholder/demo numbers. A brand-new install with no activity
+     * yet will correctly show zeros everywhere instead of fake data.
      */
-    public function index()
+    private function getDashboardMetrics()
     {
         $managedUsers = User::count();
         $newUsersThisWeek = User::where('created_at', '>=', now()->startOfWeek())->count();
@@ -56,13 +59,54 @@ class AdminController extends Controller
             ->where('end_time', '>=', now())
             ->count();
 
+        $upcomingExams = Exam::where('status', 'published')
+            ->where('start_time', '>', now())
+            ->count();
+
+        $closedExams = Exam::where('status', 'published')
+            ->where('end_time', '<', now())
+            ->count();
+
         $examsEndingToday = Exam::whereBetween('end_time', [now()->startOfDay(), now()->endOfDay()])->count();
 
         $openTickets = DB::table('support_tickets')->where('status', '!=', 'resolved')->count();
         $urgentTickets = DB::table('support_tickets')->where('status', '!=', 'resolved')->where('priority', 'urgent')->count();
 
-        $submissionsToday = 18; 
-        $weeklySubmissions = [12, 19, 14, 22, 18, 6, 4];
+        $submissionsToday = Submission::whereNotNull('submitted_at')
+            ->whereBetween('submitted_at', [now()->startOfDay(), now()->endOfDay()])
+            ->count();
+
+        // Real submissions per day for the current week (Mon → Sun),
+        // not a hardcoded demo array. Fresh accounts simply see zeros.
+        $weekStart = now()->startOfWeek();
+        $weeklySubmissions = [];
+        for ($i = 0; $i < 7; $i++) {
+            $day = $weekStart->copy()->addDays($i);
+            $weeklySubmissions[] = Submission::whereNotNull('submitted_at')
+                ->whereBetween('submitted_at', [$day->copy()->startOfDay(), $day->copy()->endOfDay()])
+                ->count();
+        }
+
+        return compact(
+            'managedUsers',
+            'newUsersThisWeek',
+            'activeExams',
+            'upcomingExams',
+            'closedExams',
+            'examsEndingToday',
+            'openTickets',
+            'urgentTickets',
+            'submissionsToday',
+            'weeklySubmissions'
+        );
+    }
+
+    /**
+     * Display the main administrator dashboard interface workspace.
+     */
+    public function index()
+    {
+        $metrics = $this->getDashboardMetrics();
 
         $myLogs = DB::table('audit_logs')
             ->where('user_id', Auth::id())
@@ -70,17 +114,17 @@ class AdminController extends Controller
             ->take(5)
             ->get();
 
-        return view('admin.dashboard', compact(
-            'managedUsers', 
-            'newUsersThisWeek', 
-            'activeExams', 
-            'examsEndingToday', 
-            'openTickets', 
-            'urgentTickets', 
-            'submissionsToday', 
-            'weeklySubmissions', 
-            'myLogs'
-        ));
+        return view('admin.dashboard', array_merge($metrics, compact('myLogs')));
+    }
+
+    /**
+     * Live telemetry feed polled every few seconds by the dashboard so
+     * metric cards, the weekly chart, and the status donut update in
+     * real time without a full page reload.
+     */
+    public function getTelemetryApi()
+    {
+        return response()->json($this->getDashboardMetrics());
     }
 
     /**
@@ -114,6 +158,36 @@ class AdminController extends Controller
         })->toArray();
 
         return view('admin.exams', compact('openTickets', 'exams'));
+    }
+
+    /**
+     * Live telemetry feed polled every few seconds by the Exams workspace
+     * so the Active / Draft / Closed / Submissions stat cards refresh in
+     * real time without a full page reload.
+     */
+    public function getExamsTelemetryApi()
+    {
+        $active = Exam::where('status', 'published')
+            ->where('start_time', '<=', now())
+            ->where('end_time', '>=', now())
+            ->count();
+
+        $draft = Exam::where('status', 'draft')->count();
+
+        $closed = Exam::where('status', 'published')
+            ->where('end_time', '<', now())
+            ->count();
+
+        $totalSubmissions = Submission::whereNotNull('submitted_at')->count();
+
+        return response()->json([
+            'stats' => [
+                'active'            => $active,
+                'draft'             => $draft,
+                'closed'            => $closed,
+                'totalSubmissions'  => $totalSubmissions,
+            ],
+        ]);
     }
 
     /**
@@ -174,6 +248,40 @@ class AdminController extends Controller
         $users = $query->orderBy('created_at', 'desc')->paginate(10)->withQueryString();
 
         return view('admin.users', compact('totalUsers', 'activeExams', 'cpuUsage', 'users'));
+    }
+
+    /**
+     * Live telemetry feed polled every few seconds by the User Management
+     * workspace so the stat cards stay current and newly registered
+     * accounts are surfaced without a manual page reload.
+     */
+    public function getUsersTelemetryApi(Request $request)
+    {
+        $totalUsers = User::count();
+
+        $activeExams = Exam::where('status', 'published')
+            ->where('start_time', '<=', now())
+            ->where('end_time', '>=', now())
+            ->count();
+
+        $cpuUsage = $this->getSystemLoadPercentage();
+
+        $latestUser = User::where('user_id', '!=', Auth::id())
+            ->where('role', '!=', 'super_admin')
+            ->orderBy('created_at', 'desc')
+            ->first();
+
+        return response()->json([
+            'totalUsers'  => $totalUsers,
+            'activeExams' => $activeExams,
+            'cpuUsage'    => $cpuUsage,
+            'latestUser'  => $latestUser ? [
+                'id'        => $latestUser->user_id,
+                'full_name' => $latestUser->full_name,
+                'role'      => $latestUser->role,
+                'created_at'=> optional($latestUser->created_at)->toIso8601String(),
+            ] : null,
+        ]);
     }
 
     /**
@@ -491,20 +599,43 @@ class AdminController extends Controller
 
     public function updateAdminProfile(Request $request)
     {
-        $user = auth()->user() ?? User::find(Auth::id());
-        $request->validate(['full_name' => 'required|string|max:255', 'avatar_photo' => 'nullable|image|max:2048']);
+        $user = $request->user() ?? Auth::user();
 
-        if ($user) {
-            $user->full_name = $request->input('full_name');
-            if ($request->hasFile('avatar_photo')) {
-                $file = $request->file('avatar_photo');
-                $filename = 'avatar_' . $user->user_id . '_' . time() . '.' . $file->getClientOriginalExtension();
-                $file->storeAs('public/avatars', $filename);
-                $user->avatar = 'storage/avatars/' . $filename;
-            }
-            $user->save();
+        $request->validate([
+            'full_name'    => 'required|string|max:255',
+            'avatar_photo' => 'nullable|image|mimes:jpeg,png,jpg,webp|max:2048',
+        ]);
+
+        if (!$user) {
+            return redirect()->route('admin.settings')->with('error', 'Could not resolve the signed-in account.');
         }
-        return redirect()->route('admin.settings')->with('success', 'Profile signature credentials saved.');
+
+        $user->full_name = $request->input('full_name');
+
+        if ($request->hasFile('avatar_photo')) {
+            // Clean up the old file so avatars don't pile up in storage.
+            if ($user->profile_image && Storage::disk('public')->exists($user->profile_image)) {
+                Storage::disk('public')->delete($user->profile_image);
+            }
+
+            $path = $request->file('avatar_photo')->store('profile_photos', 'public');
+            $user->profile_image = $path;
+        }
+
+        $user->save();
+
+        $this->logSecurityEvent(Auth::id(), 'comments', 'Admin Profile', 'Updated profile details' . ($request->hasFile('avatar_photo') ? ' and photo' : '') . '.');
+
+        if ($request->wantsJson()) {
+            return response()->json([
+                'success'    => true,
+                'message'    => 'Profile updated successfully.',
+                'full_name'  => $user->full_name,
+                'avatar_url' => $user->avatar_url,
+            ]);
+        }
+
+        return redirect()->route('admin.settings')->with('success', 'Profile updated successfully.');
     }
 
     public function clearDatabaseCache() {
