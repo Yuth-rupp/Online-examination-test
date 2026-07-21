@@ -17,6 +17,26 @@
           <p class="text-[11px] font-medium text-slate-400">Admin Console</p>
         </div>
       </div>
+
+      @php
+        $__deptUser = Auth::user();
+        $__isDeptScoped = $__deptUser && $__deptUser->role === 'admin' && $__deptUser->department_id;
+        $__deptName = $__isDeptScoped ? optional($__deptUser->department)->name : null;
+      @endphp
+      @if($__isDeptScoped)
+        <a href="{{ route('admin.departments.teachers', $__deptUser->department_id) }}"
+           class="mt-3 inline-flex items-center gap-1.5 text-[11px] font-bold px-2.5 py-1.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200 dark:bg-blue-500/10 dark:text-blue-300 dark:border-blue-500/30 hover:bg-blue-100 dark:hover:bg-blue-500/20 transition-colors"
+           title="You are managing this department only">
+          <i data-lucide="building-2" class="w-3 h-3"></i>
+          {{ $__deptName ?? 'Your Department' }}
+        </a>
+      @else
+        <span class="mt-3 inline-flex items-center gap-1.5 text-[11px] font-bold px-2.5 py-1.5 rounded-full bg-slate-100 text-slate-500 border border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700"
+              title="Not restricted to a single department">
+          <i data-lucide="globe" class="w-3 h-3"></i>
+          All Departments
+        </span>
+      @endif
     </div>
 
     <nav class="px-3 space-y-0.5 flex-1 overflow-y-auto">

@@ -24,6 +24,7 @@ php artisan migrate
 ```
 
 This creates:
+
 - `departments` — the department list
 - `department_teacher` — the table that lets one teacher belong to
   many departments
@@ -59,7 +60,22 @@ adds one more link. A teacher's dashboard/courses aren't changed by
 this doc set (that's a separate follow-up if you want teachers to
 pick which department a course belongs to when creating it).
 
+## 5. Where to see it on screen
+
+A department badge is now visible in two places for a department admin:
+
+- **Sidebar, under the logo** (every admin page) — a blue pill with the
+  department name, clickable straight to that department's teaching
+  roster.
+- **Dashboard header** — "Managing: [Department Name]" next to the
+  System Status pill.
+
+A super admin (or an admin with no department assigned yet) sees a
+gray "All Departments" pill instead, so it's always obvious at a
+glance whether you're looking at one department or everything.
+
 ## Notes / things you may want next
+
 - New courses don't yet have a department picker in the teacher's
   "create course" screen — right now `courses.department_id` has to
   be set manually or via `$course->department_id = ...`. Say the word
