@@ -12,6 +12,7 @@ use Illuminate\Support\Facades\Mail;     // For sending OTPs
 use Illuminate\Support\Facades\Cache;    // For storing OTPs temporarily
 use App\Mail\SuperAdminLoginCode;         // Our Mail class
 use App\Support\InstitutionalIdGenerator;
+use Illuminate\Support\Facades\Log;
 
 class AuthController extends Controller
 {
@@ -40,12 +41,35 @@ class AuthController extends Controller
             'role'       => 'required|string|in:student,teacher',
         ]);
 
+        // 🔒 MULTI-TENANCY: this platform hosts many universities in one
+        // shared app. A self-registering student/teacher must land inside
+        // THEIR OWN university's tenant, never floating unassigned and
+        // never able to pick someone else's institution from a dropdown.
+        // We match it automatically from their email domain against the
+        // `institutions.domain` column (e.g. "student@rupp.edu.kh" ->
+        // the institution whose domain is "rupp.edu.kh"). If no active
+        // institution owns that domain, registration is refused rather
+        // than silently creating an orphaned/misplaced account.
+        $emailDomain = strtolower(substr(strrchr($data['email'], '@'), 1));
+
+        $institution = \App\Models\Institution::where('domain', $emailDomain)
+            ->where('is_active', true)
+            ->first();
+
+        if (!$institution) {
+            return back()
+                ->withErrors(['email' => 'Your email domain isn\'t registered to a university on this platform yet. Contact your university\'s Super Admin, or reach out to us to onboard your school.'])
+                ->withInput($request->except('password'));
+        }
+
         $fullName = $data['first_name'] . ' ' . $data['last_name'];
 
         // 2. Server generates the unique institutional ID for the chosen
-        //    role. InstitutionalIdGenerator guarantees uniqueness even if
-        //    many people register at the same instant.
-        $institutionalId = InstitutionalIdGenerator::generate($data['role']);
+        //    role, scoped per institution so two different universities can
+        //    both have a "STU-0001" without colliding.
+        //    InstitutionalIdGenerator guarantees uniqueness even if many
+        //    people register at the same instant.
+        $institutionalId = InstitutionalIdGenerator::generate($data['role'], $institution->id);
 
         // 3. Save and commit the user data fields into your database table
         $user = User::create([
@@ -54,7 +78,7 @@ class AuthController extends Controller
             'password_hash'    => Hash::make($data['password']), // Maps to your custom migration column
             'role'             => $data['role'],
             'status'           => 'active',
-            'institution_id'   => null,
+            'institution_id'   => $institution->id,
             'institutional_id' => $institutionalId,
         ]);
 
@@ -140,15 +164,12 @@ class AuthController extends Controller
 
         // SUPER ADMIN CUSTOM RECOVERY FLOW (6-Digit OTP)
         if ($user && $user->role === 'super_admin') {
-            
-            // Generate a random 6-digit code
-            $otp = str_pad(random_int(0, 999999), 6, '0', STR_PAD_LEFT);
 
-            // Store the code in Laravel's Cache for exactly 5 minutes
-            Cache::put('superadmin_otp_' . $user->email, $otp, now()->addMinutes(5));
-
-            // Send the email with the code
-            Mail::to($user->email)->send(new SuperAdminLoginCode($otp));
+            if (!$this->sendSuperAdminOtp($user->email)) {
+                return back()->withErrors([
+                    'email' => 'We could not send your verification code right now. Please try again in a moment, or contact support if this keeps happening.',
+                ])->withInput();
+            }
 
             // Save the email in the session so the OTP page knows who is trying to recover their account
             session()->put('superadmin_attempt_email', $user->email);
@@ -215,7 +236,7 @@ class AuthController extends Controller
     */
 
     /**
-     * FIXED: Removed password requirement and validation checks for passwordless workflow.
+     * Handle initiating the Super Admin passwordless login process by emailing a 6-digit OTP code.
      */
     public function sendSuperAdminCode(Request $request)
     {
@@ -232,13 +253,47 @@ class AuthController extends Controller
             return back()->withErrors(['email' => 'Unauthorized administrative credentials.'])->withInput();
         }
 
-        // Generate OTP token code, save it to the cache cache, and flash data to session state
-        $otp = str_pad(random_int(0, 999999), 6, '0', STR_PAD_LEFT);
-        Cache::put('superadmin_otp_' . $request->email, $otp, now()->addMinutes(5));
-        Mail::to($request->email)->send(new SuperAdminLoginCode($otp));
+        if (!$this->sendSuperAdminOtp($user->email)) {
+            return back()->withErrors([
+                'email' => 'We could not send your verification code right now. Please try again in a moment, or contact support if this keeps happening.',
+            ])->withInput();
+        }
+
         session()->put('superadmin_attempt_email', $request->email);
 
         return redirect()->route('superadmin.verify.page');
+    }
+
+    /**
+     * Generate a fresh 6-digit OTP, cache it for 5 minutes, and email it to
+     * the given address. This is the ONLY place that sends the Super Admin
+     * login code — both password-reset and passwordless-login call this,
+     * so a fix here (or a switch to a different mail provider) applies
+     * everywhere at once instead of needing to be duplicated.
+     *
+     * Returns true if the email was handed off to the mail transport
+     * successfully, false if it failed (bad SMTP credentials, connection
+     * blocked, etc.) — callers should show the user a friendly error
+     * instead of letting a 500 page leak transport details.
+     */
+    private function sendSuperAdminOtp(string $email): bool
+    {
+        $otp = str_pad(random_int(0, 999999), 6, '0', STR_PAD_LEFT);
+        Cache::put('superadmin_otp_' . $email, $otp, now()->addMinutes(5));
+
+        try {
+            Mail::to($email)->send(new SuperAdminLoginCode($otp));
+            return true;
+        } catch (\Throwable $e) {
+            // Log the real reason (SMTP auth failure, API timeout, etc.) for
+            // you to diagnose — the user never sees this detail, only the
+            // generic message from the caller.
+            Log::error('Failed to send Super Admin OTP email', [
+                'email' => $email,
+                'error' => $e->getMessage(),
+            ]);
+            return false;
+        }
     }
 
     /**
