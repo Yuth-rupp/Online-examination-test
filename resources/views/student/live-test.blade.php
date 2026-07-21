@@ -639,6 +639,16 @@
         _timerRef: null,
         _tabTimeout: null,
 
+        // ── Live exam rules (admin-controlled, refreshed on a poll so mid-exam
+        //    changes from the admin settings panel apply without a reload) ──
+        proctorMaxSwitches: {{ $examRules['proctorMaxSwitches'] ?? 3 }},
+        proctorWarnThreshold: {{ $examRules['proctorWarnThreshold'] ?? 2 }},
+        blockRightClick: {{ ($examRules['blockRightClick'] ?? true) ? 'true' : 'false' }},
+        forceFullscreen: {{ ($examRules['forceFullscreen'] ?? true) ? 'true' : 'false' }},
+        syncInterval: {{ $examRules['syncInterval'] ?? 10 }},
+        disqualified: false,
+        _rulesPollRef: null,
+
         get answeredCount() {
           return Object.values(this.answers).filter(v => v !== undefined && v !== '').length;
         },
@@ -680,19 +690,81 @@
 
         setupTabDetection() {
           document.addEventListener('visibilitychange', () => {
-            if (document.hidden) {
+            if (document.hidden && !this.disqualified) {
               this.tabSwitchCount++;
               this.tabWarning = true;
               if (this._tabTimeout) clearTimeout(this._tabTimeout);
               this._tabTimeout = setTimeout(() => { this.tabWarning = false; }, 4000);
               lucide.createIcons();
+
+              // Real-time: send every violation to the server immediately so it
+              // shows up on the admin's live security/threat feed right away.
+              fetch('{{ route("student.exams.logViolation") }}', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': '{{ csrf_token() }}' },
+                body: JSON.stringify({
+                  exam_id: '{{ $exam->exam_id ?? "1" }}',
+                  strike: this.tabSwitchCount
+                })
+              }).catch(e => console.debug(e));
+
+              // Enforce the admin's live rule: past the allowed limit, the
+              // exam auto-submits and the student is locked out.
+              if (this.tabSwitchCount > this.proctorMaxSwitches) {
+                this.disqualified = true;
+                window.examSubmittedBySystem = true;
+                if (this._timerRef) clearInterval(this._timerRef);
+                this.$refs.examForm.submit();
+              }
             }
           });
+        },
+
+        setupIntegrityEnforcement() {
+          document.addEventListener('contextmenu', (e) => { if (this.blockRightClick) e.preventDefault(); });
+          ['copy', 'cut', 'paste'].forEach(evt => {
+            document.addEventListener(evt, (e) => { if (this.blockRightClick) e.preventDefault(); });
+          });
+
+          if (this.forceFullscreen && document.documentElement.requestFullscreen) {
+            document.documentElement.requestFullscreen().catch(() => {});
+            document.addEventListener('fullscreenchange', () => {
+              if (!document.fullscreenElement && this.forceFullscreen && !this.disqualified) {
+                this.tabSwitchCount++;
+                this.tabWarning = true;
+                fetch('{{ route("student.exams.logViolation") }}', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': '{{ csrf_token() }}' },
+                  body: JSON.stringify({ exam_id: '{{ $exam->exam_id ?? "1" }}', strike: this.tabSwitchCount })
+                }).catch(e => console.debug(e));
+              }
+            });
+          }
+        },
+
+        // Poll the admin's live rule settings so a change made mid-exam
+        // (e.g. lowering max switches) applies immediately, no reload needed.
+        pollLiveRules() {
+          const refresh = () => {
+            fetch('{{ route("exam.rules.live") }}')
+              .then(r => r.json())
+              .then(rules => {
+                this.proctorMaxSwitches   = rules.proctor_max_switches;
+                this.proctorWarnThreshold = rules.proctor_warn_threshold;
+                this.blockRightClick      = rules.block_right_click;
+                this.forceFullscreen      = rules.force_fullscreen;
+              })
+              .catch(e => console.debug(e));
+          };
+          refresh();
+          this._rulesPollRef = setInterval(refresh, Math.max(this.syncInterval, 5) * 1000);
         },
 
         init() {
           this.startTimer();
           this.setupTabDetection();
+          this.setupIntegrityEnforcement();
+          this.pollLiveRules();
           lucide.createIcons();
         }
       }));

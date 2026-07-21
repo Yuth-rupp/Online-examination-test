@@ -261,6 +261,33 @@
                 </div>
             </div>
 
+            {{-- Live Exam Rules (read-only, admin-controlled, real-time) --}}
+            <div class="flex-shrink-0 border-t border-slate-100">
+                <div class="px-4 py-3.5"
+                     style="background:linear-gradient(135deg,#FAFCFF,#F5F7FF)">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center gap-2">
+                            <div class="w-7 h-7 rounded-lg flex items-center justify-center text-blue-600"
+                                 style="background:#DBEAFE">
+                                <i class="fa-solid fa-shield-halved text-xs"></i>
+                            </div>
+                            <span class="text-[12px] font-black text-slate-900">Live Exam Rules</span>
+                        </div>
+                        <span class="flex items-center gap-1 text-[9px] font-black text-blue-600">
+                            <span class="w-1.5 h-1.5 rounded-full bg-blue-400 ld"></span> SYNCED
+                        </span>
+                    </div>
+                    <p class="mt-1 text-[9px] text-slate-400 font-bold">Set by your admin — updates automatically</p>
+                </div>
+                <div class="p-3 space-y-1.5 text-[10px] font-bold text-slate-600" id="examRulesBox">
+                    <div class="flex items-center justify-between"><span>Max tab switches</span><span id="ruleMaxSwitches" class="text-slate-900">—</span></div>
+                    <div class="flex items-center justify-between"><span>Warning threshold</span><span id="ruleWarnThreshold" class="text-slate-900">—</span></div>
+                    <div class="flex items-center justify-between"><span>Right-click blocked</span><span id="ruleRightClick" class="text-slate-900">—</span></div>
+                    <div class="flex items-center justify-between"><span>Fullscreen enforced</span><span id="ruleFullscreen" class="text-slate-900">—</span></div>
+                    <div class="flex items-center justify-between"><span>Webcam monitoring</span><span id="ruleWebcam" class="text-slate-900">—</span></div>
+                </div>
+            </div>
+
             {{-- Cheat Activity Log --}}
             <div class="flex-1 flex flex-col overflow-hidden border-t border-slate-100">
                 <div class="px-4 py-3 flex-shrink-0"
@@ -521,6 +548,29 @@ async function loadPendingKeys(manual = false) {
 
 // Auto-poll every 5 seconds
 setInterval(() => loadPendingKeys(false), 5000);
+
+// ═══════════════════════════════════════════════════════════════
+// LIVE EXAM RULES (read-only, admin-controlled, real-time)
+// ═══════════════════════════════════════════════════════════════
+let rulesPollMs = 10000;
+async function loadExamRules() {
+    try {
+        const res = await fetch('{{ route("exam.rules.live") }}');
+        const data = await res.json();
+        document.getElementById('ruleMaxSwitches').textContent   = data.proctor_max_switches;
+        document.getElementById('ruleWarnThreshold').textContent = data.proctor_warn_threshold;
+        document.getElementById('ruleRightClick').textContent    = data.block_right_click ? 'Yes' : 'No';
+        document.getElementById('ruleFullscreen').textContent    = data.force_fullscreen ? 'Yes' : 'No';
+        document.getElementById('ruleWebcam').textContent        = data.webcam_monitor ? 'Yes' : 'No';
+        rulesPollMs = Math.max(data.sync_interval, 5) * 1000;
+    } catch (e) {
+        console.debug('[Monitoring] loadExamRules failed:', e);
+    }
+}
+function scheduleRulesPoll() {
+    loadExamRules().finally(() => setTimeout(scheduleRulesPoll, rulesPollMs));
+}
+scheduleRulesPoll();
 
 // ═══════════════════════════════════════════════════════════════
 // ADMIT / DENY

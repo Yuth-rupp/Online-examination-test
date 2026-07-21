@@ -457,7 +457,18 @@ class StudentController extends Controller
         $secondsRemaining = $now->diffInSeconds($end, false);
         if ($secondsRemaining < 0) { $secondsRemaining = 0; }
 
-        return view('student.live-test', compact('exam', 'secondsRemaining'));
+        $ruleKeys = ['proctor_max_switches', 'proctor_warn_threshold', 'block_right_click', 'force_fullscreen', 'webcam_monitor', 'sync_interval'];
+        $rawRules = DB::table('system_settings')->whereIn('key', $ruleKeys)->pluck('value', 'key');
+        $examRules = [
+            'proctorMaxSwitches'   => (int) ($rawRules['proctor_max_switches'] ?? 3),
+            'proctorWarnThreshold' => (int) ($rawRules['proctor_warn_threshold'] ?? 2),
+            'blockRightClick'      => ($rawRules['block_right_click'] ?? '1') === '1',
+            'forceFullscreen'      => ($rawRules['force_fullscreen'] ?? '1') === '1',
+            'webcamMonitor'        => ($rawRules['webcam_monitor'] ?? '0') === '1',
+            'syncInterval'         => (int) ($rawRules['sync_interval'] ?? 10),
+        ];
+
+        return view('student.live-test', compact('exam', 'secondsRemaining', 'examRules'));
     }
 
     public function logProctorViolation(Request $request)

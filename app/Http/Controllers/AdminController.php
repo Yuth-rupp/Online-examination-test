@@ -516,18 +516,87 @@ class AdminController extends Controller
         return redirect()->route('admin.support')->with('success', 'Ticket resolution dispatch finalized successfully.');
     }
 
+    /**
+     * Keys that make up the live, real-time exam rule set. Kept in one place
+     * so the read side (settingsWorkspace / getExamRulesApi) and the write
+     * side (updateSystemRules) never drift apart.
+     */
+    private const EXAM_RULE_KEYS = [
+        'proctor_max_switches', 'proctor_warn_threshold', 'block_right_click',
+        'force_fullscreen', 'webcam_monitor', 'sync_interval', 'passing_rate',
+        'default_time_limit', 'max_attempts',
+    ];
+
     public function settingsWorkspace()
     {
         $totalUsers = User::count();
         $activeExams = Exam::where('status', 'published')->count();
         $cpuUsage = $this->getSystemLoadPercentage();
-        return view('admin.settings', compact('totalUsers', 'activeExams', 'cpuUsage'));
+
+        $settings = (object) DB::table('system_settings')
+            ->whereIn('key', self::EXAM_RULE_KEYS)
+            ->pluck('value', 'key')
+            ->toArray();
+
+        return view('admin.settings', compact('totalUsers', 'activeExams', 'cpuUsage', 'settings'));
     }
 
     public function updateSystemRules(Request $request)
     {
-        $request->validate(['proctor_max_switches' => 'required|integer', 'proctor_warn_threshold' => 'required|integer', 'sync_interval' => 'required|string', 'passing_rate' => 'required|integer', 'log_retention' => 'required|string']);
-        return redirect()->route('admin.settings')->with('success', 'Global system criteria rules synchronized.');
+        $validated = $request->validate([
+            'proctor_max_switches'   => 'required|integer|min:0|max:20',
+            'proctor_warn_threshold' => 'required|integer|min:0|max:20',
+            'sync_interval'          => 'required|in:5,10,30',
+            'passing_rate'           => 'required|integer|min:0|max:100',
+            'default_time_limit'     => 'required|integer|min:5|max:600',
+            'max_attempts'           => 'required|integer|min:1|max:10',
+        ]);
+
+        $validated['block_right_click'] = $request->has('block_right_click') ? '1' : '0';
+        $validated['force_fullscreen']  = $request->has('force_fullscreen') ? '1' : '0';
+        $validated['webcam_monitor']    = $request->has('webcam_monitor') ? '1' : '0';
+
+        DB::transaction(function () use ($validated) {
+            foreach ($validated as $key => $value) {
+                DB::table('system_settings')->updateOrInsert(
+                    ['key' => $key],
+                    ['value' => $value, 'updated_at' => now(), 'created_at' => now()]
+                );
+            }
+        });
+
+        // Push this straight into the live security/threat feed so it shows up
+        // in the audit stream (which polls every few seconds) immediately.
+        $this->logSecurityEvent(
+            Auth::id(),
+            'comments',
+            'Exam Rules',
+            "Updated live exam rules — max switches: {$validated['proctor_max_switches']}, warn at: {$validated['proctor_warn_threshold']}, sync every {$validated['sync_interval']}s."
+        );
+
+        return redirect()->route('admin.settings')->with('success', 'Global system criteria rules synchronized in real time.');
+    }
+
+    /**
+     * Lightweight JSON endpoint so any already-open page (student exam room,
+     * teacher dashboard, etc.) can pull the current exam rules without a
+     * full reload. Polled client-side at the configured sync interval.
+     */
+    public function getExamRulesApi()
+    {
+        $raw = DB::table('system_settings')->whereIn('key', self::EXAM_RULE_KEYS)->pluck('value', 'key');
+
+        return response()->json([
+            'proctor_max_switches'   => (int) ($raw['proctor_max_switches'] ?? 3),
+            'proctor_warn_threshold' => (int) ($raw['proctor_warn_threshold'] ?? 2),
+            'block_right_click'      => ($raw['block_right_click'] ?? '1') === '1',
+            'force_fullscreen'       => ($raw['force_fullscreen'] ?? '1') === '1',
+            'webcam_monitor'         => ($raw['webcam_monitor'] ?? '0') === '1',
+            'sync_interval'          => (int) ($raw['sync_interval'] ?? 10),
+            'passing_rate'           => (int) ($raw['passing_rate'] ?? 50),
+            'default_time_limit'     => (int) ($raw['default_time_limit'] ?? 60),
+            'max_attempts'           => (int) ($raw['max_attempts'] ?? 1),
+        ]);
     }
 
     public function updateAdminProfile(Request $request)

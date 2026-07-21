@@ -65,6 +65,9 @@ Route::middleware(['guest'])->group(function () {
 
 Route::middleware(['auth'])->post('/auth/logout', [AuthController::class, 'logout'])->name('logout');
 
+// ── REAL-TIME EXAM RULES (readable by any signed-in role: student, teacher, admin) ──
+Route::middleware(['auth'])->get('/exam-rules/live', [AdminController::class, 'getExamRulesApi'])->name('exam.rules.live');
+
 /* =========================================================================
  | TEACHER WORKSPACE ROUTES
  | =========================================================================
