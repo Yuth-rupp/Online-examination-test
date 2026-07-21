@@ -461,64 +461,6 @@ class AdminController extends Controller
         return redirect()->route('admin.support')->with('success', 'Ticket resolution dispatch finalized successfully.');
     }
 
-    public function backupSettings()
-    {
-        $totalUsers = User::count();
-        $activeExams = Exam::where('status', 'published')->count();
-        $cpuUsage = $this->getSystemLoadPercentage();
-
-        $institutionSettings = DB::table('institutions')->where('id', 1)->value('settings');
-        $settings = json_decode($institutionSettings, true) ?? [];
-        $backupFrequency = $settings['backup_frequency'] ?? 'daily';
-        $autoBackupEnabled = $settings['auto_backup'] ?? true;
-
-        return view('admin.backup', compact('totalUsers', 'activeExams', 'cpuUsage', 'backupFrequency', 'autoBackupEnabled'));
-    }
-
-    public function getBackupHistoryTelemetryApi()
-    {
-        $backupDirectory = 'backups';
-        if (!Storage::disk('local')->exists($backupDirectory)) { Storage::disk('local')->makeDirectory($backupDirectory); }
-        $backupFiles = Storage::disk('local')->files($backupDirectory);
-
-        $backups = collect($backupFiles)->map(function ($filePath) {
-            $filename = basename($filePath);
-            return [
-                'date'   => \Carbon\Carbon::createFromTimestamp(Storage::disk('local')->lastModified($filePath))->toDateString(),
-                'file'   => $filename,
-                'size'   => round(Storage::disk('local')->size($filePath) / 1024 / 1024, 2) . ' MB',
-                'status' => 'Success',
-                'download_url' => route('admin.backup.download', ['filename' => $filename]),
-                'delete_url'   => route('admin.backup.delete', ['filename' => $filename])
-            ];
-        })->sortByDesc('date')->values();
-
-        return response()->json(['backups' => $backups]);
-    }
-
-    public function updateBackupSettings(Request $request)
-    {
-        $request->validate(['backup_frequency' => 'required|string|in:hourly,daily,weekly,monthly']);
-        $autoBackup = $request->has('auto_backup');
-
-        DB::table('institutions')->where('id', 1)->update([
-            'settings'   => json_encode(['backup_frequency' => $request->input('backup_frequency'), 'auto_backup' => $autoBackup]),
-            'updated_at' => now()
-        ]);
-
-        return redirect()->route('admin.backup')->with('success', 'Backup configuration updated.');
-    }
-
-    public function triggerManualBackup(Request $request)
-    {
-        $filename = 'backup_' . now()->format('Ymd_His') . '.zip';
-        Storage::disk('local')->put('backups/' . $filename, 'MOCK_DATABASE_EXPORT_STREAM_DATA');
-        return redirect()->route('admin.backup')->with('success', 'On-demand structural system snapshot captured.');
-    }
-
-    public function downloadBackupFile($filename) { return response()->download(Storage::disk('local')->path('backups/'.$filename)); }
-    public function deleteBackupFile($filename) { Storage::disk('local')->delete('backups/'.$filename); return redirect()->route('admin.backup')->with('success', 'Backup resource cleared.'); }
-
     public function settingsWorkspace()
     {
         $totalUsers = User::count();

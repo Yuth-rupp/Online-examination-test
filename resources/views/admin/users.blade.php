@@ -5,8 +5,18 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>User Management | ExamSystem</title>
     <meta name="description" content="Manage platform user accounts, roles, and access levels in ExamSystem Admin Console.">
+    <!-- Anti-flash dark mode (matches Dashboard) -->
+    <script>
+      (function () {
+        if (localStorage.getItem('darkMode') === 'true') {
+          document.documentElement.classList.add('dark');
+        }
+      })();
+    </script>
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
     <!-- FontAwesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <!-- Google Fonts: Inter -->
@@ -15,6 +25,14 @@
 
     <style>
         * { font-family: 'Inter', sans-serif; }
+
+        /* ── Shared sidebar classes (matches Dashboard / partials.admin-sidebar) ── */
+        .admin-brand-gradient { background: linear-gradient(135deg, #2563eb 0%, #1e40af 100%); }
+        .admin-nav-active { background: linear-gradient(135deg,#2563eb 0%,#1e40af 100%); color: #fff; box-shadow: 0 4px 14px rgba(37,99,235,0.35); }
+        .nav-link { transition: all 0.18s cubic-bezier(0.4,0,0.2,1); }
+        .dark-surface { background:#0f172a; }
+        .dark-card { --card-bg:#1e293b; --card-br:#334155; --row-hover:#1e293b; }
+
 
         /* ── Sidebar ── */
         .sidebar {
@@ -180,60 +198,13 @@
         .btn-export:hover { background:#f1f5f9; border-color:#cbd5e1; }
     </style>
 </head>
-<body style="background:#f8fafc;" class="antialiased text-slate-800">
+<body class="antialiased transition-colors duration-300"
+      x-data="{ darkMode: localStorage.getItem('darkMode') === 'true' }"
+      :class="darkMode ? 'dark-surface text-slate-100' : 'bg-slate-50 text-slate-800'">
 
 <div class="flex min-h-screen">
 
-    <!-- ════════════════════════════
-         SIDEBAR
-    ════════════════════════════ -->
-    <aside class="sidebar w-64 flex flex-col justify-between fixed h-full z-20">
-        <div>
-            <!-- Brand -->
-            <div class="px-6 py-5 flex items-center gap-3 border-b border-slate-100">
-                <div class="brand-icon w-10 h-10 rounded-xl flex items-center justify-center text-white shrink-0">
-                    <i class="fa-solid fa-graduation-cap text-base"></i>
-                </div>
-                <div>
-                    <h1 class="font-bold text-slate-900 text-sm leading-tight">ExamSystem</h1>
-                    <span class="text-[11px] text-slate-400 font-medium">Admin Console</span>
-                </div>
-            </div>
-
-            <!-- Nav -->
-            <nav class="p-3 mt-1 space-y-0.5">
-                <a href="{{ route('admin.dashboard') }}" class="nav-item flex items-center gap-3 px-3 py-2.5 rounded-xl font-medium text-sm">
-                    <i class="fa-solid fa-chart-line w-5 text-center text-slate-400 text-sm"></i>
-                    <span>Dashboard</span>
-                </a>
-                <!-- ACTIVE -->
-                <a href="{{ route('admin.users') }}" class="nav-active flex items-center gap-3 px-3 py-2.5 rounded-xl font-semibold text-sm">
-                    <i class="fa-solid fa-users-gear w-5 text-center text-sm"></i>
-                    <span>User Management</span>
-                </a>
-                <a href="{{ route('admin.exams') }}" class="nav-item flex items-center gap-3 px-3 py-2.5 rounded-xl font-medium text-sm">
-                    <i class="fa-solid fa-file-pen w-5 text-center text-slate-400 text-sm"></i>
-                    <span>Exams</span>
-                </a>
-                <a href="{{ route('admin.support') }}" class="nav-item flex items-center gap-3 px-3 py-2.5 rounded-xl font-medium text-sm">
-                    <i class="fa-solid fa-headset w-5 text-center text-slate-400 text-sm"></i>
-                    <span>Support Desk</span>
-                </a>
-                <a href="{{ route('admin.security') }}" class="nav-item flex items-center gap-3 px-3 py-2.5 rounded-xl font-medium text-sm">
-                    <i class="fa-solid fa-shield-halved w-5 text-center text-slate-400 text-sm"></i>
-                    <span>Security</span>
-                </a>
-            </nav>
-        </div>
-
-        <!-- Settings -->
-        <div class="p-3 border-t border-slate-100">
-            <a href="{{ route('admin.settings') }}" class="nav-item flex items-center gap-3 px-3 py-2.5 rounded-xl font-medium text-sm">
-                <i class="fa-solid fa-gear w-5 text-center text-slate-400 text-sm"></i>
-                <span>Settings</span>
-            </a>
-        </div>
-    </aside>
+    @include('partials.admin-sidebar')
 
     <!-- ════════════════════════════
          MAIN CONTENT
@@ -255,41 +226,32 @@
 
             <!-- Admin info -->
             <div class="flex items-center gap-3">
-                <div class="text-right">
+                @include('partials.admin-darkmode-toggle')
+                @include('partials.admin-notification-bell')
+                <div class="text-right pl-1">
                     <h4 class="text-sm font-semibold text-slate-900 leading-tight">{{ Auth::user()->full_name ?? 'Admin User' }}</h4>
-                    <span class="text-xs text-slate-400">Super Administrator</span>
+                    <span class="text-xs text-slate-400">Administrator</span>
                 </div>
-                <div class="w-10 h-10 rounded-xl flex items-center justify-center text-white font-bold text-sm" style="background:linear-gradient(135deg,#f59e0b,#d97706);box-shadow:0 3px 10px rgba(245,158,11,0.3)">
-                    {{ Auth::user()->initials ?? 'AU' }}
-                </div>
+                @if(Auth::user()->avatar_url)
+                    <img src="{{ Auth::user()->avatar_url }}" alt="{{ Auth::user()->full_name }}"
+                         class="w-10 h-10 rounded-xl object-cover shadow" style="box-shadow:0 3px 10px rgba(37,99,235,0.3)">
+                @else
+                    <div class="w-10 h-10 rounded-xl flex items-center justify-center text-white font-bold text-sm" style="background:linear-gradient(135deg,#2563eb,#1d4ed8);box-shadow:0 3px 10px rgba(37,99,235,0.3)">
+                        {{ Auth::user() ? strtoupper(substr(Auth::user()->full_name, 0, 2)) : 'AD' }}
+                    </div>
+                @endif
             </div>
         </header>
 
         <!-- PAGE TITLE -->
         <div class="mb-6">
-            <div class="flex items-center justify-between flex-wrap gap-2">
-                <h2 class="text-xl font-bold text-slate-900 flex items-center gap-2.5">
-                    <span class="w-8 h-8 rounded-lg flex items-center justify-center text-blue-600" style="background:#eff6ff;border:1px solid #bfdbfe">
-                        <i class="fa-solid fa-users-gear text-sm"></i>
-                    </span>
-                    User Management
-                </h2>
-                <span class="inline-flex items-center gap-1.5 text-[11px] font-semibold text-slate-400">
-                    <span class="relative flex items-center justify-center w-2 h-2">
-                        <span class="pulse-dot absolute inline-flex w-full h-full rounded-full bg-emerald-400 opacity-70"></span>
-                        <span class="relative inline-flex w-2 h-2 rounded-full bg-emerald-500"></span>
-                    </span>
-                    Live · updates every 5s
+            <h2 class="text-xl font-bold text-slate-900 flex items-center gap-2.5">
+                <span class="w-8 h-8 rounded-lg flex items-center justify-center text-blue-600" style="background:#eff6ff;border:1px solid #bfdbfe">
+                    <i class="fa-solid fa-users-gear text-sm"></i>
                 </span>
-            </div>
+                User Management
+            </h2>
             <p class="text-sm text-slate-400 mt-1">Manage platform accounts, access levels, and account status.</p>
-        </div>
-
-        <!-- New user toast slot -->
-        <div id="new-user-banner" class="hidden mb-4 p-3.5 rounded-xl flex items-center gap-2.5 text-sm font-medium text-blue-700" style="background:#eff6ff;border:1px solid #bfdbfe">
-            <i class="fa-solid fa-user-plus text-blue-500"></i>
-            <span id="new-user-banner-text"></span>
-            <button type="button" onclick="location.reload()" class="ml-auto text-xs font-bold text-blue-600 hover:text-blue-800 underline">Refresh list</button>
         </div>
 
         <!-- METRIC CARDS -->

@@ -1,4 +1,4 @@
-  <!-- ═══════════════════════════════════════════════════
+<!-- ═══════════════════════════════════════════════════
        ADMIN SIDEBAR
        Categorized like the student portal (section labels +
        grouped links) but in the admin's professional blue palette.
@@ -60,11 +60,6 @@
 
       <!-- System -->
       <p class="px-2 pt-5 pb-2 text-[10px] font-black tracking-[0.12em] uppercase text-slate-400">System</p>
-      <a href="{{ route('admin.backup') }}"
-         class="nav-link flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-semibold {{ request()->routeIs('admin.backup*') ? 'admin-nav-active' : 'text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800' }}">
-        <i data-lucide="database" class="w-4 h-4 flex-shrink-0"></i>
-        Backup
-      </a>
       <a href="{{ route('admin.settings') }}"
          class="nav-link flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-semibold {{ request()->routeIs('admin.settings*') ? 'admin-nav-active' : 'text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800' }}">
         <i data-lucide="settings-2" class="w-4 h-4 flex-shrink-0"></i>
@@ -94,14 +89,17 @@
           <h4 class="text-xs font-bold truncate" :class="darkMode ? 'text-white' : 'text-slate-900'">
             {{ Auth::user()->full_name ?? 'Admin User' }}
           </h4>
-          <p class="text-[11px] text-slate-400 truncate">{{ ucwords(str_replace('_',' ', Auth::user()->role ?? 'admin')) }}</p>
+          <p class="text-[11px] text-slate-400 font-medium truncate">
+            {{ Auth::user()->institutional_id ?? 'ADM-0000' }}
+          </p>
         </div>
-        <button @click="darkMode = !darkMode; localStorage.setItem('darkMode', darkMode)"
-                class="p-1.5 rounded-lg flex-shrink-0 transition-colors cursor-pointer"
-                :class="darkMode ? 'text-amber-300 hover:bg-slate-700' : 'text-slate-400 hover:bg-slate-200'">
-          <i data-lucide="sun" class="w-3.5 h-3.5" x-show="darkMode"></i>
-          <i data-lucide="moon" class="w-3.5 h-3.5" x-show="!darkMode"></i>
-        </button>
+        <form action="{{ route('logout') }}" method="POST" class="flex-shrink-0">
+          @csrf
+          <button type="submit" title="Sign out"
+                  class="p-1.5 rounded-lg text-slate-400 hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors cursor-pointer">
+            <i data-lucide="log-out" class="w-3.5 h-3.5"></i>
+          </button>
+        </form>
       </div>
     </div>
   </aside>

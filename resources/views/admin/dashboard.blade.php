@@ -118,6 +118,8 @@
                     <span class="font-medium">Live</span>
                 </div>
 
+                @include('partials.admin-darkmode-toggle')
+
                 @include('partials.admin-notification-bell')
 
                 <div class="flex items-center gap-3 pl-3 border-l" :class="darkMode ? 'border-slate-700' : 'border-slate-200'">
