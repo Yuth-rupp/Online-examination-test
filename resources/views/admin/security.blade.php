@@ -176,10 +176,13 @@
     @include('partials.admin-sidebar')
 
     <!-- ══════════════ MAIN CONTENT ══════════════ -->
-    <main class="flex-1 ml-64 p-7 min-h-screen">
+    <main class="flex-1 ml-64 min-h-screen flex flex-col">
 
-        <!-- TOP HEADER -->
-        <header class="flex items-center justify-between mb-7 flex-wrap gap-4">
+        <!-- STICKY TOPBAR (matches the student portal's persistent topbar,
+             in the admin's professional blue palette) -->
+        <header class="flex items-center justify-between mb-0 flex-wrap gap-4 px-7 py-4 border-b sticky top-0 z-20 backdrop-blur-xl transition-colors duration-300"
+                :class="darkMode ? 'bg-slate-900/95 border-slate-800' : 'bg-white/95 border-slate-100'"
+                style="box-shadow:0 1px 4px rgba(0,0,0,0.04)">
             <div class="flex items-center gap-3 flex-wrap">
                 <!-- Status pill -->
                 <span class="inline-flex items-center gap-2 px-4 py-2 rounded-full text-xs font-semibold text-emerald-700 border" style="background:#f0fdf4;border-color:#bbf7d0;">
@@ -219,6 +222,9 @@
                 </div>
             </div>
         </header>
+
+        <!-- SCROLLABLE PAGE BODY -->
+        <div class="p-7">
 
         <!-- PAGE TITLE -->
         <div class="mb-6">
@@ -474,6 +480,7 @@
             </div>
         </div>
 
+        </div><!-- /page body -->
     </main>
 </div>
 

@@ -117,10 +117,13 @@
     @include('partials.admin-sidebar')
 
     <!-- ════════════ MAIN CONTENT ════════════ -->
-    <main class="flex-1 ml-64 p-7 min-h-screen">
+    <main class="flex-1 ml-64 min-h-screen flex flex-col">
 
-        <!-- HEADER -->
-        <header class="flex items-center justify-between mb-7 flex-wrap gap-4">
+        <!-- STICKY TOPBAR (matches the student portal's persistent topbar,
+             in the admin's professional blue palette) -->
+        <header class="flex items-center justify-between mb-0 flex-wrap gap-4 px-7 py-4 border-b sticky top-0 z-20 backdrop-blur-xl transition-colors duration-300"
+                :class="darkMode ? 'bg-slate-900/95 border-slate-800' : 'bg-white/95 border-slate-100'"
+                style="box-shadow:0 1px 4px rgba(0,0,0,0.04)">
             <div>
                 <h2 class="text-xl font-bold flex items-center gap-2.5" :class="darkMode ? 'text-white' : 'text-slate-900'">
                     <span class="w-8 h-8 rounded-lg flex items-center justify-center text-blue-600" style="background:#eff6ff;border:1px solid #bfdbfe">
@@ -157,6 +160,9 @@
                 </div>
             </div>
         </header>
+
+        <!-- SCROLLABLE PAGE BODY -->
+        <div class="p-7">
 
         <!-- STAT CARDS -->
         <div class="grid grid-cols-2 xl:grid-cols-4 gap-4 mb-6">
@@ -372,6 +378,7 @@
             @endforeach
         </div>
 
+        </div><!-- /page body -->
     </main>
 </div>
 
@@ -780,12 +787,94 @@
         document.getElementById('exam-drawer-backdrop').classList.add('hidden');
     }
 
-    /* ── Real-time stats refresh ── */
+    /* ── Real-time refresh: stat cards + exam grid ──
+       Polls the live admin.exams.api endpoint and rebuilds both the
+       summary numbers and every exam card's status/participation, so
+       newly registered students, new submissions, and newly published
+       exams show up on their own — no manual page reload required. */
+    function examCardHtml(exam) {
+        const students   = exam.students || 0;
+        const submitted  = exam.submitted || 0;
+        const id         = exam.id;
+        const status     = exam.status || 'draft';
+        const title      = exam.title || '';
+        const subject    = exam.subject || '';
+        const questions  = exam.questions || 0;
+        const instructor = exam.instructor;
+        const initials   = exam.instructor_initials || 'AD';
+        const pct        = students > 0 ? Math.round((submitted / students) * 100) : 0;
+
+        const badgeCls = {active:'badge-active', draft:'badge-draft', closed:'badge-closed'}[status] ?? 'badge-draft';
+        const fillCls  = {active:'fill-active', draft:'fill-draft', closed:'fill-closed'}[status] ?? 'fill-default';
+        const iconCls  = {active:'fa-circle-play', draft:'fa-pen-ruler', closed:'fa-lock'}[status] ?? 'fa-circle';
+
+        let closeLabel = 'Not scheduled';
+        if (exam.closes && exam.closes !== 'Not scheduled yet') {
+            const d = new Date(exam.closes);
+            if (!isNaN(d)) closeLabel = (d > new Date() ? 'Closes ' : 'Closed ') + d.toLocaleString();
+        }
+
+        const examJson = JSON.stringify(exam).replace(/'/g, '&#39;');
+        const instructorBlock = instructor
+            ? `<div class="flex items-center gap-2 mb-4">
+                 <div class="instructor-chip w-6 h-6 rounded-full flex items-center justify-center text-[9px] font-bold shrink-0">${initials}</div>
+                 <span class="text-xs text-slate-500 font-medium">${instructor}</span>
+               </div>`
+            : `<div class="flex items-center gap-2 mb-4">
+                 <div class="w-6 h-6 rounded-full flex items-center justify-center text-[9px] bg-slate-100 border border-dashed border-slate-300 text-slate-400"><i class="fa-solid fa-plus" style="font-size:7px"></i></div>
+                 <span class="text-xs text-slate-400 italic">No instructor assigned</span>
+               </div>`;
+
+        return `
+        <div class="exam-card rounded-2xl p-5 cursor-pointer relative group"
+             data-status="${status}" data-title="${title.toLowerCase()}"
+             onclick='openExamDrawer(${examJson})'>
+            <div class="flex items-start justify-between mb-4">
+                <span class="${badgeCls} inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wide">
+                    <i class="fa-solid ${iconCls}" style="font-size:8px"></i>${status}
+                </span>
+                <div class="relative" onclick="event.stopPropagation()">
+                    <button class="w-7 h-7 rounded-lg flex items-center justify-center text-slate-300 hover:text-slate-600 hover:bg-slate-100 transition-all" onclick="toggleMenu('${id}')">
+                        <i class="fa-solid fa-ellipsis-vertical text-xs"></i>
+                    </button>
+                    <div id="menu-${id}" class="action-menu hidden absolute right-0 top-9 rounded-xl w-44 py-1.5 z-10">
+                        <button onclick='openExamDrawer(${examJson})' class="action-item w-full text-left px-4 py-2.5 text-xs font-semibold text-slate-700 flex items-center gap-2.5"><i class="fa-solid fa-eye text-blue-500 w-4 text-center"></i> View Details</button>
+                        <button onclick='openExamDrawer(${examJson})' class="action-item w-full text-left px-4 py-2.5 text-xs font-semibold text-slate-700 flex items-center gap-2.5"><i class="fa-solid fa-pencil text-violet-500 w-4 text-center"></i> Edit Questions</button>
+                        <button onclick='openExamDrawer(${examJson})' class="action-item w-full text-left px-4 py-2.5 text-xs font-semibold text-slate-700 flex items-center gap-2.5"><i class="fa-solid fa-user-tie text-emerald-500 w-4 text-center"></i> Assign Instructor</button>
+                        <button onclick='openExamDrawer(${examJson})' class="action-item w-full text-left px-4 py-2.5 text-xs font-semibold text-slate-700 flex items-center gap-2.5"><i class="fa-solid fa-clock-rotate-left text-amber-500 w-4 text-center"></i> Adjust Time</button>
+                    </div>
+                </div>
+            </div>
+            <h4 class="font-bold text-slate-900 text-sm leading-tight mb-1">${title}</h4>
+            <p class="text-xs text-slate-400 mb-4">${subject}</p>
+            ${instructorBlock}
+            <div class="flex items-center justify-between text-xs mb-1.5">
+                <span class="text-slate-400 font-medium">Participation</span>
+                <span class="font-bold text-slate-700">${submitted}/${students}${students > 0 ? ` <span class="text-slate-400 font-normal">(${pct}%)</span>` : ''}</span>
+            </div>
+            <div class="progress-bar mb-4"><div class="progress-fill ${fillCls}" style="width:${pct}%"></div></div>
+            <div class="flex items-center justify-between">
+                <div class="flex items-center gap-1.5 text-xs text-slate-400"><i class="fa-regular fa-clock text-slate-300"></i><span>${closeLabel}</span></div>
+                <div class="flex items-center gap-1.5 text-xs text-slate-400"><i class="fa-solid fa-circle-question text-slate-300"></i><span>${questions} Qs</span></div>
+            </div>
+        </div>`;
+    }
+
+    function applyActiveFilterAndSearch() {
+        const activeTab = document.querySelector('.tab-btn.tab-active');
+        const filter = activeTab ? activeTab.dataset.filter : 'all';
+        const q = (document.getElementById('exam-search').value || '').toLowerCase();
+        document.querySelectorAll('.exam-card').forEach(card => {
+            const matchesFilter = filter === 'all' || card.dataset.status === filter;
+            const matchesSearch = !q || card.dataset.title.includes(q);
+            card.classList.toggle('hidden', !(matchesFilter && matchesSearch));
+        });
+    }
+
     function refreshStats() {
-        // Safe named route string path injection to prevent route layout compiler crashing
-        const targetApiEndpoint = '@json(Route::has("admin.exams.api") ? route("admin.exams.api") : "/admin/exams/api")';
-        
-        fetch(targetApiEndpoint)
+        const targetApiEndpoint = '{{ route("admin.exams.api") }}';
+
+        fetch(targetApiEndpoint, { headers: { 'Accept': 'application/json' } })
             .then(r => r.json())
             .then(data => {
                 if (data.stats) {
@@ -800,8 +889,18 @@
                         if (el && el.textContent !== String(val)) el.textContent = val;
                     });
                 }
+
+                if (Array.isArray(data.exams)) {
+                    const grid = document.getElementById('exam-grid');
+                    grid.innerHTML = data.exams.map(examCardHtml).join('');
+                    applyActiveFilterAndSearch();
+                }
+
+                const clock = document.getElementById('last-refresh');
+                if (clock) clock.textContent = new Date().toLocaleTimeString();
             }).catch(() => {});
     }
+    refreshStats();
     setInterval(refreshStats, 8000);
 </script>
 @include('partials.admin-notification-realtime')

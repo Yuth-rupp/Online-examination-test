@@ -128,36 +128,91 @@ class AdminController extends Controller
     }
 
     /**
+     * Build the live exam list + summary stat cards straight from the
+     * database. No placeholder numbers — a freshly registered account
+     * with no activity yet correctly shows 0 students / 0 submissions
+     * instead of the old hardcoded "45 students, 12 submitted" demo data.
+     */
+    private function getExamWorkspaceData()
+    {
+        // Every account with the "student" role is a prospective test-taker.
+        // (There is no per-course enrollment table in this schema, so the
+        // eligible pool for every exam is the current student roster.)
+        $totalStudents = User::where('role', 'student')->count();
+
+        $exams = Exam::with('course', 'creator')
+            ->orderBy('created_at', 'desc')
+            ->get()
+            ->map(function ($exam) use ($totalStudents) {
+                $isPublished = $exam->status === 'published';
+
+                $isActive = $isPublished
+                    && $exam->start_time
+                    && $exam->end_time
+                    && now()->between($exam->start_time, $exam->end_time);
+
+                $status = $isActive ? 'active' : ($isPublished ? 'closed' : 'draft');
+
+                $submitted = Submission::where('exam_id', $exam->exam_id)
+                    ->whereNotNull('submitted_at')
+                    ->count();
+
+                $questionCount = $exam->questions()->count();
+
+                $instructor = $exam->creator->full_name ?? null;
+                $instructorInitials = $instructor
+                    ? collect(explode(' ', $instructor))->take(2)->map(fn($p) => strtoupper($p[0] ?? ''))->join('')
+                    : null;
+
+                return [
+                    'id' => $exam->exam_id,
+                    'title' => $exam->title,
+                    'subject' => $exam->course->name ?? 'No course assigned',
+                    'status' => $status,
+                    'students' => $totalStudents,
+                    'submitted' => $submitted,
+                    'closes' => $exam->end_time ?: 'Not scheduled yet',
+                    'instructor' => $instructor,
+                    'instructor_initials' => $instructorInitials ?: 'AD',
+                    'questions' => $questionCount,
+                    'sections' => [['name' => 'Section 1', 'duration' => $exam->duration ?? 60]],
+                ];
+            });
+
+        $stats = [
+            'active'            => $exams->where('status', 'active')->count(),
+            'draft'             => $exams->where('status', 'draft')->count(),
+            'closed'            => $exams->where('status', 'closed')->count(),
+            'totalSubmissions'  => Submission::whereNotNull('submitted_at')->count(),
+        ];
+
+        return [
+            'exams' => $exams->values()->toArray(),
+            'stats' => $stats,
+        ];
+    }
+
+    /**
      * Display and manage the Admin Workspace for Exams panel.
      */
     public function examWorkspace()
     {
         $openTickets = DB::table('support_tickets')->where('status', '!=', 'resolved')->count();
-        
-        $exams = Exam::orderBy('created_at', 'desc')->get()->map(function($exam) {
-            $isPublished = $exam->status === 'published';
-            
-            $isActive = $isPublished 
-                && $exam->start_time 
-                && $exam->end_time 
-                && now()->between($exam->start_time, $exam->end_time);
-            
-            return [
-                'id' => $exam->exam_id ?? $exam->id,
-                'title' => $exam->title,
-                'subject' => $exam->description ?? 'No subject course described',
-                'status' => $isActive ? 'active' : ($isPublished ? 'closed' : 'draft'),
-                'students' => 45, 
-                'submitted' => 12,
-                'closes' => $exam->end_time ? $exam->end_time : 'Not scheduled yet',
-                'instructor' => 'Dr. Chea Sophea',
-                'instructor_initials' => 'CS',
-                'questions' => 25,
-                'sections' => [['name' => 'Section 1', 'duration' => 60]]
-            ];
-        })->toArray();
 
-        return view('admin.exams', compact('openTickets', 'exams'));
+        $data = $this->getExamWorkspaceData();
+
+        return view('admin.exams', array_merge($data, compact('openTickets')));
+    }
+
+    /**
+     * Live polling endpoint for the Exams workspace — hit every few
+     * seconds by the front-end so stat cards and exam participation
+     * numbers update in real time (new sign-ups, new submissions,
+     * newly-published exams) without a manual page refresh.
+     */
+    public function getExamsDataApi()
+    {
+        return response()->json($this->getExamWorkspaceData());
     }
 
     /**

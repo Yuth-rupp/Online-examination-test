@@ -209,10 +209,13 @@
     <!-- ════════════════════════════
          MAIN CONTENT
     ════════════════════════════ -->
-    <main class="flex-1 ml-64 p-7 main-bg min-h-screen">
+    <main class="flex-1 ml-64 main-bg min-h-screen flex flex-col">
 
-        <!-- TOP HEADER -->
-        <header class="flex items-center justify-between mb-7">
+        <!-- STICKY TOPBAR (matches the student portal's persistent topbar,
+             in the admin's professional blue palette) -->
+        <header class="flex items-center justify-between px-7 py-4 border-b sticky top-0 z-20 backdrop-blur-xl transition-colors duration-300"
+                :class="darkMode ? 'bg-slate-900/95 border-slate-800' : 'bg-white/95 border-slate-100'"
+                style="box-shadow:0 1px 4px rgba(0,0,0,0.04)">
             <div class="flex items-center gap-3">
                 <!-- Status pill -->
                 <span class="inline-flex items-center gap-2 px-4 py-2 rounded-full text-xs font-semibold text-emerald-700 border" style="background:#f0fdf4;border-color:#bbf7d0;">
@@ -229,7 +232,7 @@
                 @include('partials.admin-darkmode-toggle')
                 @include('partials.admin-notification-bell')
                 <div class="text-right pl-1">
-                    <h4 class="text-sm font-semibold text-slate-900 leading-tight">{{ Auth::user()->full_name ?? 'Admin User' }}</h4>
+                    <h4 class="text-sm font-semibold leading-tight" :class="darkMode ? 'text-white' : 'text-slate-900'">{{ Auth::user()->full_name ?? 'Admin User' }}</h4>
                     <span class="text-xs text-slate-400">Administrator</span>
                 </div>
                 @if(Auth::user()->avatar_url)
@@ -243,9 +246,12 @@
             </div>
         </header>
 
+        <!-- SCROLLABLE PAGE BODY -->
+        <div class="p-7">
+
         <!-- PAGE TITLE -->
         <div class="mb-6">
-            <h2 class="text-xl font-bold text-slate-900 flex items-center gap-2.5">
+            <h2 class="text-xl font-bold flex items-center gap-2.5" :class="darkMode ? 'text-white' : 'text-slate-900'">
                 <span class="w-8 h-8 rounded-lg flex items-center justify-center text-blue-600" style="background:#eff6ff;border:1px solid #bfdbfe">
                     <i class="fa-solid fa-users-gear text-sm"></i>
                 </span>
@@ -491,6 +497,7 @@
             </div>
         </div>
 
+        </div><!-- /page body -->
     </main>
 </div>
 
@@ -707,6 +714,11 @@
         clearTimeout(searchTimer);
         searchTimer = setTimeout(() => this.closest('form').submit(), 500);
     });
+
+    /* Render the Lucide icon set (sidebar "graduation-cap" logo, search icon, etc.)
+       This page was missing this call, which is why the sidebar logo/icons
+       never appeared — the <i data-lucide="..."> tags were left un-rendered. */
+    if (window.lucide) lucide.createIcons();
 </script>
 </body>
 </html>

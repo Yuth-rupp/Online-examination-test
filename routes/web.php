@@ -259,6 +259,7 @@ Route::middleware(['auth', 'role:admin,super_admin'])->group(function () {
     Route::post('/admin/notifications/clear',        [NotificationController::class, 'clearAll'])->name('admin.notifications.clear');
 
     Route::get('/admin/exams',                  [AdminController::class, 'examWorkspace'])->name('admin.exams');
+    Route::get('/admin/exams/api',              [AdminController::class, 'getExamsDataApi'])->name('admin.exams.api');
     Route::post('/admin/exams/store',           [AdminController::class, 'storeExam'])->name('admin.exams.store');
 
     Route::get('/admin/users',                  [AdminController::class, 'userManagement'])->name('admin.users');
