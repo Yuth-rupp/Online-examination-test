@@ -16,6 +16,28 @@ use App\Support\InstitutionalIdGenerator;
 class AdminController extends Controller
 {
     /**
+     * The department IDs the currently signed-in admin is allowed to see.
+     *
+     *  - super_admin  -> [] (empty array means "no restriction" everywhere
+     *                    this is used, via User/Course/Exam::inDepartments())
+     *  - department admin (users.department_id is set) -> [that one ID]
+     *  - a legacy/global admin with no department_id set -> [] (kept
+     *    unrestricted on purpose, so existing installs don't break the
+     *    moment this migration runs — a superadmin can assign them a
+     *    department later from Super Admin > Admins)
+     */
+    private function scopedDepartmentIds(): array
+    {
+        $user = Auth::user();
+
+        if (!$user || $user->role === 'super_admin') {
+            return [];
+        }
+
+        return $user->managedDepartmentIds();
+    }
+
+    /**
      * Private helper method to log real-time security anomalies and audit events.
      */
     private function logSecurityEvent($userId, $action, $target, $summary)
@@ -51,24 +73,32 @@ class AdminController extends Controller
      */
     private function getDashboardMetrics()
     {
-        $managedUsers = User::count();
-        $newUsersThisWeek = User::where('created_at', '>=', now()->startOfWeek())->count();
+        $deptIds = $this->scopedDepartmentIds();
 
-        $activeExams = Exam::where('status', 'published')
+        $managedUsers = User::inDepartments($deptIds)->count();
+        $newUsersThisWeek = User::inDepartments($deptIds)->where('created_at', '>=', now()->startOfWeek())->count();
+
+        $activeExams = Exam::inDepartments($deptIds)
+            ->where('status', 'published')
             ->where('start_time', '<=', now())
             ->where('end_time', '>=', now())
             ->count();
 
-        $upcomingExams = Exam::where('status', 'published')
+        $upcomingExams = Exam::inDepartments($deptIds)
+            ->where('status', 'published')
             ->where('start_time', '>', now())
             ->count();
 
-        $closedExams = Exam::where('status', 'published')
+        $closedExams = Exam::inDepartments($deptIds)
+            ->where('status', 'published')
             ->where('end_time', '<', now())
             ->count();
 
-        $examsEndingToday = Exam::whereBetween('end_time', [now()->startOfDay(), now()->endOfDay()])->count();
+        $examsEndingToday = Exam::inDepartments($deptIds)->whereBetween('end_time', [now()->startOfDay(), now()->endOfDay()])->count();
 
+        // Support tickets and submissions aren't department-scoped in this
+        // schema yet (tickets don't carry a department/course reference),
+        // so they stay global for now — every admin sees all of them.
         $openTickets = DB::table('support_tickets')->where('status', '!=', 'resolved')->count();
         $urgentTickets = DB::table('support_tickets')->where('status', '!=', 'resolved')->where('priority', 'urgent')->count();
 
@@ -135,12 +165,16 @@ class AdminController extends Controller
      */
     private function getExamWorkspaceData()
     {
+        $deptIds = $this->scopedDepartmentIds();
+
         // Every account with the "student" role is a prospective test-taker.
         // (There is no per-course enrollment table in this schema, so the
-        // eligible pool for every exam is the current student roster.)
-        $totalStudents = User::where('role', 'student')->count();
+        // eligible pool for every exam is the current student roster,
+        // scoped to the admin's department(s) if they manage one.)
+        $totalStudents = User::where('role', 'student')->inDepartments($deptIds)->count();
 
-        $exams = Exam::with('course', 'creator')
+        $exams = Exam::inDepartments($deptIds)
+            ->with('course', 'creator')
             ->orderBy('created_at', 'desc')
             ->get()
             ->map(function ($exam) use ($totalStudents) {
@@ -183,7 +217,9 @@ class AdminController extends Controller
             'active'            => $exams->where('status', 'active')->count(),
             'draft'             => $exams->where('status', 'draft')->count(),
             'closed'            => $exams->where('status', 'closed')->count(),
-            'totalSubmissions'  => Submission::whereNotNull('submitted_at')->count(),
+            'totalSubmissions'  => Submission::whereNotNull('submitted_at')
+                                        ->whereIn('exam_id', $exams->pluck('id'))
+                                        ->count(),
         ];
 
         return [
@@ -246,8 +282,11 @@ class AdminController extends Controller
      */
     public function userManagement(Request $request)
     {
-        $totalUsers = User::count();
-        $activeExams = Exam::where('status', 'published')
+        $deptIds = $this->scopedDepartmentIds();
+
+        $totalUsers = User::inDepartments($deptIds)->count();
+        $activeExams = Exam::inDepartments($deptIds)
+            ->where('status', 'published')
             ->where('start_time', '<=', now())
             ->where('end_time', '>=', now())
             ->count();
@@ -256,7 +295,8 @@ class AdminController extends Controller
 
         $query = User::query()
             ->where('user_id', '!=', Auth::id())
-            ->where('role', '!=', 'super_admin');
+            ->where('role', '!=', 'super_admin')
+            ->inDepartments($deptIds);
 
         if ($request->filled('search')) {
             $search = $request->input('search');
@@ -272,7 +312,10 @@ class AdminController extends Controller
 
         $users = $query->orderBy('created_at', 'desc')->paginate(10)->withQueryString();
 
-        return view('admin.users', compact('totalUsers', 'activeExams', 'cpuUsage', 'users'));
+        $isDepartmentAdmin = Auth::user()->isDepartmentAdmin();
+        $departments = $isDepartmentAdmin ? collect() : \App\Models\Department::orderBy('name')->get(['id', 'name']);
+
+        return view('admin.users', compact('totalUsers', 'activeExams', 'cpuUsage', 'users', 'isDepartmentAdmin', 'departments'));
     }
 
     /**
@@ -280,21 +323,44 @@ class AdminController extends Controller
      */
     public function storeUser(Request $request)
     {
-        $request->validate([
+        $actor = Auth::user();
+        $isDepartmentAdmin = $actor->isDepartmentAdmin();
+
+        // A department admin can only add teachers/students into their own
+        // department — creating another admin is a super_admin-only action
+        // (done from Super Admin > Admins, then assigned to a department).
+        $allowedRoles = $isDepartmentAdmin ? 'teacher,student' : 'admin,teacher,student';
+
+        $validated = $request->validate([
             'full_name' => 'required|string|max:255',
             'email' => 'required|string|email|max:255|unique:users,email',
-            'role' => 'required|string|in:admin,teacher,student',
+            'role' => 'required|string|in:' . $allowedRoles,
             'password' => 'required|string|min:8|confirmed',
+            'department_id' => 'nullable|exists:departments,id',
         ]);
 
+        // A department admin's new users always land in their own
+        // department, regardless of what was posted. A global (super)
+        // admin may optionally pick a department from the form.
+        $departmentId = $isDepartmentAdmin ? $actor->department_id : ($validated['department_id'] ?? null);
+
         $newUser = User::create([
-            'full_name' => $request->input('full_name'),
-            'email' => $request->input('email'),
-            'role' => $request->input('role'),
-            'password_hash' => Hash::make($request->input('password')),
+            'full_name' => $validated['full_name'],
+            'email' => $validated['email'],
+            'role' => $validated['role'],
+            'password_hash' => Hash::make($validated['password']),
             'status' => 'active',
-            'institutional_id' => InstitutionalIdGenerator::generate($request->input('role')),
+            'department_id' => $departmentId,
+            'institutional_id' => InstitutionalIdGenerator::generate($validated['role']),
         ]);
+
+        // If they were created as a teacher with a department, also link
+        // them into that department's teaching roster so they immediately
+        // show up in Department > Teachers (and can be added to further
+        // departments later without touching this home assignment).
+        if ($newUser->role === 'teacher' && $departmentId) {
+            $newUser->departments()->syncWithoutDetaching([$departmentId]);
+        }
 
         $this->logSecurityEvent(Auth::id(), 'uploaded', 'User Directory', 'Compiled new application profile space for ' . $newUser->full_name);
 
@@ -307,7 +373,10 @@ class AdminController extends Controller
     public function forceResetPassword(Request $request, $id)
     {
         $request->validate(['password' => 'required|string|min:8|confirmed']);
-        $user = User::where('role', '!=', 'super_admin')->where('user_id', '!=', Auth::id())->findOrFail($id);
+        $user = User::where('role', '!=', 'super_admin')
+            ->where('user_id', '!=', Auth::id())
+            ->inDepartments($this->scopedDepartmentIds())
+            ->findOrFail($id);
         
         $user->password_hash = Hash::make($request->input('password'));
         $user->save();
@@ -321,7 +390,10 @@ class AdminController extends Controller
      */
     public function toggleUserStatus($id)
     {
-        $user = User::where('role', '!=', 'super_admin')->where('user_id', '!=', Auth::id())->findOrFail($id);
+        $user = User::where('role', '!=', 'super_admin')
+            ->where('user_id', '!=', Auth::id())
+            ->inDepartments($this->scopedDepartmentIds())
+            ->findOrFail($id);
         $user->status = ($user->status === 'active' || !$user->status) ? 'suspended' : 'active';
         $user->save();
 
@@ -336,7 +408,10 @@ class AdminController extends Controller
      */
     public function destroyUser($id)
     {
-        $user = User::where('role', '!=', 'super_admin')->where('user_id', '!=', Auth::id())->findOrFail($id);
+        $user = User::where('role', '!=', 'super_admin')
+            ->where('user_id', '!=', Auth::id())
+            ->inDepartments($this->scopedDepartmentIds())
+            ->findOrFail($id);
         $user->delete();
 
         $this->logSecurityEvent(Auth::id(), 'completed', 'Destruction Shield', 'Permanently dropped active user profile.');
@@ -350,7 +425,10 @@ class AdminController extends Controller
     {
         $currentTime = \Carbon\Carbon::now('Asia/Phnom_Penh');
         $fileName = 'examsystem_users_' . $currentTime->format('Ymd_His') . '.csv';
-        $query = User::query()->where('user_id', '!=', Auth::id())->where('role', '!=', 'super_admin');
+        $query = User::query()
+            ->where('user_id', '!=', Auth::id())
+            ->where('role', '!=', 'super_admin')
+            ->inDepartments($this->scopedDepartmentIds());
 
         $headers = [
             "Content-type"        => "text/csv",

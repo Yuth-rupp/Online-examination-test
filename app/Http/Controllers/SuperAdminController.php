@@ -123,33 +123,44 @@ class SuperAdminController extends Controller
     // Maps seamlessly to user_management.blade.php template views
     public function adminIndex()
     {
-        $admins = User::orderBy('user_id', 'desc')->get();
+        $admins = User::with('department:id,name')->orderBy('user_id', 'desc')->get();
         return view('superadmin.user_management', compact('admins'));
     }
 
     public function adminApiIndex()
     {
-        $users = User::orderBy('user_id', 'desc')->get();
+        $users = User::with('department:id,name')->orderBy('user_id', 'desc')->get();
         return response()->json($users);
     }
 
     public function adminStore(Request $request)
     {
         $validated = $request->validate([
-            'full_name' => 'required|string|max:255',
-            'email'     => 'required|email|unique:users,email',
-            'password'  => 'required|string|min:8',
-            'role'      => 'required|string|in:student,teacher,admin,super_admin',
+            'full_name'      => 'required|string|max:255',
+            'email'          => 'required|email|unique:users,email',
+            'password'       => 'required|string|min:8',
+            'role'           => 'required|string|in:student,teacher,admin,super_admin',
+            // Optional: put this admin/teacher/student in charge of (or
+            // inside) a specific department right away. super_admin is
+            // never department-scoped, so this is ignored for that role.
+            'department_id'  => 'nullable|exists:departments,id',
         ]);
 
         $user = DB::transaction(function () use ($validated) {
+            $departmentId = $validated['role'] === 'super_admin' ? null : ($validated['department_id'] ?? null);
+
             $createdUser = User::create([
                 'full_name' => $validated['full_name'],
                 'email'     => $validated['email'],
                 'password_hash' => Hash::make($validated['password']),
                 'role'      => $validated['role'],
-                'status'    => 'active'
+                'status'    => 'active',
+                'department_id' => $departmentId,
             ]);
+
+            if ($createdUser->role === 'teacher' && $departmentId) {
+                $createdUser->departments()->syncWithoutDetaching([$departmentId]);
+            }
 
             $this->logAction('admin.account.create', 'USER_MANAGEMENT', $createdUser->user_id);
             return $createdUser;

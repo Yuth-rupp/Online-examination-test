@@ -102,4 +102,21 @@ class Exam extends Model
     {
         return $this->hasMany(Question::class, 'exam_id', 'exam_id');
     }
+
+    /**
+     * Query scope: Exam::inDepartments([1,2,3]) — an exam's department
+     * comes from its course, so this filters through that relation.
+     * Empty array = no restriction. Note: an exam with no course_id set
+     * has no department and will be excluded once this scope is applied.
+     */
+    public function scopeInDepartments($query, array $departmentIds)
+    {
+        if (empty($departmentIds)) {
+            return $query;
+        }
+
+        return $query->whereHas('course', function ($q) use ($departmentIds) {
+            $q->whereIn('department_id', $departmentIds);
+        });
+    }
 }

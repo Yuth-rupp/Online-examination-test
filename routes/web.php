@@ -12,6 +12,7 @@ use App\Http\Controllers\GradingController;
 use App\Http\Controllers\ProctorHandshakeController;
 use App\Http\Controllers\AdminController;
 use App\Http\Controllers\SuperAdminController;
+use App\Http\Controllers\DepartmentController;
 use App\Models\Exam;
 
 /*
@@ -249,6 +250,13 @@ Route::middleware(['auth', 'role:super_admin'])->prefix('super-admin')->group(fu
     Route::post('/admins/store',               [SuperAdminController::class, 'adminStore'])->name('superadmin.admins.store');
     Route::patch('/admins/{id}/toggle-status', [SuperAdminController::class, 'adminToggleStatus'])->name('superadmin.admins.toggleStatus');
     Route::patch('/admins/{id}/change-role',   [SuperAdminController::class, 'adminChangeRole'])->name('superadmin.admins.changeRole');
+
+    // ── DEPARTMENT DIRECTORY (create departments, hand each one to an admin) ──
+    Route::get('/departments',                        [DepartmentController::class, 'index'])->name('superadmin.departments.index');
+    Route::post('/departments/store',                  [DepartmentController::class, 'store'])->name('superadmin.departments.store');
+    Route::put('/departments/{department}/update',     [DepartmentController::class, 'update'])->name('superadmin.departments.update');
+    Route::post('/departments/{department}/assign-admin',       [DepartmentController::class, 'assignAdmin'])->name('superadmin.departments.assignAdmin');
+    Route::delete('/departments/{department}/admins/{userId}',  [DepartmentController::class, 'removeAdmin'])->name('superadmin.departments.removeAdmin');
 });
 
 /* =========================================================================
@@ -277,6 +285,12 @@ Route::middleware(['auth', 'role:admin,super_admin'])->group(function () {
     Route::get('/admin/users/export-csv',       [AdminController::class, 'exportUsersCsv'])->name('admin.users.export');
     Route::put('/admin/users/{id}/force-password',[AdminController::class, 'forceResetPassword'])->name('admin.users.forcePassword');
     Route::patch('/admin/users/{id}/toggle-status',[AdminController::class, 'toggleUserStatus'])->name('admin.users.toggleStatus');
+
+    // ── DEPARTMENT TEACHING ROSTER (a teacher can be linked to several departments) ──
+    Route::get('/admin/departments/{department}/teachers',              [DepartmentController::class, 'teachers'])->name('admin.departments.teachers');
+    Route::get('/admin/departments/{department}/teachers/search',       [DepartmentController::class, 'searchTeachers'])->name('admin.departments.teachers.search');
+    Route::post('/admin/departments/{department}/teachers/assign',      [DepartmentController::class, 'assignTeacher'])->name('admin.departments.teachers.assign');
+    Route::delete('/admin/departments/{department}/teachers/{userId}',  [DepartmentController::class, 'removeTeacher'])->name('admin.departments.teachers.remove');
 
     Route::get('/admin/security',               [AdminController::class, 'securityLogWorkspace'])->name('admin.security');
     Route::get('/admin/security/telemetry-stream',[AdminController::class, 'getSecurityTelemetryApi'])->name('admin.security.api');

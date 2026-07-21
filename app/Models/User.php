@@ -35,6 +35,7 @@ class User extends Authenticatable
         'status',
         'institution_id',   // ✅ Required for registration workflows[cite: 6]
         'institutional_id', // ✅ Kept the correct column name matching schema metrics[cite: 6]
+        'department_id',    // this user's home department (admin/teacher/student)
         'profile_image',
     ];
 
@@ -63,6 +64,71 @@ class User extends Authenticatable
     public function profile()
     {
         return $this->hasOne(UserProfile::class, 'user_id', 'user_id'); // Match data variables keys accurately[cite: 6]
+    }
+
+    /**
+     * This user's home department (their only department if they're a
+     * student or a department admin; their "primary" department if
+     * they're a teacher who also teaches elsewhere via $this->departments()).
+     */
+    public function department()
+    {
+        return $this->belongsTo(Department::class, 'department_id', 'id');
+    }
+
+    /**
+     * Every department this user (as a TEACHER) is assigned to teach in.
+     * This is what makes "one teacher teaches Data Science, Bio
+     * Engineering, and Mathematics" possible — a teacher can have as many
+     * rows here as needed.
+     */
+    public function departments()
+    {
+        return $this->belongsToMany(Department::class, 'department_teacher', 'user_id', 'department_id')
+                     ->withTimestamps();
+    }
+
+    /**
+     * True if this user is an admin scoped to exactly one department
+     * (as opposed to a super_admin, who is not tied to any department).
+     */
+    public function isDepartmentAdmin(): bool
+    {
+        return $this->role === 'admin' && !is_null($this->department_id);
+    }
+
+    /**
+     * The list of department IDs this user is allowed to manage/see data
+     * for. A department admin gets just their own department. A teacher
+     * gets their home department plus every department they've been
+     * assigned to teach in (multi-department teaching).
+     */
+    public function managedDepartmentIds(): array
+    {
+        if ($this->role === 'teacher') {
+            $ids = $this->departments()->pluck('departments.id')->all();
+            if ($this->department_id && !in_array($this->department_id, $ids)) {
+                $ids[] = $this->department_id;
+            }
+            return $ids;
+        }
+
+        return $this->department_id ? [$this->department_id] : [];
+    }
+
+    /**
+     * Query scope: User::inDepartments([1,2,3]) — restricts the query to
+     * users whose home department is one of the given IDs. Pass an empty
+     * array and the scope does nothing (used for "no restriction", e.g.
+     * super_admin).
+     */
+    public function scopeInDepartments($query, array $departmentIds)
+    {
+        if (empty($departmentIds)) {
+            return $query;
+        }
+
+        return $query->whereIn('department_id', $departmentIds);
     }
 
     /**

@@ -619,12 +619,32 @@
                     <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">
                         <i class="fa-solid fa-shield-halved mr-1 text-slate-400"></i> Role
                     </label>
-                    <select name="role" class="form-input w-full px-4 py-2.5 rounded-xl text-sm text-slate-700 bg-white cursor-pointer">
+                    <select name="role" id="add-user-role" class="form-input w-full px-4 py-2.5 rounded-xl text-sm text-slate-700 bg-white cursor-pointer">
                         <option value="student">🎓 Student</option>
                         <option value="teacher">📋 Teacher</option>
+                        @unless($isDepartmentAdmin)
                         <option value="admin">🛡️ Admin</option>
+                        @endunless
                     </select>
                 </div>
+
+                @if($isDepartmentAdmin)
+                    <p class="text-xs text-slate-400 -mt-2">
+                        <i class="fa-solid fa-circle-info mr-1"></i> This account will be added to your department automatically.
+                    </p>
+                @else
+                <div>
+                    <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">
+                        <i class="fa-solid fa-building-columns mr-1 text-slate-400"></i> Department (optional)
+                    </label>
+                    <select name="department_id" class="form-input w-full px-4 py-2.5 rounded-xl text-sm text-slate-700 bg-white cursor-pointer">
+                        <option value="">No department</option>
+                        @foreach($departments as $dept)
+                            <option value="{{ $dept->id }}">{{ $dept->name }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                @endif
 
                 <div>
                     <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">

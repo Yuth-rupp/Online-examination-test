@@ -19,6 +19,7 @@ class Course extends Model
         'code', 
         'description', 
         'institution_id', 
+        'department_id',
         'teacher_id', 
         'is_active'
     ];
@@ -29,6 +30,27 @@ class Course extends Model
     public function institution() 
     {
         return $this->belongsTo(Institution::class, 'institution_id', 'id');
+    }
+
+    /**
+     * The department this course is filed under.
+     */
+    public function department()
+    {
+        return $this->belongsTo(Department::class, 'department_id', 'id');
+    }
+
+    /**
+     * Query scope: Course::inDepartments([1,2,3]) — same pattern as
+     * User::inDepartments(). Empty array = no restriction.
+     */
+    public function scopeInDepartments($query, array $departmentIds)
+    {
+        if (empty($departmentIds)) {
+            return $query;
+        }
+
+        return $query->whereIn('department_id', $departmentIds);
     }
 
     /**
