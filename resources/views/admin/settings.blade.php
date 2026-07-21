@@ -565,7 +565,7 @@
                             <div style="display:flex;align-items:center;gap:18px;padding:18px;background:#f8fafc;border:1px solid var(--input-br);border-radius:12px;margin-bottom:20px">
                                 <div class="av-wrap" onclick="document.getElementById('avatar-input').click()" title="Click to change photo">
                                     <img id="av-preview"
-                                         src="{{ Auth::user()->avatar_url ?? 'https://ui-avatars.com/api/?name=' . urlencode(Auth::user()->full_name ?? 'Admin') . '&background=f59e0b&color=fff&size=200' }}"
+                                         src="{{ Auth::user()->avatar_url ?? 'https://ui-avatars.com/api/?name=' . urlencode(Auth::user()->full_name ?? 'Admin') . '&background=2563eb&color=fff&size=200' }}"
                                          alt="Profile photo">
                                     <div class="av-overlay"><i class="fas fa-camera"></i></div>
                                 </div>

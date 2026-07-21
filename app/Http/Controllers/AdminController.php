@@ -161,36 +161,6 @@ class AdminController extends Controller
     }
 
     /**
-     * Live telemetry feed polled every few seconds by the Exams workspace
-     * so the Active / Draft / Closed / Submissions stat cards refresh in
-     * real time without a full page reload.
-     */
-    public function getExamsTelemetryApi()
-    {
-        $active = Exam::where('status', 'published')
-            ->where('start_time', '<=', now())
-            ->where('end_time', '>=', now())
-            ->count();
-
-        $draft = Exam::where('status', 'draft')->count();
-
-        $closed = Exam::where('status', 'published')
-            ->where('end_time', '<', now())
-            ->count();
-
-        $totalSubmissions = Submission::whereNotNull('submitted_at')->count();
-
-        return response()->json([
-            'stats' => [
-                'active'            => $active,
-                'draft'             => $draft,
-                'closed'            => $closed,
-                'totalSubmissions'  => $totalSubmissions,
-            ],
-        ]);
-    }
-
-    /**
      * Handle the generation and creation of new exam rooms.
      */
     public function storeExam(Request $request)
@@ -248,40 +218,6 @@ class AdminController extends Controller
         $users = $query->orderBy('created_at', 'desc')->paginate(10)->withQueryString();
 
         return view('admin.users', compact('totalUsers', 'activeExams', 'cpuUsage', 'users'));
-    }
-
-    /**
-     * Live telemetry feed polled every few seconds by the User Management
-     * workspace so the stat cards stay current and newly registered
-     * accounts are surfaced without a manual page reload.
-     */
-    public function getUsersTelemetryApi(Request $request)
-    {
-        $totalUsers = User::count();
-
-        $activeExams = Exam::where('status', 'published')
-            ->where('start_time', '<=', now())
-            ->where('end_time', '>=', now())
-            ->count();
-
-        $cpuUsage = $this->getSystemLoadPercentage();
-
-        $latestUser = User::where('user_id', '!=', Auth::id())
-            ->where('role', '!=', 'super_admin')
-            ->orderBy('created_at', 'desc')
-            ->first();
-
-        return response()->json([
-            'totalUsers'  => $totalUsers,
-            'activeExams' => $activeExams,
-            'cpuUsage'    => $cpuUsage,
-            'latestUser'  => $latestUser ? [
-                'id'        => $latestUser->user_id,
-                'full_name' => $latestUser->full_name,
-                'role'      => $latestUser->role,
-                'created_at'=> optional($latestUser->created_at)->toIso8601String(),
-            ] : null,
-        ]);
     }
 
     /**
