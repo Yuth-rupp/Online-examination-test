@@ -777,6 +777,48 @@ function clearCheatLog() {
 }
 
 // ═══════════════════════════════════════════════════════════════
+// REAL-TIME CHEAT DETECTION — polls actual violations students
+// triggered (tab switches, fullscreen exits) instead of relying only
+// on the teacher manually clicking "Flag".
+// ═══════════════════════════════════════════════════════════════
+let lastAlertId = 0;
+
+function handleRemoteViolation(alert) {
+    const reason = alert.strike_count
+        ? `${alert.reason} (strike ${alert.strike_count})`
+        : alert.reason;
+
+    if (onlineUsers[alert.student_id]) {
+        // Known/visible student — flashes their card, updates badge + counters.
+        markCheat(alert.student_id, reason);
+    } else {
+        // Violation from a student not currently shown in the grid — still
+        // log it so nothing is missed.
+        document.getElementById('noAlerts')?.classList.add('hidden');
+        flaggedCount++;
+        updateCounters();
+        logCheat(alert.student_name, reason);
+        toast(`⚠ ${alert.student_name}: ${reason}`, 'error');
+    }
+}
+
+async function pollCheatAlerts() {
+    try {
+        const res  = await fetch(`{{ route('teacher.monitoring.cheatAlerts') }}?since_id=${lastAlertId}`);
+        const data = await res.json();
+        (data.alerts || []).forEach(handleRemoteViolation);
+        if (typeof data.last_id === 'number') lastAlertId = data.last_id;
+    } catch (e) {
+        console.debug('[Monitoring] pollCheatAlerts failed:', e);
+    }
+}
+
+// Check for new violations every 4 seconds — same cadence as the rest of
+// the room's live-polling widgets.
+setInterval(pollCheatAlerts, 4000);
+pollCheatAlerts();
+
+// ═══════════════════════════════════════════════════════════════
 // FRAME UPDATE (called each time student sends a webcam frame)
 // ═══════════════════════════════════════════════════════════════
 function updateFrame(studentId, imageData) {

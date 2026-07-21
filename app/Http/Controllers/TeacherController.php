@@ -751,4 +751,40 @@ class TeacherController extends Controller
         // For now, securely redirect straight to the main dashboard workspace with a notice
         return redirect()->route('teacher.dashboard')->with('success', 'Exam session has been securely finalized.');
     }
+
+    /**
+     * Real-time cheat detection feed for the Live Proctoring Room.
+     * Returns any tab-switch / fullscreen-exit violations logged by students
+     * since the last poll, so the teacher sees actual detected activity
+     * instead of only manually-flagged students.
+     */
+    public function getCheatAlerts(Request $request)
+    {
+        $sinceId = (int) $request->query('since_id', 0);
+
+        $rows = DB::table('audit_logs')
+            ->leftJoin('users', 'audit_logs.user_id', '=', 'users.user_id')
+            ->where('audit_logs.action', 'tab_switch_violation')
+            ->where('audit_logs.id', '>', $sinceId)
+            ->orderBy('audit_logs.id')
+            ->limit(50)
+            ->get(['audit_logs.id', 'audit_logs.user_id', 'audit_logs.model_id as exam_id', 'audit_logs.payload', 'audit_logs.created_at', 'users.full_name']);
+
+        $alerts = $rows->map(function ($row) {
+            $payload = json_decode($row->payload, true) ?? [];
+            return [
+                'id'           => $row->id,
+                'student_id'   => $row->user_id,
+                'student_name' => $row->full_name ?? ('Student #' . $row->user_id),
+                'exam_id'      => $row->exam_id,
+                'strike_count' => $payload['strike_count'] ?? null,
+                'reason'       => $payload['message'] ?? 'Tab switch / focus-loss detected.',
+                'time'         => \Carbon\Carbon::parse($row->created_at)->format('H:i:s'),
+            ];
+        });
+
+        $lastId = $rows->max('id') ?? $sinceId;
+
+        return response()->json(['alerts' => $alerts, 'last_id' => $lastId]);
+    }
 }

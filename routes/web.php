@@ -121,6 +121,11 @@ Route::middleware(['auth', 'role:teacher'])->group(function () {
     Route::get('/teacher/monitoring/export-log',
         [TeacherController::class, 'exportSessionLog']
     )->name('teacher.monitoring.exportLog');
+
+    // Real-time cheat detection feed — polled by the Cheat Log panel
+    Route::get('/teacher/monitoring/cheat-alerts',
+        [TeacherController::class, 'getCheatAlerts']
+    )->name('teacher.monitoring.cheatAlerts');
     // ── END TEACHER MONITORING ─────────────────────────────────────────────
 
     Route::get('/teacher/grading',                  [GradingController::class, 'queueIndex'])->name('teacher.grading.queue');
