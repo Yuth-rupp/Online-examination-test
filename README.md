@@ -1,59 +1,84 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# ExamSystem Admin — Fix Pack
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+Drop these files into your project at the matching paths (they overwrite the
+originals 1:1 — same folder structure as your Laravel app root):
 
-## About Laravel
+```
+app/Http/Controllers/AdminController.php
+routes/web.php
+resources/views/admin/dashboard.blade.php
+resources/views/admin/users.blade.php
+resources/views/admin/exams.blade.php
+resources/views/admin/security.blade.php
+resources/views/admin/support.blade.php
+```
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+No other files were touched. No migrations, no new dependencies.
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+---
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+## 1. Sidebar logo/icons missing on User Management
 
-## Learning Laravel
+**Cause:** every admin page calls `lucide.createIcons()` after load to render
+the `<i data-lucide="...">` tags (this is what draws the sidebar's
+graduation-cap logo, nav icons, etc.). `users.blade.php` was the one page
+that never called it, so those icons just sat there un-rendered.
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework. You can also check out [Laravel Learn](https://laravel.com/learn), where you will be guided through building a modern Laravel application.
+**Fix:** added the missing `if (window.lucide) lucide.createIcons();` call
+at the end of that page's script block.
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+## 2. Exams page wasn't real-time — the numbers were fake, not stale
 
-## Laravel Sponsors
+Two separate bugs, both in the backend:
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the [Laravel Partners program](https://partners.laravel.com).
+- `AdminController::examWorkspace()` hardcoded `'students' => 45,
+'submitted' => 12` for **every exam**, no matter what. The stat cards
+  (Active / Draft / Closed / Total Submissions) were never even passed to
+  the view, so the template silently fell back to its baked-in defaults
+  (`2`, `1`, `1`, `86`) — exactly what you saw on screen.
+- The page already had JS polling `/admin/exams/api` every 8 seconds, but
+  that route didn't exist, so every request 404'd and failed silently.
 
-### Premium Partners
+**Fix:**
 
-- **[Vehikl](https://vehikl.com)**
-- **[Tighten Co.](https://tighten.co)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel)**
-- **[DevSquad](https://devsquad.com/hire-laravel-developers)**
-- **[Redberry](https://redberry.international/laravel-development)**
-- **[Active Logic](https://activelogic.com)**
+- `getExamWorkspaceData()` (new private helper) now computes real numbers:
+  actual student count, actual submissions per exam (from the
+  `submissions` table), actual question count, actual instructor.
+- Registered `GET /admin/exams/api` → `AdminController@getExamsDataApi`.
+- Rewrote the front-end poller so it rebuilds **both** the stat cards and
+  every exam card (status badge, participation %, submitted count) from
+  live data every 8 seconds — new sign-ups and new submissions now show up
+  without a manual reload.
 
-## Contributing
+> Note: this schema has no per-course enrollment table, so "students" per
+> exam = total accounts with `role = student`. If you add enrollment
+> tracking later, swap that one line in `getExamWorkspaceData()`.
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+## 3. Inconsistent top bar across admin pages
 
-## Code of Conduct
+Settings and the ticket-review page already had a correct **sticky**
+topbar (stays visible on scroll, blurred white/slate background, subtle
+shadow) in the admin's blue palette. Dashboard, Users, Exams, Security,
+and Support did not — their headers scrolled away with the page content,
+unlike the student portal's persistent topbar.
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+**Fix:** converted all five pages to the same sticky-topbar structure:
 
-## Security Vulnerabilities
+```html
+<main class="flex-1 ml-64 min-h-screen flex flex-col">
+    <header class="... sticky top-0 z-20 backdrop-blur-xl ...">...</header>
+    <div class="p-7"><!-- scrollable content --></div>
+</main>
+```
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+Same content, same admin blue (`#2563eb → #1d4ed8`) branding — it just no
+longer disappears when you scroll down.
 
-## License
+---
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+## Suggested next steps (not included here)
+
+- Apply the same treatment to `resolve_ticket.blade.php`'s minor
+  inconsistencies if you spot any, and to any future admin pages you add.
+- If you want the exam cards' 3-dot menu (Edit/Assign/Adjust) to do more
+  than open the same drawer, that's a separate feature, not a bug fix.
