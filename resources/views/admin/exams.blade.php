@@ -248,18 +248,24 @@
 
         <!-- EXAM CARDS GRID -->
         @php
-        $demoExams = count($exams ?? []) > 0 ? $exams : [
-            ['id'=>1,'title'=>'Microeconomics Midterm','subject'=>'Economics 201','status'=>'active','students'=>32,'submitted'=>21,'closes'=>'2026-07-16 18:00','instructor'=>'Dr. Chea Sophea','instructor_initials'=>'CS','sections'=>[['name'=>'Section 1','duration'=>45],['name'=>'Section 2','duration'=>30]],'questions'=>25],
-            ['id'=>2,'title'=>'Data Structures Quiz 3','subject'=>'Computer Science 210','status'=>'active','students'=>28,'submitted'=>18,'closes'=>'2026-07-15 17:00','instructor'=>'Mr. Vannak Pich','instructor_initials'=>'VP','sections'=>[['name'=>'Section A','duration'=>60]],'questions'=>40],
-            ['id'=>3,'title'=>'Flutter Widgets Practical','subject'=>'Mobile Development','status'=>'draft','students'=>0,'submitted'=>0,'closes'=>null,'instructor'=>'Ms. Srey Leak','instructor_initials'=>'SL','sections'=>[['name'=>'Part 1','duration'=>90],['name'=>'Part 2','duration'=>45]],'questions'=>15],
-            ['id'=>4,'title'=>'Laravel Fundamentals Final','subject'=>'Web Backend 300','status'=>'closed','students'=>30,'submitted'=>30,'closes'=>'2026-07-09 20:00','instructor'=>'Dr. Chea Sophea','instructor_initials'=>'CS','sections'=>[['name'=>'Section 1','duration'=>120]],'questions'=>60],
-            ['id'=>5,'title'=>'Calculus II Semester Exam','subject'=>'Mathematics 202','status'=>'draft','students'=>0,'submitted'=>0,'closes'=>null,'instructor'=>null,'instructor_initials'=>null,'sections'=>[['name'=>'Part A','duration'=>60],['name'=>'Part B','duration'=>60]],'questions'=>30],
-            ['id'=>6,'title'=>'English Academic Writing','subject'=>'English 101','status'=>'active','students'=>45,'submitted'=>38,'closes'=>'2026-07-17 12:00','instructor'=>'Mrs. Linda Chhun','instructor_initials'=>'LC','sections'=>[['name'=>'Essay Section','duration'=>90]],'questions'=>10],
-        ];
+        $liveExams = $exams ?? [];
         @endphp
 
         <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5" id="exam-grid">
-            @foreach($demoExams as $exam)
+            @if(count($liveExams) === 0)
+            <!-- EMPTY STATE (matches the student portal's "Nothing here yet" pattern) -->
+            <div class="col-span-full flex flex-col items-center justify-center text-center py-16 px-6 rounded-2xl border border-dashed" :class="darkMode ? 'border-slate-700' : 'border-slate-200'">
+                <div class="w-14 h-14 rounded-2xl flex items-center justify-center mb-4" style="background:#eff6ff;border:1px solid #bfdbfe">
+                    <i class="fa-solid fa-file-pen text-blue-500 text-lg"></i>
+                </div>
+                <h4 class="font-bold text-sm mb-1" :class="darkMode ? 'text-slate-200' : 'text-slate-700'">No exams yet</h4>
+                <p class="text-xs text-slate-400 max-w-xs mb-5">Nothing has been created for your department yet. Once a teacher publishes an exam, it will show up here in real time.</p>
+                <button onclick="openCreateModal()" class="btn-primary flex items-center gap-2 text-white text-xs font-bold px-4 py-2.5 rounded-xl transition-all">
+                    <i class="fa-solid fa-plus"></i> Create Exam
+                </button>
+            </div>
+            @endif
+            @foreach($liveExams as $exam)
             @php
                 $examId         = data_get($exam, 'id') ?? data_get($exam, 'exam_id');
                 $examStatus     = data_get($exam, 'status', 'draft');
@@ -860,6 +866,20 @@
         </div>`;
     }
 
+    function emptyStateHtml() {
+        return `
+        <div class="col-span-full flex flex-col items-center justify-center text-center py-16 px-6 rounded-2xl border border-dashed" style="border-color:#e2e8f0">
+            <div class="w-14 h-14 rounded-2xl flex items-center justify-center mb-4" style="background:#eff6ff;border:1px solid #bfdbfe">
+                <i class="fa-solid fa-file-pen text-blue-500 text-lg"></i>
+            </div>
+            <h4 class="font-bold text-sm mb-1 text-slate-700">No exams yet</h4>
+            <p class="text-xs text-slate-400 max-w-xs mb-5">Nothing has been created for your department yet. Once a teacher publishes an exam, it will show up here in real time.</p>
+            <button onclick="openCreateModal()" class="btn-primary flex items-center gap-2 text-white text-xs font-bold px-4 py-2.5 rounded-xl transition-all">
+                <i class="fa-solid fa-plus"></i> Create Exam
+            </button>
+        </div>`;
+    }
+
     function applyActiveFilterAndSearch() {
         const activeTab = document.querySelector('.tab-btn.tab-active');
         const filter = activeTab ? activeTab.dataset.filter : 'all';
@@ -892,7 +912,9 @@
 
                 if (Array.isArray(data.exams)) {
                     const grid = document.getElementById('exam-grid');
-                    grid.innerHTML = data.exams.map(examCardHtml).join('');
+                    grid.innerHTML = data.exams.length
+                        ? data.exams.map(examCardHtml).join('')
+                        : emptyStateHtml();
                     applyActiveFilterAndSearch();
                 }
 

@@ -232,8 +232,8 @@
 <div class="main">
 
     <!-- Top bar -->
-    <header class="flex items-center justify-between px-7 py-3.5 border-b sticky top-0 z-40"
-             :class="darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-100'"
+    <header class="flex items-center justify-between flex-wrap gap-4 px-7 py-3.5 border-b sticky top-0 z-40 backdrop-blur-xl transition-colors duration-300"
+             :class="darkMode ? 'bg-slate-900/95 border-slate-800' : 'bg-white/95 border-slate-100'"
              style="box-shadow:0 1px 4px rgba(0,0,0,0.04)">
         <a href="{{ route('admin.support') }}" class="back-pill">
             <i class="fas fa-arrow-left" style="font-size:11px"></i> Back to Support Desk
