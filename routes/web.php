@@ -277,13 +277,6 @@ Route::middleware(['auth', 'role:admin,super_admin'])->group(function () {
     Route::get('/admin/support/{id}/ticket-review',[AdminController::class, 'reviewTicketForm'])->name('admin.support.review');
     Route::post('/admin/support/{id}/resolve',  [AdminController::class, 'resolveSupportTicket'])->name('admin.support.resolve');
 
-    Route::get('/admin/backup',                 [AdminController::class, 'backupSettings'])->name('admin.backup');
-    Route::get('/admin/backup/telemetry-stream',[AdminController::class, 'getBackupHistoryTelemetryApi'])->name('admin.backup.api');
-    Route::post('/admin/backup/settings-update',[AdminController::class, 'updateBackupSettings'])->name('admin.backup.settings.update');
-    Route::post('/admin/backup/trigger',        [AdminController::class, 'triggerManualBackup'])->name('admin.backup.trigger');
-    Route::get('/admin/backup/download/{filename}',[AdminController::class, 'downloadBackupFile'])->name('admin.backup.download');
-    Route::delete('/admin/backup/delete/{filename}',[AdminController::class, 'deleteBackupFile'])->name('admin.backup.delete');
-
     Route::get('/admin/settings',               [AdminController::class, 'settingsWorkspace'])->name('admin.settings');
     Route::post('/admin/settings/update-rules', [AdminController::class, 'updateSystemRules'])->name('admin.settings.rules');
     Route::post('/admin/settings/update-profile',[AdminController::class, 'updateAdminProfile'])->name('admin.settings.profile');

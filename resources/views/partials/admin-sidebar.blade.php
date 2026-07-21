@@ -48,9 +48,7 @@
          class="nav-link flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-semibold {{ request()->routeIs('admin.support*') ? 'admin-nav-active' : 'text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800' }}">
         <i data-lucide="headphones" class="w-4 h-4 flex-shrink-0"></i>
         <span class="flex-1">Support Desk</span>
-        @if(($openTickets ?? 0) > 0)
-        <span class="text-[10px] font-black bg-rose-100 text-rose-600 dark:bg-rose-500/15 dark:text-rose-400 px-2 py-0.5 rounded-full">{{ $openTickets }}</span>
-        @endif
+        <span id="sidebar-badge" class="text-[10px] font-black bg-rose-100 text-rose-600 dark:bg-rose-500/15 dark:text-rose-400 px-2 py-0.5 rounded-full {{ ($openTickets ?? 0) > 0 ? '' : 'hidden' }}">{{ $openTickets ?? 0 }}</span>
       </a>
       <a href="{{ route('admin.security') }}"
          class="nav-link flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-semibold {{ request()->routeIs('admin.security') ? 'admin-nav-active' : 'text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800' }}">

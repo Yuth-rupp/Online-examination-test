@@ -5,7 +5,20 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Security Audit Center | ExamSystem</title>
     <meta name="description" content="Real-time security audit center and infrastructure monitoring for ExamSystem administrators.">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+
+    <!-- Anti-flash dark mode (matches the dashboard) -->
+    <script>
+      (function () {
+        if (localStorage.getItem('darkMode') === 'true') {
+          document.documentElement.classList.add('dark');
+        }
+      })();
+    </script>
+
     <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
@@ -13,42 +26,15 @@
     <style>
         * { font-family: 'Inter', sans-serif; }
         .font-mono { font-family: 'JetBrains Mono', monospace; }
+        [x-cloak] { display: none !important; }
 
-        /* ── Sidebar ── */
-        .sidebar {
-            background: #ffffff;
-            border-right: 1px solid #e8edf5;
-            box-shadow: 2px 0 12px rgba(0,0,0,0.04);
-        }
+        /* ── Shared admin brand + nav (matches Dashboard/User Management) ── */
+        .admin-brand-gradient { background: linear-gradient(135deg, #2563eb 0%, #1e40af 100%); }
+        .admin-nav-active { background: linear-gradient(135deg,#2563eb 0%,#1e40af 100%); color: #fff; box-shadow: 0 4px 14px rgba(37,99,235,0.35); }
+        .nav-link { transition: all 0.18s cubic-bezier(0.4,0,0.2,1); }
 
-        /* ── Brand logo ── */
-        .brand-icon {
-            background: linear-gradient(135deg, #2563eb 0%, #1e40af 100%);
-            box-shadow: 0 4px 12px rgba(37,99,235,0.3);
-        }
-
-        /* ── Nav active ── */
-        .nav-active {
-            background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
-            color: #1d4ed8 !important;
-            border: 1px solid #bfdbfe;
-            border-left: 3px solid #2563eb;
-        }
-        .nav-active i { color: #2563eb !important; }
-
-        /* ── Nav item ── */
-        .nav-item {
-            border: 1px solid transparent;
-            border-left: 3px solid transparent;
-            color: #64748b;
-            transition: all 0.18s ease;
-        }
-        .nav-item:hover {
-            background: #f8fafc;
-            border-color: #e2e8f0;
-            border-left-color: #94a3b8;
-            color: #1e293b;
-        }
+        .dark-surface { background:#0f172a; }
+        .dark-card { --card-bg:#1e293b; --card-br:#334155; --row-hover:#1e293b; }
 
         /* ── Page background ── */
         body { background: #f8fafc; }
@@ -180,66 +166,21 @@
             box-shadow: 0 1px 4px rgba(0,0,0,0.04), 0 6px 24px rgba(0,0,0,0.03);
         }
     </style>
+    @include('partials.notification-styles')
 </head>
-<body class="antialiased text-slate-800">
+<body class="antialiased transition-colors duration-300"
+      x-data="{ darkMode: localStorage.getItem('darkMode') === 'true' }"
+      :class="darkMode ? 'dark-surface text-slate-100' : 'bg-slate-50 text-slate-800'">
 <div class="flex min-h-screen">
 
-    <!-- ══════════════ SIDEBAR ══════════════ -->
-    <aside class="sidebar w-64 flex flex-col justify-between fixed h-full z-20">
-        <div>
-            <!-- Brand -->
-            <div class="px-6 py-5 flex items-center gap-3 border-b border-slate-100">
-                <div class="brand-icon w-10 h-10 rounded-xl flex items-center justify-center text-white shrink-0">
-                    <i class="fa-solid fa-graduation-cap text-base"></i>
-                </div>
-                <div>
-                    <h1 class="font-bold text-slate-900 text-sm leading-tight">ExamSystem</h1>
-                    <span class="text-[11px] text-slate-400 font-medium">Admin Console</span>
-                </div>
-            </div>
-
-            <!-- Navigation -->
-            <nav class="p-3 mt-1 space-y-0.5">
-                <a href="{{ route('admin.dashboard') }}" class="nav-item flex items-center gap-3 px-3 py-2.5 rounded-xl font-medium text-sm">
-                    <i class="fa-solid fa-chart-line w-5 text-center text-slate-400 text-sm"></i>
-                    <span>Dashboard</span>
-                </a>
-                <a href="{{ route('admin.users') }}" class="nav-item flex items-center gap-3 px-3 py-2.5 rounded-xl font-medium text-sm">
-                    <i class="fa-solid fa-users-gear w-5 text-center text-slate-400 text-sm"></i>
-                    <span>User Management</span>
-                </a>
-                <a href="{{ route('admin.exams') }}" class="nav-item flex items-center gap-3 px-3 py-2.5 rounded-xl font-medium text-sm">
-                    <i class="fa-solid fa-file-pen w-5 text-center text-slate-400 text-sm"></i>
-                    <span>Exams</span>
-                </a>
-                <a href="{{ route('admin.support') }}" class="nav-item flex items-center gap-3 px-3 py-2.5 rounded-xl font-medium text-sm">
-                    <i class="fa-solid fa-headset w-5 text-center text-slate-400 text-sm"></i>
-                    <span>Support Desk</span>
-                </a>
-                <!-- ACTIVE & DROPPED DOWN TO Match Dashboard Design -->
-                <a href="{{ route('admin.security') }}" class="nav-active flex items-center gap-3 px-3 py-2.5 rounded-xl font-semibold text-sm">
-                    <i class="fa-solid fa-shield-halved w-5 text-center text-sm"></i>
-                    <span>Security</span>
-                    <span id="sidebar-alert-count" class="ml-auto text-[10px] font-bold bg-red-500 text-white px-1.5 py-0.5 rounded-full threat-blink hidden">0</span>
-                </a>
-            </nav>
-        </div>
-
-        <!-- Settings -->
-        <div class="p-3 border-t border-slate-100">
-            <a href="{{ route('admin.settings') }}" class="nav-item flex items-center gap-3 px-3 py-2.5 rounded-xl font-medium text-sm">
-                <i class="fa-solid fa-gear w-5 text-center text-slate-400 text-sm"></i>
-                <span>Settings</span>
-            </a>
-        </div>
-    </aside>
+    @include('partials.admin-sidebar')
 
     <!-- ══════════════ MAIN CONTENT ══════════════ -->
     <main class="flex-1 ml-64 p-7 min-h-screen">
 
         <!-- TOP HEADER -->
-        <header class="flex items-center justify-between mb-7">
-            <div class="flex items-center gap-3">
+        <header class="flex items-center justify-between mb-7 flex-wrap gap-4">
+            <div class="flex items-center gap-3 flex-wrap">
                 <!-- Status pill -->
                 <span class="inline-flex items-center gap-2 px-4 py-2 rounded-full text-xs font-semibold text-emerald-700 border" style="background:#f0fdf4;border-color:#bbf7d0;">
                     <span class="relative flex items-center justify-center w-2 h-2">
@@ -257,25 +198,24 @@
             </div>
 
             <div class="flex items-center gap-3">
-                <!-- Bell -->
-                <button class="relative w-9 h-9 rounded-xl flex items-center justify-center transition-all border border-slate-200 bg-white hover:bg-slate-50" title="Security Alerts">
-                    <i class="fa-solid fa-bell text-sm text-slate-400"></i>
-                    <span id="bell-badge" class="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full text-[9px] font-bold flex items-center justify-center text-white hidden">0</span>
-                </button>
+                @include('partials.admin-darkmode-toggle')
+
+                @include('partials.admin-notification-bell')
 
                 <!-- Last refresh -->
-                <div class="text-xs font-mono text-slate-400 flex items-center gap-1.5 bg-white border border-slate-200 px-3 py-1.5 rounded-xl">
+                <div class="text-xs font-mono flex items-center gap-1.5 border px-3 py-1.5 rounded-xl"
+                     :class="darkMode ? 'text-slate-400 bg-slate-800 border-slate-700' : 'text-slate-400 bg-white border-slate-200'">
                     <i class="fa-solid fa-rotate text-[10px] text-slate-300"></i>
                     <span id="last-refresh">--:--:--</span>
                 </div>
 
                 <!-- Admin -->
-                <div class="flex items-center gap-3 pl-3 border-l border-slate-200">
-                    <div class="text-right">
-                        <h4 class="text-sm font-semibold text-slate-900 leading-tight">{{ Auth::user()->full_name ?? 'Admin User' }}</h4>
-                        <span class="text-xs text-slate-400">Super Administrator</span>
+                <div class="flex items-center gap-3 pl-3 border-l" :class="darkMode ? 'border-slate-700' : 'border-slate-200'">
+                    <div class="text-right hidden sm:block">
+                        <h4 class="text-sm font-semibold leading-tight" :class="darkMode ? 'text-white' : 'text-slate-900'">{{ Auth::user()->full_name ?? 'Admin User' }}</h4>
+                        <span class="text-xs text-slate-400">Administrator</span>
                     </div>
-                    <div class="w-9 h-9 rounded-xl flex items-center justify-center text-white font-bold text-sm" style="background:linear-gradient(135deg,#f59e0b,#d97706);box-shadow:0 3px 10px rgba(245,158,11,0.3)">AU</div>
+                    <div class="w-9 h-9 rounded-xl flex items-center justify-center text-white font-bold text-sm" style="background:linear-gradient(135deg,#2563eb,#1d4ed8);box-shadow:0 3px 10px rgba(37,99,235,0.3)">{{ Auth::user()->initials ?? 'AD' }}</div>
                 </div>
             </div>
         </header>
@@ -586,6 +526,8 @@
 
 <!-- ══════════════ JAVASCRIPT ══════════════ -->
 <script>
+    if (window.lucide) lucide.createIcons();
+
     let recordedEventIds = new Set();
     let currentLogsMemory  = {};
     const streamContainer  = document.getElementById('realtime-timeline-stream');
@@ -702,10 +644,11 @@
         const bell    = document.getElementById('bell-badge');
         const sidebar = document.getElementById('sidebar-alert-count');
         if (totalWarnings > 0) {
-            bell.textContent = totalWarnings; bell.classList.remove('hidden');
-            sidebar.textContent = totalWarnings; sidebar.classList.remove('hidden');
+            if (bell) { bell.textContent = totalWarnings; bell.classList.remove('hidden'); }
+            if (sidebar) { sidebar.textContent = totalWarnings; sidebar.classList.remove('hidden'); }
         } else {
-            bell.classList.add('hidden'); sidebar.classList.add('hidden');
+            if (bell) bell.classList.add('hidden');
+            if (sidebar) sidebar.classList.add('hidden');
         }
 
         const pill  = document.getElementById('threat-level-pill');
@@ -860,5 +803,6 @@
     refreshTelemetryLogStream();
     setInterval(refreshTelemetryLogStream, 3000);
 </script>
+@include('partials.admin-notification-realtime')
 </body>
 </html>

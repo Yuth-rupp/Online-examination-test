@@ -5,7 +5,20 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Exams | ExamSystem Admin</title>
     <meta name="description" content="Create, schedule, and manage exams for your department in ExamSystem.">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+
+    <!-- Anti-flash dark mode (matches the dashboard) -->
+    <script>
+      (function () {
+        if (localStorage.getItem('darkMode') === 'true') {
+          document.documentElement.classList.add('dark');
+        }
+      })();
+    </script>
+
     <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -14,14 +27,16 @@
         * { font-family: 'Inter', sans-serif; }
         .font-mono { font-family: 'JetBrains Mono', monospace; }
         body { background: #f8fafc; }
+        [x-cloak] { display: none !important; }
 
-        /* ── Sidebar ── */
-        .sidebar { background:#fff; border-right:1px solid #e8edf5; box-shadow:2px 0 12px rgba(0,0,0,0.04); }
-        .brand-icon { background:linear-gradient(135deg,#2563eb,#1e40af); box-shadow:0 4px 12px rgba(37,99,235,0.3); }
-        .nav-active { background:linear-gradient(135deg,#eff6ff,#dbeafe); color:#1d4ed8 !important; border:1px solid #bfdbfe; border-left:3px solid #2563eb; }
-        .nav-active i { color:#2563eb !important; }
-        .nav-item { border:1px solid transparent; border-left:3px solid transparent; color:#64748b; transition:all 0.18s ease; }
-        .nav-item:hover { background:#f8fafc; border-color:#e2e8f0; border-left-color:#94a3b8; color:#1e293b; }
+        /* ── Shared admin brand + nav (matches Dashboard/User Management) ── */
+        .admin-brand-gradient { background: linear-gradient(135deg, #2563eb 0%, #1e40af 100%); }
+        .admin-nav-active { background: linear-gradient(135deg,#2563eb 0%,#1e40af 100%); color: #fff; box-shadow: 0 4px 14px rgba(37,99,235,0.35); }
+        .nav-link { transition: all 0.18s cubic-bezier(0.4,0,0.2,1); }
+
+        /* Dark mode surface overrides — driven by Alpine's `darkMode` */
+        .dark-surface { background:#0f172a; }
+        .dark-card { --card-bg:#1e293b; --card-br:#334155; --row-hover:#1e293b; }
 
         /* ── Cards ── */
         .stat-card { background:#fff; border:1px solid #e8edf5; box-shadow:0 1px 4px rgba(0,0,0,0.04),0 4px 16px rgba(0,0,0,0.03); transition:all 0.2s ease; }
@@ -92,54 +107,22 @@
         .fill-closed  { background:#f87171; }
         .fill-default { background:#3b82f6; }
     </style>
+    @include('partials.notification-styles')
 </head>
-<body class="antialiased text-slate-800">
+<body class="antialiased transition-colors duration-300"
+      x-data="{ darkMode: localStorage.getItem('darkMode') === 'true' }"
+      :class="darkMode ? 'dark-surface text-slate-100' : 'bg-slate-50 text-slate-800'">
 <div class="flex min-h-screen">
 
-    <!-- ════════════ SIDEBAR ════════════ -->
-    <aside class="sidebar w-64 flex flex-col justify-between fixed h-full z-20">
-        <div>
-            <div class="px-6 py-5 flex items-center gap-3 border-b border-slate-100">
-                <div class="brand-icon w-10 h-10 rounded-xl flex items-center justify-center text-white shrink-0">
-                    <i class="fa-solid fa-graduation-cap text-base"></i>
-                </div>
-                <div>
-                    <h1 class="font-bold text-slate-900 text-sm leading-tight">ExamSystem</h1>
-                    <span class="text-[11px] text-slate-400 font-medium">Admin Console</span>
-                </div>
-            </div>
-            <nav class="p-3 mt-1 space-y-0.5">
-                <a href="{{ route('admin.dashboard') }}" class="nav-item flex items-center gap-3 px-3 py-2.5 rounded-xl font-medium text-sm">
-                    <i class="fa-solid fa-chart-line w-5 text-center text-slate-400 text-sm"></i><span>Dashboard</span>
-                </a>
-                <a href="{{ route('admin.users') }}" class="nav-item flex items-center gap-3 px-3 py-2.5 rounded-xl font-medium text-sm">
-                    <i class="fa-solid fa-users-gear w-5 text-center text-slate-400 text-sm"></i><span>User Management</span>
-                </a>
-                <a href="{{ route('admin.exams') }}" class="nav-active flex items-center gap-3 px-3 py-2.5 rounded-xl font-semibold text-sm">
-                    <i class="fa-solid fa-file-pen w-5 text-center text-sm"></i><span>Exams</span>
-                </a>
-                <a href="{{ route('admin.support') }}" class="nav-item flex items-center gap-3 px-3 py-2.5 rounded-xl font-medium text-sm">
-                    <i class="fa-solid fa-headset w-5 text-center text-slate-400 text-sm"></i><span>Support Desk</span>
-                </a>
-                <a href="{{ route('admin.security') }}" class="nav-item flex items-center gap-3 px-3 py-2.5 rounded-xl font-medium text-sm">
-                    <i class="fa-solid fa-shield-halved w-5 text-center text-slate-400 text-sm"></i><span>Security</span>
-                </a>
-            </nav>
-        </div>
-        <div class="p-3 border-t border-slate-100">
-            <a href="{{ route('admin.settings') }}" class="nav-item flex items-center gap-3 px-3 py-2.5 rounded-xl font-medium text-sm">
-                <i class="fa-solid fa-gear w-5 text-center text-slate-400 text-sm"></i><span>Settings</span>
-            </a>
-        </div>
-    </aside>
+    @include('partials.admin-sidebar')
 
     <!-- ════════════ MAIN CONTENT ════════════ -->
     <main class="flex-1 ml-64 p-7 min-h-screen">
 
         <!-- HEADER -->
-        <header class="flex items-center justify-between mb-7">
+        <header class="flex items-center justify-between mb-7 flex-wrap gap-4">
             <div>
-                <h2 class="text-xl font-bold text-slate-900 flex items-center gap-2.5">
+                <h2 class="text-xl font-bold flex items-center gap-2.5" :class="darkMode ? 'text-white' : 'text-slate-900'">
                     <span class="w-8 h-8 rounded-lg flex items-center justify-center text-blue-600" style="background:#eff6ff;border:1px solid #bfdbfe">
                         <i class="fa-solid fa-file-pen text-sm"></i>
                     </span>
@@ -149,17 +132,23 @@
             </div>
             <div class="flex items-center gap-3">
                 <!-- Live indicator -->
-                <div class="flex items-center gap-2 text-xs text-slate-400 bg-white border border-slate-200 px-3 py-1.5 rounded-xl">
+                <div class="flex items-center gap-2 text-xs border px-3 py-1.5 rounded-xl"
+                     :class="darkMode ? 'text-slate-400 bg-slate-800 border-slate-700' : 'text-slate-400 bg-white border-slate-200'">
                     <span class="relative flex items-center justify-center w-2 h-2">
                         <span class="pulse-dot absolute inline-flex w-full h-full rounded-full bg-emerald-400 opacity-70"></span>
                         <span class="relative inline-flex w-2 h-2 rounded-full bg-emerald-500"></span>
                     </span>
                     <span id="last-refresh" class="font-mono">--:--:--</span>
                 </div>
+
+                @include('partials.admin-darkmode-toggle')
+
+                @include('partials.admin-notification-bell')
+
                 <!-- Admin -->
-                <div class="flex items-center gap-3 pl-3 border-l border-slate-200">
-                    <div class="text-right">
-                        <h4 class="text-sm font-semibold text-slate-900 leading-tight">{{ Auth::user()->full_name ?? 'Admin User' }}</h4>
+                <div class="flex items-center gap-3 pl-3 border-l" :class="darkMode ? 'border-slate-700' : 'border-slate-200'">
+                    <div class="text-right hidden sm:block">
+                        <h4 class="text-sm font-semibold leading-tight" :class="darkMode ? 'text-white' : 'text-slate-900'">{{ Auth::user()->full_name ?? 'Admin User' }}</h4>
                         <span class="text-xs text-slate-400">Administrator</span>
                     </div>
                     <div class="w-9 h-9 rounded-xl flex items-center justify-center text-white font-bold text-sm" style="background:linear-gradient(135deg,#2563eb,#1d4ed8);box-shadow:0 3px 10px rgba(37,99,235,0.3)">
@@ -560,6 +549,8 @@
 
 <!-- ════════════ SCRIPTS ════════════ -->
 <script>
+    if (window.lucide) lucide.createIcons();
+
     /* ── Clock ── */
     function tick() {
         document.getElementById('last-refresh').textContent = new Date().toLocaleTimeString();
@@ -813,5 +804,6 @@
     }
     setInterval(refreshStats, 8000);
 </script>
+@include('partials.admin-notification-realtime')
 </body>
 </html>

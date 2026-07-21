@@ -5,6 +5,20 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="Resolve support ticket — ExamSystem Admin Panel">
     <title>Resolve Ticket #{{ $ticket->ticket_no }} — ExamSystem Admin</title>
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+
+    <!-- Anti-flash dark mode (matches the dashboard) -->
+    <script>
+      (function () {
+        if (localStorage.getItem('darkMode') === 'true') {
+          document.documentElement.classList.add('dark');
+        }
+      })();
+    </script>
+
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -16,7 +30,7 @@
            DESIGN SYSTEM — matches all ExamSystem pages
         ═══════════════════════════════════════════════ */
         :root {
-            --sidebar-w      : 260px;
+            --sidebar-w      : 256px;
             --body-bg        : #f1f5f9;
             --card-bg        : #ffffff;
             --card-border    : #e8edf5;
@@ -31,6 +45,14 @@
         }
 
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        [x-cloak] { display: none !important; }
+
+        /* ── Shared admin brand + nav (matches Dashboard/User Management) ── */
+        .admin-brand-gradient { background: linear-gradient(135deg, #2563eb 0%, #1e40af 100%); }
+        .admin-nav-active { background: linear-gradient(135deg,#2563eb 0%,#1e40af 100%); color: #fff; box-shadow: 0 4px 14px rgba(37,99,235,0.35); }
+        .nav-link { transition: all 0.18s cubic-bezier(0.4,0,0.2,1); }
+        .dark-surface { background:#0f172a; }
+        .dark-card { --card-bg:#1e293b; --card-br:#334155; --row-hover:#1e293b; }
 
         body {
             font-family : 'Inter', -apple-system, sans-serif;
@@ -40,58 +62,10 @@
             display     : flex;
         }
 
-        /* ── Sidebar ── */
-        .sidebar {
-            width      : var(--sidebar-w);
-            min-height : 100vh;
-            background : #fff;
-            border-right: 1px solid var(--card-border);
-            box-shadow : 2px 0 16px rgba(0,0,0,0.05);
-            display    : flex;
-            flex-direction: column;
-            position   : fixed;
-            top:0; left:0;
-            z-index    : 100;
-        }
-        .sidebar-brand {
-            display    : flex;
-            align-items: center;
-            gap        : 12px;
-            padding    : 22px 20px;
-            border-bottom: 1px solid var(--card-border);
-        }
-        .brand-icon {
-            width:40px; height:40px; border-radius:10px; flex-shrink:0;
-            background: linear-gradient(135deg,#2563eb,#1d4ed8);
-            display:flex; align-items:center; justify-content:center;
-            color:#fff; font-size:17px;
-            box-shadow: 0 3px 10px rgba(37,99,235,0.3);
-        }
-        .brand-name  { font-size:14.5px; font-weight:700; color:var(--text-primary); letter-spacing:-0.3px; }
-        .brand-sub   { font-size:11px; color:var(--text-muted); font-weight:500; }
-        .sidebar-nav { flex:1; padding:14px 10px; display:flex; flex-direction:column; gap:2px; }
-        .nav-label   { font-size:10px; font-weight:600; color:var(--text-muted); letter-spacing:1px; text-transform:uppercase; padding:8px 10px 3px; margin-top:6px; }
-        .nav-item {
-            display:flex; align-items:center; gap:10px;
-            padding:10px 12px; border-radius:8px; text-decoration:none;
-            color:var(--text-secondary); font-size:13.5px; font-weight:500;
-            border-left:3px solid transparent; transition:all 0.15s;
-        }
-        .nav-item:hover { background:#f8fafc; color:var(--text-primary); border-left-color:#94a3b8; }
-        .nav-item.active { background:linear-gradient(90deg,#eff6ff,#dbeafe); color:#1d4ed8; border-left-color:#2563eb; font-weight:600; }
-        .nav-item i { width:18px; text-align:center; font-size:13px; }
-        .sidebar-footer { padding:12px; border-top:1px solid var(--card-border); }
-
         /* ── Main ── */
         .main { margin-left:var(--sidebar-w); flex:1; display:flex; flex-direction:column; min-height:100vh; }
 
         /* ── Top bar ── */
-        .topbar {
-            background:#fff; border-bottom:1px solid var(--card-border);
-            padding:13px 28px; display:flex; align-items:center; justify-content:space-between;
-            position:sticky; top:0; z-index:50;
-            box-shadow:0 1px 4px rgba(0,0,0,0.04);
-        }
         .back-pill {
             display:inline-flex; align-items:center; gap:7px;
             padding:7px 16px; background:#eff6ff; border:1px solid #bfdbfe;
@@ -99,19 +73,6 @@
             text-decoration:none; transition:all 0.15s;
         }
         .back-pill:hover { background:#dbeafe; transform:translateX(-2px); box-shadow:0 2px 8px rgba(37,99,235,0.15); }
-        .topbar-right { display:flex; align-items:center; gap:14px; }
-        .live-chip {
-            display:flex; align-items:center; gap:6px; padding:5px 12px;
-            background:#f8fafc; border:1px solid #e2e8f0; border-radius:9999px;
-            font-size:11px; color:var(--text-muted); font-family:'JetBrains Mono',monospace;
-        }
-        .admin-avatar {
-            width:36px; height:36px; border-radius:50%; flex-shrink:0;
-            background:linear-gradient(135deg,#f59e0b,#d97706);
-            color:#fff; font-size:13px; font-weight:700;
-            display:flex; align-items:center; justify-content:center;
-            box-shadow:0 2px 8px rgba(245,158,11,0.3);
-        }
 
         /* ── Body ── */
         .page-body { flex:1; padding:28px 32px; }
@@ -256,57 +217,45 @@
 
         .divider { height:1px; background:#f1f5f9; margin:18px 0; }
     </style>
+    @include('partials.notification-styles')
 </head>
-<body>
+<body class="antialiased transition-colors duration-300"
+      x-data="{ darkMode: localStorage.getItem('darkMode') === 'true' }"
+      :class="darkMode ? 'dark-surface text-slate-100' : ''">
 
-<!-- ════════════════ SIDEBAR ════════════════ -->
-<aside class="sidebar">
-    <div class="sidebar-brand">
-        <div class="brand-icon"><i class="fas fa-graduation-cap"></i></div>
-        <div>
-            <div class="brand-name">ExamSystem</div>
-            <div class="brand-sub">Admin Console</div>
-        </div>
-    </div>
-    <nav class="sidebar-nav">
-        <span class="nav-label">Main Menu</span>
-        <a href="{{ route('admin.dashboard') }}" class="nav-item"><i class="fas fa-gauge-high"></i> Dashboard</a>
-        <a href="{{ route('admin.users') }}"     class="nav-item"><i class="fas fa-users"></i> User Management</a>
-        <a href="{{ route('admin.exams') }}"     class="nav-item"><i class="fas fa-file-pen"></i> Exams</a>
-        <a href="{{ route('admin.support') }}"   class="nav-item active"><i class="fas fa-headset"></i> Support Desk</a>
-        <a href="{{ route('admin.security') }}"  class="nav-item"><i class="fas fa-shield-halved"></i> Security</a>
-        <span class="nav-label">System</span>
-        <a href="{{ route('admin.settings') }}"  class="nav-item"><i class="fas fa-gear"></i> Settings</a>
-    </nav>
-    <div class="sidebar-footer">
-        <div style="display:flex;align-items:center;gap:8px;padding:6px 8px">
-            <span class="pulse-dot"></span>
-            <span style="font-size:11.5px;color:var(--text-muted)">System Online</span>
-        </div>
-    </div>
-</aside>
+@include('partials.admin-sidebar')
 
 <!-- ════════════════ MAIN ════════════════ -->
 <div class="main">
 
     <!-- Top bar -->
-    <header class="topbar">
+    <header class="flex items-center justify-between px-7 py-3.5 border-b sticky top-0 z-40"
+             :class="darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-100'"
+             style="box-shadow:0 1px 4px rgba(0,0,0,0.04)">
         <a href="{{ route('admin.support') }}" class="back-pill">
             <i class="fas fa-arrow-left" style="font-size:11px"></i> Back to Support Desk
         </a>
-        <div class="topbar-right">
-            <div class="live-chip">
+        <div class="flex items-center gap-3.5">
+            <div class="text-xs font-mono flex items-center gap-1.5 border px-3 py-1.5 rounded-xl"
+                 :class="darkMode ? 'text-slate-400 bg-slate-800 border-slate-700' : 'text-slate-400 bg-white border-slate-200'">
                 <span class="pulse-dot"></span>
                 <span id="live-clock">--:--:--</span>
             </div>
-            <div style="text-align:right">
-                <div style="font-size:13.5px;font-weight:600;color:var(--text-primary)">{{ Auth::user()->full_name }}</div>
-                <div style="font-size:11px;color:var(--text-muted)">Administrator</div>
+
+            @include('partials.admin-darkmode-toggle')
+
+            @include('partials.admin-notification-bell')
+
+            <div class="flex items-center gap-3 pl-3 border-l" :class="darkMode ? 'border-slate-700' : 'border-slate-200'">
+                <div class="text-right hidden sm:block">
+                    <div style="font-size:13.5px;font-weight:600;color:var(--text-primary)">{{ Auth::user()->full_name }}</div>
+                    <div style="font-size:11px;color:var(--text-muted)">Administrator</div>
+                </div>
+                @php
+                    $initials = collect(explode(' ', Auth::user()->full_name))->take(2)->map(fn($p) => strtoupper($p[0]))->join('');
+                @endphp
+                <div class="w-9 h-9 rounded-xl flex items-center justify-center text-white font-bold text-sm" style="background:linear-gradient(135deg,#2563eb,#1d4ed8);box-shadow:0 3px 10px rgba(37,99,235,0.3)">{{ $initials }}</div>
             </div>
-            @php
-                $initials = collect(explode(' ', Auth::user()->full_name))->take(2)->map(fn($p) => strtoupper($p[0]))->join('');
-            @endphp
-            <div class="admin-avatar">{{ $initials }}</div>
         </div>
     </header>
 
@@ -565,6 +514,8 @@
 (function() {
     'use strict';
 
+    if (window.lucide) lucide.createIcons();
+
     /* ── Constants ── */
     const TICKET_ID   = {{ $ticket->ticket_id }};
     const DRAFT_KEY   = 'resolve_draft_' + TICKET_ID;
@@ -739,5 +690,6 @@
 
 })();
 </script>
+@include('partials.admin-notification-realtime')
 </body>
 </html>

@@ -5,6 +5,20 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="Admin Settings — ExamSystem Console">
     <title>Settings — ExamSystem Admin</title>
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+
+    <!-- Anti-flash dark mode (matches the dashboard) -->
+    <script>
+      (function () {
+        if (localStorage.getItem('darkMode') === 'true') {
+          document.documentElement.classList.add('dark');
+        }
+      })();
+    </script>
+
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -31,6 +45,14 @@
         }
 
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        [x-cloak] { display: none !important; }
+
+        /* ── Shared admin brand + nav (matches Dashboard/User Management) ── */
+        .admin-brand-gradient { background: linear-gradient(135deg, #2563eb 0%, #1e40af 100%); }
+        .admin-nav-active { background: linear-gradient(135deg,#2563eb 0%,#1e40af 100%); color: #fff; box-shadow: 0 4px 14px rgba(37,99,235,0.35); }
+        .nav-link { transition: all 0.18s cubic-bezier(0.4,0,0.2,1); }
+        .dark-surface { background:#0f172a; }
+        .dark-card { --card-bg:#1e293b; --card-br:#334155; --row-hover:#1e293b; }
 
         body {
             font-family: 'Inter', -apple-system, sans-serif;
@@ -44,83 +66,8 @@
         ::-webkit-scrollbar-track { background: #f1f5f9; }
         ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
 
-        /* ─── Sidebar ─── */
-        .sidebar {
-            width     : var(--sidebar-w);
-            min-height: 100vh;
-            background: var(--card-bg);
-            border-right: 1px solid var(--card-border);
-            box-shadow: 2px 0 12px rgba(0,0,0,0.04);
-            display   : flex;
-            flex-direction: column;
-            position  : fixed;
-            top:0; left:0; z-index:100;
-            justify-content: space-between;
-        }
-        .sb-brand {
-            display:flex; align-items:center; gap:12px;
-            padding:20px 24px; border-bottom:1px solid #f1f5f9;
-        }
-        .sb-icon {
-            width:40px; height:40px; border-radius:12px; flex-shrink:0;
-            background:linear-gradient(135deg,#2563eb,#1d4ed8);
-            display:flex; align-items:center; justify-content:center;
-            color:#fff; font-size:16px;
-            box-shadow:0 4px 12px rgba(37,99,235,0.3);
-        }
-        .sb-name { font-size:14px; font-weight:700; color:var(--text-1); letter-spacing:-.3px; line-height: 1.2; }
-        .sb-sub  { font-size:11px; color:var(--text-muted); font-weight:500; }
-        .sb-nav  { padding:12px; display:flex; flex-direction:column; gap:2px; }
-        .nav-item {
-            display:flex; align-items:center; gap:12px;
-            padding:10px 12px; border-radius:12px; text-decoration:none;
-            color:var(--text-2); font-size:14px; font-weight:500;
-            border-left:3px solid transparent; transition:all 0.18s ease;
-        }
-        .nav-item:hover { background:#f8fafc; color:var(--text-1); border-left-color:#94a3b8; }
-        .nav-item.active { background:linear-gradient(135deg,#eff6ff,#dbeafe); color:#1d4ed8; border:1px solid #bfdbfe; border-left:3px solid #2563eb; font-weight:600; }
-        .nav-item.active i { color: #2563eb; }
-        .nav-item i { width:20px; text-align:center; font-size:14px; color: #64748b; }
-        .sb-footer { padding:12px; border-top:1px solid #f1f5f9; }
-        .sb-logout {
-            display:flex; align-items:center; gap:12px;
-            padding:10px 12px; border-radius:12px; border:none; cursor:pointer;
-            background:transparent; color:#ef4444; font-size:14px; font-weight:600;
-            font-family:'Inter',sans-serif; width:100%; transition:all 0.15s ease;
-        }
-        .sb-logout:hover { background:#fff1f2; }
-
         /* ─── Main ─── */
         .main { margin-left:var(--sidebar-w); flex:1; display:flex; flex-direction:column; min-height:100vh; }
-
-        /* ─── Topbar ─── */
-        .topbar {
-            background:var(--card-bg); border-bottom:1px solid var(--card-border);
-            padding:16px 28px; display:flex; align-items:center; justify-content:space-between;
-            position:sticky; top:0; z-index:50;
-            box-shadow:0 1px 4px rgba(0,0,0,0.04);
-        }
-        .status-chip {
-            display:flex; align-items:center; gap:8px;
-            padding:6px 14px; border-radius:9999px;
-            border:1px solid #bbf7d0; background:#f0fdf4; color:#15803d;
-            font-size:12px; font-weight:600;
-        }
-        .live-chip {
-            display:flex; align-items:center; gap:6px;
-            padding:6px 12px; border-radius:12px;
-            background:#f8fafc; border:1px solid var(--input-br);
-            color:var(--text-muted); font-size:11px;
-            font-family:'JetBrains Mono',monospace;
-        }
-        .topbar-right { display:flex; align-items:center; gap:12px; }
-        .admin-av {
-            width:40px; height:40px; border-radius:12px; flex-shrink:0;
-            background:linear-gradient(135deg,#2563eb,#1d4ed8);
-            color:#fff; font-size:14px; font-weight:700;
-            display:flex; align-items:center; justify-content:center;
-            box-shadow:0 3px 10px rgba(37,99,235,0.3);
-        }
 
         /* ─── Page body ─── */
         .page-body { flex:1; padding:28px; }
@@ -263,65 +210,46 @@
             .f-grid-2  { grid-template-columns:1fr; }
         }
     </style>
+    @include('partials.notification-styles')
 </head>
-<body>
+<body class="antialiased transition-colors duration-300"
+      x-data="{ darkMode: localStorage.getItem('darkMode') === 'true' }"
+      :class="darkMode ? 'dark-surface text-slate-100' : ''">
 
-<!-- ════════════════ SIDEBAR ════════════════ -->
-<aside class="sidebar">
-    <div>
-        <div class="sb-brand">
-            <div class="sb-icon"><i class="fas fa-graduation-cap"></i></div>
-            <div>
-                <div class="sb-name">ExamSystem</div>
-                <div class="sb-sub">Admin Console</div>
-            </div>
-        </div>
-
-        <nav class="sb-nav">
-            <a href="{{ route('admin.dashboard') }}" class="nav-item"><i class="fas fa-chart-line"></i> Dashboard</a>
-            <a href="{{ route('admin.users') }}"     class="nav-item"><i class="fas fa-users-gear"></i> User Management</a>
-            <a href="{{ route('admin.exams') }}"     class="nav-item"><i class="fas fa-file-pen"></i> Exams</a>
-            <a href="{{ route('admin.support') }}"   class="nav-item"><i class="fas fa-headset"></i> Support Desk</a>
-            <a href="{{ route('admin.security') }}"  class="nav-item"><i class="fas fa-shield-halved"></i> Security</a>
-        </nav>
-    </div>
-
-    <!-- Align Settings tab cleanly below at footer to match dashboards layout -->
-    <div>
-        <div style="padding: 12px; border-bottom: 1px solid #f1f5f9;">
-            <a href="{{ route('admin.settings') }}" class="nav-item active"><i class="fas fa-gear"></i> Settings</a>
-        </div>
-        <div class="sb-footer">
-            <form id="logout-form" action="{{ route('logout') }}" method="POST" style="display:none">@csrf</form>
-            <button class="sb-logout" onclick="confirmLogout()">
-                <i class="fas fa-arrow-right-from-bracket"></i> Sign Out
-            </button>
-        </div>
-    </div>
-</aside>
+@include('partials.admin-sidebar')
 
 <!-- ════════════════ MAIN ════════════════ -->
 <div class="main">
 
     <!-- Topbar -->
-    <header class="topbar">
+    <header class="flex items-center justify-between px-7 py-4 border-b sticky top-0 z-40"
+             :class="darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-100'"
+             style="box-shadow:0 1px 4px rgba(0,0,0,0.04)">
         <div class="status-chip">
             <span class="pulse-dot"></span>
             System Status: <strong style="margin-left:4px">Active</strong>
         </div>
-        <div class="topbar-right">
-            <div class="live-chip">
+        <div class="flex items-center gap-3">
+            <div class="text-xs font-mono flex items-center gap-1.5 border px-3 py-1.5 rounded-xl"
+                 :class="darkMode ? 'text-slate-400 bg-slate-800 border-slate-700' : 'text-slate-400 bg-white border-slate-200'">
                 <i class="fas fa-circle" style="font-size:7px;color:#3b82f6"></i>
                 <span id="live-clock">--:--:--</span>
             </div>
-            <div style="text-align:right">
-                <div style="font-size:13.5px;font-weight:700;color:var(--text-1)">{{ Auth::user()->full_name ?? 'Admin User' }}</div>
-                <div style="font-size:11px;color:var(--text-muted)">Administrator</div>
+
+            @include('partials.admin-darkmode-toggle')
+
+            @include('partials.admin-notification-bell')
+
+            <div class="flex items-center gap-3 pl-3 border-l" :class="darkMode ? 'border-slate-700' : 'border-slate-200'">
+                <div class="text-right hidden sm:block">
+                    <div style="font-size:13.5px;font-weight:700;color:var(--text-1)">{{ Auth::user()->full_name ?? 'Admin User' }}</div>
+                    <div style="font-size:11px;color:var(--text-muted)">Administrator</div>
+                </div>
+                @php
+                    $initials = collect(explode(' ', Auth::user()->full_name ?? 'Admin User'))->take(2)->map(fn($p) => strtoupper($p[0]))->join('');
+                @endphp
+                <div class="w-10 h-10 rounded-xl flex items-center justify-center text-white font-bold text-sm" style="background:linear-gradient(135deg,#2563eb,#1d4ed8);box-shadow:0 3px 10px rgba(37,99,235,0.3)" id="topbar-avatar">{{ $initials }}</div>
             </div>
-            @php
-                $initials = collect(explode(' ', Auth::user()->full_name ?? 'Admin User'))->take(2)->map(fn($p) => strtoupper($p[0]))->join('');
-            @endphp
-            <div class="admin-av" id="topbar-avatar">{{ $initials }}</div>
         </div>
     </header>
 
@@ -638,6 +566,8 @@
 (function () {
     'use strict';
 
+    if (window.lucide) lucide.createIcons();
+
     /* ── Live clock ── */
     function tick() { document.getElementById('live-clock').textContent = new Date().toLocaleTimeString(); }
     tick(); setInterval(tick, 1000);
@@ -706,14 +636,8 @@
         document.getElementById('topbar-avatar').textContent = init || '?';
     };
 
-    /* ── Sign out ── */
-    window.confirmLogout = function () {
-        if (confirm('Sign out of the admin console?')) {
-            document.getElementById('logout-form').submit();
-        }
-    };
-
 })();
 </script>
+@include('partials.admin-notification-realtime')
 </body>
 </html>
