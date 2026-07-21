@@ -228,6 +228,7 @@ Route::middleware(['auth', 'role:super_admin'])->prefix('super-admin')->group(fu
 
     Route::get('/reports',              [SuperAdminController::class, 'reports'])->name('superadmin.reports.index');
     Route::get('/reports/api',          [SuperAdminController::class, 'getReportsAnalyticsDataApi'])->name('superadmin.reports.api');
+    Route::get('/reports/chart',        [SuperAdminController::class, 'reportsChartApi'])->name('superadmin.reports.chart');
     Route::get('/reports/departments',  [SuperAdminController::class, 'getReportsDepartmentDataApi'])->name('superadmin.reports.departments');
     Route::get('/reports/live',         [SuperAdminController::class, 'getReportsLiveCountersApi'])->name('superadmin.reports.live');
     Route::get('/backups',              [SuperAdminController::class, 'backups'])->name('superadmin.backups.index');
