@@ -57,6 +57,8 @@
 
         /* ── Shared admin brand + nav (matches Dashboard/User Management) ── */
         .admin-brand-gradient { background: linear-gradient(135deg, #2563eb 0%, #1e40af 100%); }
+        .admin-topbar        { background: linear-gradient(120deg, #1d4ed8 0%, #2563eb 45%, #1e3a8a 100%); }
+        .admin-topbar-dark   { background: linear-gradient(120deg, #0b1220 0%, #111f3d 55%, #1e3a8a 100%); }
         .admin-nav-active { background: linear-gradient(135deg,#2563eb 0%,#1e40af 100%); color: #fff; box-shadow: 0 4px 14px rgba(37,99,235,0.35); }
         .nav-link { transition: all 0.18s cubic-bezier(0.4,0,0.2,1); }
         .dark-surface { background:#0f172a; }
@@ -231,16 +233,18 @@
 
     <!-- Topbar -->
     <header class="flex items-center justify-between flex-wrap gap-4 px-7 py-4 border-b sticky top-0 z-20 backdrop-blur-xl transition-colors duration-300"
-             :class="darkMode ? 'bg-slate-900/95 border-slate-800' : 'bg-white/95 border-slate-100'"
-             style="box-shadow:0 1px 4px rgba(0,0,0,0.04)">
-        <div class="status-chip">
-            <span class="pulse-dot"></span>
-            System Status: <strong style="margin-left:4px">Active</strong>
+             :class="darkMode ? 'admin-topbar-dark border-blue-950/40' : 'admin-topbar border-blue-900/20'"
+             style="box-shadow:0 4px 24px rgba(29,78,216,0.28)">
+        <div class="inline-flex items-center gap-2 px-4 py-2 rounded-full text-xs font-semibold text-blue-50 bg-white/10 border border-white/20">
+            <span class="relative flex items-center justify-center w-2 h-2">
+                <span class="pulse-dot absolute inline-flex w-full h-full rounded-full bg-emerald-400 opacity-70"></span>
+                <span class="relative inline-flex w-2 h-2 rounded-full bg-emerald-500"></span>
+            </span>
+            System Status: <strong class="text-emerald-300 ml-1">Active</strong>
         </div>
         <div class="flex items-center gap-3">
-            <div class="text-xs font-mono flex items-center gap-1.5 border px-3 py-1.5 rounded-xl"
-                 :class="darkMode ? 'text-slate-400 bg-slate-800 border-slate-700' : 'text-slate-400 bg-white border-slate-200'">
-                <i class="fas fa-circle" style="font-size:7px;color:#3b82f6"></i>
+            <div class="text-xs font-mono flex items-center gap-1.5 border px-3 py-1.5 rounded-xl text-blue-50 bg-white/10 border-white/20">
+                <i class="fas fa-circle" style="font-size:7px;color:#93c5fd"></i>
                 <span id="live-clock">--:--:--</span>
             </div>
 
@@ -248,15 +252,15 @@
 
             @include('partials.admin-notification-bell')
 
-            <div class="flex items-center gap-3 pl-3 border-l" :class="darkMode ? 'border-slate-700' : 'border-slate-200'">
+            <div class="flex items-center gap-3 pl-3 border-l border-white/20">
                 <div class="text-right hidden sm:block">
-                    <div style="font-size:13.5px;font-weight:700;color:var(--text-1)">{{ Auth::user()->full_name ?? 'Admin User' }}</div>
-                    <div style="font-size:11px;color:var(--text-muted)">Administrator</div>
+                    <div style="font-size:13.5px;font-weight:700;color:#fff">{{ Auth::user()->full_name ?? 'Admin User' }}</div>
+                    <div style="font-size:11px;color:#bfdbfe">Administrator</div>
                 </div>
                 @php
                     $initials = collect(explode(' ', Auth::user()->full_name ?? 'Admin User'))->take(2)->map(fn($p) => strtoupper($p[0]))->join('');
                 @endphp
-                <div class="w-10 h-10 rounded-xl flex items-center justify-center text-white font-bold text-sm" style="background:linear-gradient(135deg,#2563eb,#1d4ed8);box-shadow:0 3px 10px rgba(37,99,235,0.3)" id="topbar-avatar">{{ $initials }}</div>
+                <div class="w-10 h-10 rounded-xl flex items-center justify-center text-blue-700 font-bold text-sm bg-white ring-2 ring-white/40" style="box-shadow:0 3px 10px rgba(0,0,0,0.25)" id="topbar-avatar">{{ $initials }}</div>
             </div>
         </div>
     </header>

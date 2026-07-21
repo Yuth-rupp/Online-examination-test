@@ -31,6 +31,8 @@
 
         /* ── Shared admin brand + nav (matches Dashboard/User Management) ── */
         .admin-brand-gradient { background: linear-gradient(135deg, #2563eb 0%, #1e40af 100%); }
+        .admin-topbar        { background: linear-gradient(120deg, #1d4ed8 0%, #2563eb 45%, #1e3a8a 100%); }
+        .admin-topbar-dark   { background: linear-gradient(120deg, #0b1220 0%, #111f3d 55%, #1e3a8a 100%); }
         .admin-nav-active { background: linear-gradient(135deg,#2563eb 0%,#1e40af 100%); color: #fff; box-shadow: 0 4px 14px rgba(37,99,235,0.35); }
         .nav-link { transition: all 0.18s cubic-bezier(0.4,0,0.2,1); }
 
@@ -119,24 +121,22 @@
     <!-- ════════════ MAIN CONTENT ════════════ -->
     <main class="flex-1 ml-64 min-h-screen flex flex-col">
 
-        <!-- STICKY TOPBAR (matches the student portal's persistent topbar,
-             in the admin's professional blue palette) -->
+        <!-- STICKY TOPBAR — professional admin-blue gradient bar -->
         <header class="flex items-center justify-between mb-0 flex-wrap gap-4 px-7 py-4 border-b sticky top-0 z-20 backdrop-blur-xl transition-colors duration-300"
-                :class="darkMode ? 'bg-slate-900/95 border-slate-800' : 'bg-white/95 border-slate-100'"
-                style="box-shadow:0 1px 4px rgba(0,0,0,0.04)">
+                :class="darkMode ? 'admin-topbar-dark border-blue-950/40' : 'admin-topbar border-blue-900/20'"
+                style="box-shadow:0 4px 24px rgba(29,78,216,0.28)">
             <div>
-                <h2 class="text-xl font-bold flex items-center gap-2.5" :class="darkMode ? 'text-white' : 'text-slate-900'">
-                    <span class="w-8 h-8 rounded-lg flex items-center justify-center text-blue-600" style="background:#eff6ff;border:1px solid #bfdbfe">
+                <h2 class="text-xl font-bold flex items-center gap-2.5 text-white">
+                    <span class="w-8 h-8 rounded-lg flex items-center justify-center text-white bg-white/15 border border-white/25">
                         <i class="fa-solid fa-file-pen text-sm"></i>
                     </span>
                     Exams
                 </h2>
-                <p class="text-sm text-slate-400 mt-1">Create, schedule, and manage exams for your department.</p>
+                <p class="text-sm text-blue-100/80 mt-1">Create, schedule, and manage exams for your department.</p>
             </div>
             <div class="flex items-center gap-3">
                 <!-- Live indicator -->
-                <div class="flex items-center gap-2 text-xs border px-3 py-1.5 rounded-xl"
-                     :class="darkMode ? 'text-slate-400 bg-slate-800 border-slate-700' : 'text-slate-400 bg-white border-slate-200'">
+                <div class="flex items-center gap-2 text-xs border px-3 py-1.5 rounded-xl text-blue-50 bg-white/10 border-white/20">
                     <span class="relative flex items-center justify-center w-2 h-2">
                         <span class="pulse-dot absolute inline-flex w-full h-full rounded-full bg-emerald-400 opacity-70"></span>
                         <span class="relative inline-flex w-2 h-2 rounded-full bg-emerald-500"></span>
@@ -149,12 +149,12 @@
                 @include('partials.admin-notification-bell')
 
                 <!-- Admin -->
-                <div class="flex items-center gap-3 pl-3 border-l" :class="darkMode ? 'border-slate-700' : 'border-slate-200'">
+                <div class="flex items-center gap-3 pl-3 border-l border-white/20">
                     <div class="text-right hidden sm:block">
-                        <h4 class="text-sm font-semibold leading-tight" :class="darkMode ? 'text-white' : 'text-slate-900'">{{ Auth::user()->full_name ?? 'Admin User' }}</h4>
-                        <span class="text-xs text-slate-400">Administrator</span>
+                        <h4 class="text-sm font-semibold leading-tight text-white">{{ Auth::user()->full_name ?? 'Admin User' }}</h4>
+                        <span class="text-xs text-blue-200">Administrator</span>
                     </div>
-                    <div class="w-9 h-9 rounded-xl flex items-center justify-center text-white font-bold text-sm" style="background:linear-gradient(135deg,#2563eb,#1d4ed8);box-shadow:0 3px 10px rgba(37,99,235,0.3)">
+                    <div class="w-9 h-9 rounded-xl flex items-center justify-center text-blue-700 font-bold text-sm bg-white ring-2 ring-white/40" style="box-shadow:0 3px 10px rgba(0,0,0,0.25)">
                         {{ Auth::user()->initials ?? 'AD' }}
                     </div>
                 </div>
