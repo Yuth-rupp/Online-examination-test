@@ -44,7 +44,10 @@
             --input-border   : #e2e8f0;
         }
 
-        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        /* See settings.blade.php for why the old `margin:0;padding:0` reset
+           was removed — it silently stripped Tailwind's spacing utilities
+           (including inside the shared sidebar partial) sitewide. */
+        *, *::before, *::after { box-sizing: border-box; }
         [x-cloak] { display: none !important; }
 
         /* ── Shared admin brand + nav (matches Dashboard/User Management) ── */

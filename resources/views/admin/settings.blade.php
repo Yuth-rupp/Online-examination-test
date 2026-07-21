@@ -44,7 +44,15 @@
             --radius     : 16px;
         }
 
-        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        /* NOTE: previously this reset also zeroed out `margin` and `padding`
+           on every element (`*`). Because it's a plain, un-layered rule, CSS
+           cascade-layer precedence made it override ALL of Tailwind's
+           spacing utilities (px-*, py-*, gap-*, space-y-*, etc.) sitewide —
+           including inside the shared sidebar partial — which is why the
+           sidebar (and page content) looked flattened/compressed on this
+           page versus Dashboard/Users/Exams. Tailwind's own preflight layer
+           already normalizes spacing correctly, so only box-sizing is kept. */
+        *, *::before, *::after { box-sizing: border-box; }
         [x-cloak] { display: none !important; }
 
         /* ── Shared admin brand + nav (matches Dashboard/User Management) ── */
