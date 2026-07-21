@@ -214,6 +214,7 @@ Route::middleware(['auth', 'role:student'])->group(function () {
 Route::middleware(['auth', 'role:super_admin'])->prefix('super-admin')->group(function () {
 
     Route::get('/dashboard',            [SuperAdminController::class, 'dashboard'])->name('superadmin.dashboard');
+    Route::get('/live-feed',            [SuperAdminController::class, 'getLiveActivityFeedApi'])->name('superadmin.live-feed');
     Route::get('/telemetry/live-feed',  [SuperAdminController::class, 'getLiveActivityFeedApi'])->name('superadmin.telemetry.livefeed');
 
     // Super Admin Monitoring (watches teacher/system activity — NOT student webcams)
