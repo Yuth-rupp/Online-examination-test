@@ -100,22 +100,6 @@
                     Good to see you, <span class="text-amber-300">{{ Auth::user()->full_name ?? 'Admin' }}</span> 👋
                 </h2>
                 <div class="flex items-center gap-3 flex-wrap">
-                    @php
-                        $__deptUser = Auth::user();
-                        $__isDeptScoped = $__deptUser && $__deptUser->role === 'admin' && $__deptUser->department_id;
-                        $__deptName = $__isDeptScoped ? optional($__deptUser->department)->name : null;
-                    @endphp
-                    @if($__isDeptScoped)
-                        <span class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold text-blue-50 bg-white/10 border border-white/20">
-                            <i class="fa-solid fa-building-columns text-blue-200"></i>
-                            Managing: <strong class="text-amber-300 ml-0.5">{{ $__deptName ?? 'Your Department' }}</strong>
-                        </span>
-                    @else
-                        <span class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold text-blue-50 bg-white/10 border border-white/20">
-                            <i class="fa-solid fa-globe text-blue-200"></i>
-                            Managing: <strong class="text-white ml-0.5">All Departments</strong>
-                        </span>
-                    @endif
                     <span class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold text-blue-50 bg-white/10 border border-white/20">
                         <span class="relative flex items-center justify-center w-2 h-2">
                             <span class="pulse-dot absolute inline-flex w-full h-full rounded-full bg-emerald-400 opacity-70"></span>
@@ -151,7 +135,12 @@
                 <div class="flex items-center gap-3 pl-3 border-l border-white/20">
                     <div class="text-right hidden sm:block">
                         <h4 class="text-sm font-semibold leading-tight text-white">{{ Auth::user()->full_name ?? 'Admin User' }}</h4>
-                        <span class="text-xs text-blue-200">Administrator</span>
+                        @php
+                            $__deptUser = Auth::user();
+                            $__isDeptScoped = $__deptUser && $__deptUser->role === 'admin' && $__deptUser->department_id;
+                            $__deptName = $__isDeptScoped ? optional($__deptUser->department)->name : null;
+                        @endphp
+                        <span class="text-xs text-blue-200">Administrator{{ $__isDeptScoped ? ' · ' . ($__deptName ?? 'Dept.') : '' }}</span>
                     </div>
                     @if(Auth::user()->avatar_url)
                         <img src="{{ Auth::user()->avatar_url }}" alt="{{ Auth::user()->full_name }}"
