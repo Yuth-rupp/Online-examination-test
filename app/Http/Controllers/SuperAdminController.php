@@ -146,6 +146,19 @@ class SuperAdminController extends Controller
             'department_id'  => 'nullable|exists:departments,id',
         ]);
 
+        // 🔒 SECURITY: exactly one super_admin per deployment. This route is
+        // already locked behind ['auth','role:super_admin'] middleware, so
+        // only the current super_admin could even attempt this — but we
+        // still refuse to mint a second one. To hand off ownership, demote
+        // the current super_admin to 'admin' via adminChangeRole in the
+        // SAME action that promotes the new one (not implemented as two
+        // separate clicks, to avoid a window with 0 or 2 super admins).
+        if ($validated['role'] === 'super_admin' && User::superAdminExists()) {
+            return response()->json([
+                'message' => 'A Super Admin already exists for this system. Only one Super Admin account is allowed. Demote the current Super Admin in the same step if you intend to transfer ownership.',
+            ], 422);
+        }
+
         $user = DB::transaction(function () use ($validated) {
             $departmentId = $validated['role'] === 'super_admin' ? null : ($validated['department_id'] ?? null);
 
@@ -179,8 +192,18 @@ class SuperAdminController extends Controller
             return response()->json(['message' => 'Action denied.'], 403);
         }
 
-        DB::transaction(function () use ($id) {
-            $user = User::findOrFail($id);
+        $user = User::findOrFail($id);
+
+        // 🔒 SECURITY: never let the last active super_admin be suspended —
+        // that would lock every admin out of /super-admin entirely, since
+        // only a super_admin can un-suspend anyone.
+        if ($user->status === 'active' && $user->isSoleSuperAdmin()) {
+            return response()->json([
+                'message' => 'Cannot suspend the only Super Admin account. Promote another Super Admin first.',
+            ], 422);
+        }
+
+        DB::transaction(function () use ($user) {
             $user->status = ($user->status === 'active') ? 'suspended' : 'active';
             $user->save();
 
@@ -200,8 +223,27 @@ class SuperAdminController extends Controller
             'role' => 'required|string|in:student,teacher,admin,super_admin'
         ]);
 
-        DB::transaction(function () use ($id, $validated) {
-            $user = User::findOrFail($id);
+        $user = User::findOrFail($id);
+
+        // 🔒 SECURITY: exactly one super_admin per deployment. Block
+        // promoting a second account to super_admin while one already
+        // exists (unless we're literally re-saving the same user).
+        if ($validated['role'] === 'super_admin' && $user->role !== 'super_admin' && User::superAdminExists()) {
+            return response()->json([
+                'message' => 'A Super Admin already exists for this system. Demote the current Super Admin before promoting a new one.',
+            ], 422);
+        }
+
+        // 🔒 SECURITY: never demote the only super_admin away from the
+        // role — that would leave the system with zero super admins and
+        // nobody able to grant it back.
+        if ($validated['role'] !== 'super_admin' && $user->isSoleSuperAdmin()) {
+            return response()->json([
+                'message' => 'Cannot change the role of the only Super Admin. Promote a replacement Super Admin first.',
+            ], 422);
+        }
+
+        DB::transaction(function () use ($user, $validated) {
             $user->role = $validated['role'];
             $user->save();
 

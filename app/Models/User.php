@@ -89,6 +89,33 @@ class User extends Authenticatable
     }
 
     /**
+     * Whether a super_admin already exists in the system. Optionally
+     * exclude one user_id (useful when checking "is there ANOTHER
+     * super_admin besides me" during a role change).
+     */
+    public static function superAdminExists(?int $excludingUserId = null): bool
+    {
+        return static::query()
+            ->where('role', 'super_admin')
+            ->when($excludingUserId, fn ($q) => $q->where('user_id', '!=', $excludingUserId))
+            ->exists();
+    }
+
+    /**
+     * True if this user is currently the ONLY super_admin account in the
+     * system. Used to block actions that would leave the system with zero
+     * super admins (demotion, suspension, deletion).
+     */
+    public function isSoleSuperAdmin(): bool
+    {
+        if ($this->role !== 'super_admin') {
+            return false;
+        }
+
+        return !static::superAdminExists($this->user_id);
+    }
+
+    /**
      * True if this user is an admin scoped to exactly one department
      * (as opposed to a super_admin, who is not tied to any department).
      */

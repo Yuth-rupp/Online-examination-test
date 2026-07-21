@@ -68,8 +68,9 @@
                                 class="w-full pl-11 pr-10 py-3 bg-[#f0f2f5] border border-transparent rounded-xl text-sm text-gray-700 focus:outline-none focus:bg-white focus:border-blue-500 transition-all shadow-inner appearance-none cursor-pointer">
                                 <option value="student" {{ old('role') == 'student' ? 'selected' : '' }}>Student (Default Portal Access)</option>
                                 <option value="teacher" {{ old('role') == 'teacher' ? 'selected' : '' }}>Teacher (Instructor Management Workspace)</option>
-                                <option value="admin"   {{ old('role') == 'admin'   ?  'selected' : ''}}>Admin   (Full System Access)</option>
-                                <option value="super_admin" {{ old('role') == 'super_admin' ? 'selected' : ''}}>Super Admin (Root & System Core)</option>
+                                {{-- 🔒 Admin and Super Admin are intentionally NOT selectable here.
+                                     Those accounts can only be created by an existing Super Admin
+                                     from /super-admin/admins, never through public self-registration. --}}
                             </select>
                             <span class="absolute inset-y-0 right-0 flex items-center pr-4 text-gray-400 text-[10px] pointer-events-none">
                                 <i class="fa-solid fa-chevron-down"></i>
