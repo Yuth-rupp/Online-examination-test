@@ -100,6 +100,13 @@
                     Good to see you, <span class="text-amber-300">{{ Auth::user()->full_name ?? 'Admin' }}</span> 👋
                 </h2>
                 <div class="flex items-center gap-3 flex-wrap">
+                    <span class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold text-blue-50 bg-white/10 border border-white/20">
+                        <span class="relative flex items-center justify-center w-2 h-2">
+                            <span class="pulse-dot absolute inline-flex w-full h-full rounded-full bg-emerald-400 opacity-70"></span>
+                            <span class="relative inline-flex w-2 h-2 rounded-full bg-emerald-500"></span>
+                        </span>
+                        System Status: <strong class="text-emerald-300 ml-0.5">Healthy</strong>
+                    </span>
                     <p class="text-sm text-blue-100/80">Here's your live overview.</p>
                     <span class="text-xs font-mono flex items-center gap-1.5 border px-2.5 py-1 rounded-lg text-blue-50 bg-white/10 border-white/20">
                         <i class="fa-regular fa-calendar text-blue-200"></i>

@@ -132,7 +132,16 @@
                     </span>
                     Exams
                 </h2>
-                <p class="text-sm text-blue-100/80 mt-1">Create, schedule, and manage exams for your department.</p>
+                <div class="flex items-center gap-3 flex-wrap mt-1.5">
+                    <span class="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold text-blue-50 bg-white/10 border border-white/20">
+                        <span class="relative flex items-center justify-center w-2 h-2">
+                            <span class="pulse-dot absolute inline-flex w-full h-full rounded-full bg-emerald-400 opacity-70"></span>
+                            <span class="relative inline-flex w-2 h-2 rounded-full bg-emerald-500"></span>
+                        </span>
+                        System Status: <strong class="text-emerald-300 ml-0.5">Healthy</strong>
+                    </span>
+                    <p class="text-sm text-blue-100/80">Create, schedule, and manage exams for your department.</p>
+                </div>
             </div>
             <div class="flex items-center gap-3">
                 <!-- Live indicator -->
