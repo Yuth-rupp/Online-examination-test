@@ -184,7 +184,7 @@
                 </div>
                 <div class="flex items-center justify-between px-6 py-3.5 border-t border-slate-100 bg-slate-50">
                     <p id="table-footer-count" class="text-[11px] text-slate-400 font-medium"></p>
-                    <p class="text-[11px] text-slate-400 font-medium">Auto-refreshes every 3 seconds</p>
+                    <p class="text-[11px] text-slate-400 font-medium">Auto-refreshes seamlessly in live background</p>
                 </div>
             </div>
         </div>
@@ -261,12 +261,15 @@
     let allUsers = {!! json_encode($admins ?? []) !!};
     let activeTab = 'all';
     let selectedRole = 'admin';
+    let isInitialRender = true;
+
     // ── Clock ──
     function updateClock() {
         document.getElementById('live-clock').textContent =
             new Date().toLocaleTimeString('en-US', { hour12:false, hour:'2-digit', minute:'2-digit', second:'2-digit' });
     }
     updateClock(); setInterval(updateClock, 1000);
+
     // ── Poll countdown (3s) ──
     let pollCount = 3;
     const pollEl = document.getElementById('poll-countdown');
@@ -275,6 +278,7 @@
         if (pollCount <= 0) { pollCount = 3; fetchLatestUsers(); }
         pollEl.textContent = pollCount;
     }, 1000);
+
     // ── Metric cards ──
     function setMetric(id, value) {
         const el = document.getElementById(id);
@@ -295,7 +299,8 @@
         setMetric('card-student', st);
         document.getElementById('total-record-count').textContent = `(${allUsers.length} records)`;
     }
-    // ── Render table ──
+
+    // ── Helper ──
     function getInitials(name) {
         if (!name) return '??';
         return name.split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase();
@@ -308,43 +313,50 @@
             return matchRole && matchSearch;
         });
     }
-    window.renderTable = function() {
+
+    // ── Smooth Render Table (Prevents Flickering / Re-fading) ──
+    window.renderTable = function(forceAnimation = false) {
         const tbody = document.getElementById('user-table-body');
         const users = filteredUsers();
         document.getElementById('table-footer-count').textContent = `Showing ${users.length} of ${allUsers.length} accounts`;
+
         if (!users.length) {
             tbody.innerHTML = `<tr><td colspan="5" style="padding:48px;text-align:center;">
                 <i class="fa-solid fa-users-slash" style="font-size:28px;color:#e2e8f0;display:block;margin-bottom:10px;"></i>
                 <p style="font-size:12px;font-weight:600;color:#94a3b8;">No users match this filter</p></td></tr>`;
             return;
         }
-        tbody.innerHTML = users.map((u, i) => {
+
+        const useAnim = isInitialRender || forceAnimation;
+
+        users.forEach((u, i) => {
+            let row = document.getElementById(`user-row-${u.user_id}`);
             const rb = ROLE_BADGE[u.role] || { bg:'#f1f5f9', color:'#64748b', border:'#e2e8f0', label:u.role };
             const grad = ROLE_GRADS[u.role] || ROLE_GRADS.student;
             const isSelf = u.user_id === CURRENT_AUTH_ID;
             const isActive = u.status === 'active';
             const deptName = u.department ? u.department.name : '—';
-            const actionCell = isSelf
-                ? `<td class="px-4 py-3.5 text-right">
-                    <span class="text-[10px] font-bold px-2.5 py-1 rounded-lg bg-blue-50 text-blue-600 border border-blue-100">
-                        <i class="fa-solid fa-lock mr-1" style="font-size:9px;"></i>Self · Protected
-                    </span></td>`
-                : `<td class="px-4 py-3.5 text-right">
-                    <div class="flex items-center justify-end gap-2">
-                        <select onchange="updateUserRole(${u.user_id},this.value)"
-                                class="text-[11px] font-bold border border-slate-200 rounded-lg px-2 py-1.5 bg-slate-50 text-slate-600 cursor-pointer outline-none focus:border-blue-500">
-                            <option value="student" ${u.role==='student'?'selected':''}>Student</option>
-                            <option value="teacher" ${u.role==='teacher'?'selected':''}>Teacher</option>
-                            <option value="admin" ${u.role==='admin'?'selected':''}>Admin</option>
-                            <option value="super_admin" ${u.role==='super_admin'?'selected':''}>Super Admin</option>
-                        </select>
-                        <button onclick="toggleUserStatus(${u.user_id})"
-                                class="text-[11px] font-bold px-3 py-1.5 rounded-lg border cursor-pointer transition-all"
-                                style="border-color:${isActive?'#fecdd3':'#a7f3d0'};background:${isActive?'#fff1f2':'#ecfdf5'};color:${isActive?'#e11d48':'#059669'};">
-                            <i class="fa-solid ${isActive?'fa-ban':'fa-check'} mr-1"></i>${isActive?'Suspend':'Activate'}
-                        </button>
-                    </div></td>`;
-            return `<tr class="row-hover fade-in" style="animation-delay:${i*40}ms;transition:background 0.15s;cursor:default;">
+
+            const actionCellHtml = isSelf
+                ? `<span class="text-[10px] font-bold px-2.5 py-1 rounded-lg bg-blue-50 text-blue-600 border border-blue-100 inline-block">
+                    <i class="fa-solid fa-lock mr-1" style="font-size:9px;"></i>Self · Protected
+                   </span>`
+                : `<div class="flex items-center justify-end gap-2">
+                    <select onchange="updateUserRole(${u.user_id},this.value)"
+                            class="text-[11px] font-bold border border-slate-200 rounded-lg px-2 py-1.5 bg-slate-50 text-slate-600 cursor-pointer outline-none focus:border-blue-500">
+                        <option value="student" ${u.role==='student'?'selected':''}>Student</option>
+                        <option value="teacher" ${u.role==='teacher'?'selected':''}>Teacher</option>
+                        <option value="admin" ${u.role==='admin'?'selected':''}>Admin</option>
+                        <option value="super_admin" ${u.role==='super_admin'?'selected':''}>Super Admin</option>
+                    </select>
+                    <button onclick="toggleUserStatus(${u.user_id})"
+                            class="text-[11px] font-bold px-3 py-1.5 rounded-lg border cursor-pointer transition-all"
+                            style="border-color:${isActive?'#fecdd3':'#a7f3d0'};background:${isActive?'#fff1f2':'#ecfdf5'};color:${isActive?'#e11d48':'#059669'};">
+                        <i class="fa-solid ${isActive?'fa-ban':'fa-check'} mr-1"></i>${isActive?'Suspend':'Activate'}
+                    </button>
+                </div>`;
+
+            const innerContent = `
                 <td class="px-6 py-3.5">
                     <div class="flex items-center gap-3">
                         <div class="w-9 h-9 rounded-xl flex-shrink-0 flex items-center justify-center text-xs font-extrabold text-white" style="background:${grad};">${getInitials(u.full_name)}</div>
@@ -365,30 +377,65 @@
                     </div>
                 </td>
                 <td class="px-4 py-3.5 text-xs text-slate-400 font-medium">${esc(deptName)}</td>
-                ${actionCell}
-            </tr>`;
-        }).join('');
+                <td class="px-4 py-3.5 text-right">${actionCellHtml}</td>
+            `;
+
+            if (!row) {
+                row = document.createElement('tr');
+                row.id = `user-row-${u.user_id}`;
+                row.className = `row-hover ${useAnim ? 'fade-in' : ''}`;
+                if (useAnim) row.style.animationDelay = `${i * 30}ms`;
+                row.style.transition = 'background 0.15s';
+                row.style.cursor = 'default';
+                row.innerHTML = innerContent;
+                tbody.appendChild(row);
+            } else {
+                // Update row contents smoothly without destroying element
+                if (row.innerHTML !== innerContent) {
+                    row.innerHTML = innerContent;
+                }
+                tbody.appendChild(row); // Keep ordered
+            }
+        });
+
+        // Remove rows that no longer belong to filtered set
+        Array.from(tbody.children).forEach(tr => {
+            if (tr.id && tr.id.startsWith('user-row-')) {
+                const uid = parseInt(tr.id.replace('user-row-', ''), 10);
+                if (!users.some(u => u.user_id === uid)) {
+                    tr.remove();
+                }
+            }
+        });
+
+        isInitialRender = false;
     };
+
     // ── Tab filter ──
     window.setTab = function(role, btn) {
         activeTab = role;
         document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
-        renderTable();
+        renderTable(true);
     };
-    // ── Fetch latest users (real API) ──
+
+    // ── Fetch latest users (real API, completely silent update) ──
     function fetchLatestUsers() {
         fetch('{{ route("superadmin.admins.api") }}', {
             headers: { 'Accept': 'application/json', 'X-CSRF-TOKEN': CSRF, 'X-Requested-With': 'XMLHttpRequest' }
         })
         .then(r => r.json())
         .then(data => {
-            allUsers = data;
-            updateCards();
-            renderTable();
+            // Check if users array changed
+            if (JSON.stringify(data) !== JSON.stringify(allUsers)) {
+                allUsers = data;
+                updateCards();
+                renderTable(false); // Seamless update without re-animating
+            }
         })
         .catch(err => console.error('User poll failed:', err));
     }
+
     // ── Toggle user status ──
     window.toggleUserStatus = function(userId) {
         fetch(`/super-admin/admins/${userId}/toggle-status`, {
@@ -406,6 +453,7 @@
         })
         .catch(() => showToast('Network error.', 'error'));
     };
+
     // ── Change role ──
     window.updateUserRole = function(userId, role) {
         fetch(`/super-admin/admins/${userId}/change-role`, {
@@ -420,11 +468,12 @@
                 fetchLatestUsers();
             } else {
                 showToast(data.message || 'Failed to change role.', 'error');
-                fetchLatestUsers(); // Revert select
+                fetchLatestUsers();
             }
         })
         .catch(() => { showToast('Network error.', 'error'); fetchLatestUsers(); });
     };
+
     // ── Modal ──
     window.openModal = function() {
         document.getElementById('create-modal').style.display = 'flex';
@@ -457,6 +506,7 @@
         selectedRole = role;
         renderRolePicker();
     };
+
     // ── Toggle password visibility ──
     window.togglePw = function() {
         const pw = document.getElementById('new-password');
@@ -464,6 +514,7 @@
         if (pw.type === 'password') { pw.type = 'text'; eye.className = 'fa-solid fa-eye-slash text-xs'; }
         else { pw.type = 'password'; eye.className = 'fa-solid fa-eye text-xs'; }
     };
+
     // ── Submit create account ──
     window.submitCreateAccount = function() {
         const name = document.getElementById('new-name').value.trim();
@@ -497,6 +548,7 @@
             showToast('Network error.', 'error');
         });
     };
+
     // ── Toast ──
     function showToast(message, type) {
         const container = document.getElementById('toast-container');
@@ -512,6 +564,7 @@
         setTimeout(() => { toast.classList.remove('toast-visible'); setTimeout(() => toast.remove(), 300); }, 4000);
     }
     function esc(s) { const d = document.createElement('div'); d.appendChild(document.createTextNode(s || '')); return d.innerHTML; }
+
     // ── INIT ──
     updateCards();
     renderTable();
