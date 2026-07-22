@@ -12,6 +12,8 @@ use App\Models\Exam;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
 use Carbon\Carbon;
+use App\Jobs\CreateBackupJob;
+use App\Jobs\RestoreDatabaseJob;
 
 class SuperAdminController extends Controller
 {
@@ -600,31 +602,236 @@ class SuperAdminController extends Controller
     }
 
     /* ================================================================
-     *  BACKUPS / SETTINGS
+     *  DATABASE & BACKUP — REAL-TIME VIA LARAVEL REVERB
      * ================================================================ */
+
+    /**
+     * Render the Database & Backup page.
+     * Reads snapshot files from storage/app/backups/ directory.
+     */
     public function backups()
     {
         $lastBackup  = null;
         $storageUsed = $this->getStorageUsedPercent();
-        $snapshots   = [];
+        $snapshots   = $this->getSnapshotsFromDisk();
 
+        // Get last backup timestamp
+        if (!empty($snapshots)) {
+            $lastBackup = $snapshots[0]['created_at'] ?? null;
+        } else {
+            try {
+                $lastBackup = DB::table('audit_logs')
+                    ->where('action', 'like', '%backup%')
+                    ->orderBy('created_at', 'desc')
+                    ->value('created_at');
+            } catch (\Exception $e) {}
+        }
+
+        return view('superadmin.backups', compact('lastBackup', 'storageUsed', 'snapshots'));
+    }
+
+    /**
+     * API endpoint — returns snapshot data as JSON.
+     * Called on initial page load and as a WebSocket-disconnected fallback.
+     */
+    public function backupApi()
+    {
+        $snapshots   = $this->getSnapshotsFromDisk();
+        $storageUsed = $this->getStorageUsedPercent();
+
+        $lastBackupHuman = 'No backups yet';
+        if (!empty($snapshots)) {
+            try {
+                $lastBackupHuman = Carbon::parse($snapshots[0]['created_at'])->diffForHumans();
+            } catch (\Exception $e) {
+                $lastBackupHuman = $snapshots[0]['created_at'] ?? 'Unknown';
+            }
+        }
+
+        return response()->json([
+            'snapshots'       => $snapshots,
+            'storageUsed'     => $storageUsed,
+            'lastBackupHuman' => $lastBackupHuman,
+        ]);
+    }
+
+    /**
+     * Trigger a manual database backup.
+     * Dispatches the CreateBackupJob to the queue.
+     * The job broadcasts BackupStarted → BackupCompleted/BackupFailed via WebSocket.
+     */
+    public function triggerBackup()
+    {
+        $user = auth()->user();
+
+        // Dispatch the backup job to the queue
+        CreateBackupJob::dispatch(
+            $user->full_name ?? $user->name ?? 'Super Admin',
+            'manual'
+        );
+
+        // Log the trigger action immediately (the job logs completion separately)
+        $this->logAction('backup.manual.triggered', 'DATABASE_BACKUP', '0');
+
+        return response()->json([
+            'status'  => 'success',
+            'message' => 'Backup job dispatched. You will receive real-time updates via WebSocket.',
+        ], 202); // 202 Accepted — job is queued, not complete yet
+    }
+
+    /**
+     * Restore the database from a snapshot file.
+     * Validates the RESTORE confirmation phrase, then dispatches RestoreDatabaseJob.
+     * The job broadcasts RestoreStarted → RestoreCompleted/RestoreFailed via WebSocket.
+     */
+    public function restoreBackup(Request $request, $snapshotId)
+    {
+        $request->validate([
+            'confirm_phrase' => 'required|string',
+        ]);
+
+        if ($request->input('confirm_phrase') !== 'RESTORE') {
+            return response()->json([
+                'status'  => 'error',
+                'message' => 'Invalid confirmation phrase.',
+            ], 422);
+        }
+
+        // Verify the snapshot file exists on disk
+        $filepath = storage_path('app/backups/' . $snapshotId . '.sql');
+        if (!file_exists($filepath)) {
+            return response()->json([
+                'status'  => 'error',
+                'message' => 'Snapshot file not found on disk.',
+            ], 404);
+        }
+
+        $user = auth()->user();
+
+        // Log the trigger immediately as CRITICAL
+        $this->logAction('backup.restore.triggered.CRITICAL', 'DATABASE_RESTORE', $snapshotId);
+
+        // Dispatch the restore job to the queue
+        RestoreDatabaseJob::dispatch(
+            $snapshotId,
+            $user->full_name ?? $user->name ?? 'Super Admin'
+        );
+
+        return response()->json([
+            'status'  => 'success',
+            'message' => 'Restore job dispatched. You will receive real-time updates via WebSocket.',
+        ], 202);
+    }
+
+    /**
+     * Delete a snapshot file from disk.
+     * Does NOT affect the audit trail — only removes the .sql file.
+     */
+    public function deleteBackup($snapshotId)
+    {
+        $filepath = storage_path('app/backups/' . $snapshotId . '.sql');
+
+        if (!file_exists($filepath)) {
+            return response()->json(['status' => 'error', 'message' => 'Snapshot not found.'], 404);
+        }
+
+        @unlink($filepath);
+        $this->logAction('backup.snapshot.deleted', 'DATABASE_BACKUP', $snapshotId);
+
+        return response()->json(['status' => 'success', 'message' => 'Snapshot deleted.']);
+    }
+
+    /**
+     * Read snapshot files from the storage/app/backups/ directory.
+     * Falls back to audit_logs if no files exist (legacy support).
+     */
+    private function getSnapshotsFromDisk(): array
+    {
+        $backupDir = storage_path('app/backups');
+
+        if (!is_dir($backupDir)) {
+            return $this->getSnapshotsFromAuditLogs();
+        }
+
+        $files = glob($backupDir . DIRECTORY_SEPARATOR . 'SNAP-*.sql');
+
+        if (empty($files)) {
+            return $this->getSnapshotsFromAuditLogs();
+        }
+
+        $snapshots = [];
+        foreach ($files as $file) {
+            $basename   = pathinfo($file, PATHINFO_FILENAME);
+            $sizeMb     = round(filesize($file) / 1024 / 1024, 2);
+
+            // Parse timestamp from filename: SNAP-YYYY-MM-DD-HHmmss
+            $dateStr = str_replace('SNAP-', '', $basename);
+            $parts   = explode('-', $dateStr);
+
+            if (count($parts) >= 4) {
+                $timePart = $parts[3];
+                $timeFormatted = substr($timePart, 0, 2) . ':' . substr($timePart, 2, 2) . ':' . substr($timePart, 4, 2);
+                $createdAt = "{$parts[0]}-{$parts[1]}-{$parts[2]} {$timeFormatted}";
+            } else {
+                $createdAt = date('Y-m-d H:i:s', filemtime($file));
+            }
+
+            // Determine type from audit log if possible
+            $type = 'automated';
+            try {
+                $log = DB::table('audit_logs')
+                    ->where('model_id', $basename)
+                    ->where('action', 'like', '%backup%')
+                    ->first();
+
+                if ($log && str_contains($log->action, 'manual')) {
+                    $type = 'manual';
+                }
+            } catch (\Exception $e) {}
+
+            $snapshots[] = [
+                'id'         => $basename,
+                'created_at' => $createdAt,
+                'size_mb'    => $sizeMb,
+                'type'       => $type,
+                'status'     => 'completed',
+                'filename'   => $basename . '.sql',
+            ];
+        }
+
+        // Sort by created_at descending (newest first)
+        usort($snapshots, fn($a, $b) => strcmp($b['created_at'], $a['created_at']));
+
+        return array_slice($snapshots, 0, 20);
+    }
+
+    /**
+     * Fallback: read snapshots from the audit_logs table (legacy support).
+     */
+    private function getSnapshotsFromAuditLogs(): array
+    {
         try {
-            $lastBackup = DB::table('audit_logs')->where('action', 'like', '%backup%')
-                ->orderBy('created_at', 'desc')->value('created_at');
-            $snapshots = DB::table('audit_logs')->where('action', 'like', '%backup%')
-                ->orderBy('created_at', 'desc')->take(10)->get()
+            return DB::table('audit_logs')
+                ->where('action', 'like', '%backup%')
+                ->orderBy('created_at', 'desc')
+                ->take(10)
+                ->get()
                 ->map(fn($l) => [
                     'id'         => 'SNAP-' . Carbon::parse($l->created_at)->format('Y-m-d-His'),
                     'created_at' => Carbon::parse($l->created_at)->toDateTimeString(),
                     'size_mb'    => '—',
                     'type'       => str_contains($l->action, 'manual') ? 'manual' : 'automated',
                     'status'     => 'completed',
-                ])->toArray();
-        } catch (\Exception $e) {}
-
-        return view('superadmin.backups', compact('lastBackup', 'storageUsed', 'snapshots'));
+                ])
+                ->toArray();
+        } catch (\Exception $e) {
+            return [];
+        }
     }
 
+    /* ================================================================
+     *  SETTINGS
+     * ================================================================ */
     public function settings()
     {
         $settings = collect();

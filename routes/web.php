@@ -234,10 +234,14 @@ Route::middleware(['auth', 'role:super_admin'])->prefix('super-admin')->group(fu
     Route::get('/reports/chart',        [SuperAdminController::class, 'reportsChartApi'])->name('superadmin.reports.chart');
     Route::get('/reports/departments',  [SuperAdminController::class, 'getReportsDepartmentDataApi'])->name('superadmin.reports.departments');
     Route::get('/reports/live',         [SuperAdminController::class, 'getReportsLiveCountersApi'])->name('superadmin.reports.live');
-    Route::get('/backups',              [SuperAdminController::class, 'backups'])->name('superadmin.backups.index');
-    Route::post('/backups/trigger',     [SuperAdminController::class, 'updateSettings'])->name('superadmin.backup.trigger');
-    Route::post('/backups/{id}/restore',[SuperAdminController::class, 'forceEndExam']);
-    Route::get('/backup-api-stream',    [SuperAdminController::class, 'getLiveActivityFeedApi'])->name('superadmin.backup.api');
+
+    // ── DATABASE & BACKUP (Real-Time via Laravel Reverb) ──────────────────
+    Route::get('/backups',                          [SuperAdminController::class, 'backups'])->name('superadmin.backups.index');
+    Route::get('/backups/api',                      [SuperAdminController::class, 'backupApi'])->name('superadmin.backup.api');
+    Route::post('/backups/trigger',                 [SuperAdminController::class, 'triggerBackup'])->name('superadmin.backup.trigger');
+    Route::post('/backups/{snapshotId}/restore',    [SuperAdminController::class, 'restoreBackup'])->name('superadmin.backup.restore');
+    Route::delete('/backups/{snapshotId}',          [SuperAdminController::class, 'deleteBackup'])->name('superadmin.backup.delete');
+    // ── END DATABASE & BACKUP ─────────────────────────────────────────────
 
     // Audit logs
     Route::get('/audit-logs',           [SuperAdminController::class, 'auditLogs'])->name('superadmin.audit-logs.index');

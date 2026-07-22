@@ -89,3 +89,24 @@ Broadcast::channel('student-proctor-auth.{proctor_key}', function ($user, $proct
 Broadcast::channel('exam-monitoring', function () {
     return true; 
 });
+
+/**
+ * =========================================================================
+ * 🔒 7. Database & Backup Real-Time Channel (Super Admin Only)
+ * =========================================================================
+ *
+ * Private channel for the Database & Backup page. All backup/restore events
+ * are broadcast on this channel:
+ *   - backup.started    → BackupStarted event
+ *   - backup.completed  → BackupCompleted event
+ *   - backup.failed     → BackupFailed event
+ *   - restore.started   → RestoreStarted event
+ *   - restore.completed → RestoreCompleted event
+ *   - restore.failed    → RestoreFailed event
+ *
+ * Only authenticated users with role `super_admin` can subscribe.
+ * Unauthorized users receive a 403 Forbidden on the auth endpoint.
+ */
+Broadcast::channel('backups.superadmin', function ($user) {
+    return $user->role === 'super_admin';
+});
