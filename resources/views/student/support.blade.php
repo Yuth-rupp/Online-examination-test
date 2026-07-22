@@ -84,7 +84,7 @@
       x-data="supportApp">
 
   <!-- ═══════════════════════════════════════
-       SIDEBAR
+       SIDEBAR (resized to match teacher)
   ════════════════════════════════════════ -->
   <aside class="w-64 flex flex-col fixed h-full z-30 hidden md:flex border-r transition-colors duration-300"
          :class="darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-100'">
@@ -104,33 +104,34 @@
 
     <p class="px-5 pt-4 pb-2 text-[10px] font-black tracking-[0.12em] uppercase text-slate-400">Main Menu</p>
 
-    <nav class="px-3 space-y-0.5 flex-1">
+    <!-- Nav Links (resized to match teacher sidebar) -->
+    <nav class="px-3 space-y-1.5 flex-1">
       <a href="{{ route('student.dashboard') }}"
-         class="nav-link flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-semibold text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800">
-        <i data-lucide="layout-dashboard" class="w-4 h-4 flex-shrink-0"></i>
+         class="nav-link flex items-center gap-3.5 px-4 py-3 rounded-xl text-[15px] font-semibold text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800">
+        <i data-lucide="layout-dashboard" class="w-5 h-5 flex-shrink-0"></i>
         Dashboard
       </a>
       <a href="{{ route('student.exams') }}"
-         class="nav-link flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-semibold text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800">
-        <i data-lucide="book-open" class="w-4 h-4 flex-shrink-0"></i>
+         class="nav-link flex items-center gap-3.5 px-4 py-3 rounded-xl text-[15px] font-semibold text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800">
+        <i data-lucide="book-open" class="w-5 h-5 flex-shrink-0"></i>
         My Exams
       </a>
       <a href="{{ route('student.history') }}"
-         class="nav-link flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-semibold text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800">
-        <i data-lucide="history" class="w-4 h-4 flex-shrink-0"></i>
+         class="nav-link flex items-center gap-3.5 px-4 py-3 rounded-xl text-[15px] font-semibold text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800">
+        <i data-lucide="history" class="w-5 h-5 flex-shrink-0"></i>
         History
       </a>
 
       <p class="px-2 pt-5 pb-2 text-[10px] font-black tracking-[0.12em] uppercase text-slate-400">Resources</p>
 
       <a href="{{ route('student.support') }}"
-         class="nav-link flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-semibold nav-active">
-        <i data-lucide="headphones" class="w-4 h-4 flex-shrink-0"></i>
+         class="nav-link flex items-center gap-3.5 px-4 py-3 rounded-xl text-[15px] font-semibold nav-active">
+        <i data-lucide="headphones" class="w-5 h-5 flex-shrink-0"></i>
         Support
       </a>
       <a href="{{ route('student.settings') }}"
-         class="nav-link flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-semibold text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800">
-        <i data-lucide="settings-2" class="w-4 h-4 flex-shrink-0"></i>
+         class="nav-link flex items-center gap-3.5 px-4 py-3 rounded-xl text-[15px] font-semibold text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800">
+        <i data-lucide="settings-2" class="w-5 h-5 flex-shrink-0"></i>
         Settings
       </a>
     </nav>
@@ -194,8 +195,7 @@
 
         @include('partials.notification-bell')
 
-        <!-- Support Ticket Status Bell (separate from general notifications above —
-             tracks resolved support tickets specifically) -->
+        <!-- Support Ticket Status Bell -->
         <button id="ticket-bell-btn" @click="openDrawer = true" title="Support ticket updates"
                 class="relative p-2.5 rounded-xl transition-colors cursor-pointer"
                 :class="darkMode ? 'bg-slate-800 text-slate-400 hover:bg-slate-700' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'">

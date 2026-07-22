@@ -84,7 +84,7 @@
       :class="darkMode ? 'bg-slate-950 text-slate-100' : 'bg-slate-50 text-slate-800'"
       x-data="settingsApp">
 
-  <!-- ════════════ SIDEBAR ════════════ -->
+  <!-- ════════════ SIDEBAR (resized to match teacher) ════════════ -->
   <aside class="w-64 flex flex-col fixed h-full z-30 hidden md:flex border-r transition-colors duration-300 no-print"
          :class="darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-100'">
     <div class="px-5 pt-6 pb-4">
@@ -100,22 +100,26 @@
     </div>
 
     <p class="px-5 pt-4 pb-2 text-[10px] font-black tracking-[0.12em] uppercase text-slate-400">Main Menu</p>
-    <nav class="px-3 space-y-0.5 flex-1">
-      <a href="{{ route('student.dashboard') }}" class="nav-link flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-semibold text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800">
-        <i data-lucide="layout-dashboard" class="w-4 h-4 flex-shrink-0"></i> Dashboard
+
+    <!-- Nav Links (resized to match teacher sidebar) -->
+    <nav class="px-3 space-y-1.5 flex-1">
+      <a href="{{ route('student.dashboard') }}" class="nav-link flex items-center gap-3.5 px-4 py-3 rounded-xl text-[15px] font-semibold text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800">
+        <i data-lucide="layout-dashboard" class="w-5 h-5 flex-shrink-0"></i> Dashboard
       </a>
-      <a href="{{ route('student.exams') }}" class="nav-link flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-semibold text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800">
-        <i data-lucide="book-open" class="w-4 h-4 flex-shrink-0"></i> My Exams
+      <a href="{{ route('student.exams') }}" class="nav-link flex items-center gap-3.5 px-4 py-3 rounded-xl text-[15px] font-semibold text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800">
+        <i data-lucide="book-open" class="w-5 h-5 flex-shrink-0"></i> My Exams
       </a>
-      <a href="{{ route('student.history') }}" class="nav-link flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-semibold text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800">
-        <i data-lucide="history" class="w-4 h-4 flex-shrink-0"></i> History
+      <a href="{{ route('student.history') }}" class="nav-link flex items-center gap-3.5 px-4 py-3 rounded-xl text-[15px] font-semibold text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800">
+        <i data-lucide="history" class="w-5 h-5 flex-shrink-0"></i> History
       </a>
+
       <p class="px-2 pt-5 pb-2 text-[10px] font-black tracking-[0.12em] uppercase text-slate-400">Resources</p>
-      <a href="{{ route('student.support') }}" class="nav-link flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-semibold text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800">
-        <i data-lucide="headphones" class="w-4 h-4 flex-shrink-0"></i> Support
+
+      <a href="{{ route('student.support') }}" class="nav-link flex items-center gap-3.5 px-4 py-3 rounded-xl text-[15px] font-semibold text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800">
+        <i data-lucide="headphones" class="w-5 h-5 flex-shrink-0"></i> Support
       </a>
-      <a href="{{ route('student.settings') }}" class="nav-link flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-semibold nav-active">
-        <i data-lucide="settings-2" class="w-4 h-4 flex-shrink-0"></i> Settings
+      <a href="{{ route('student.settings') }}" class="nav-link flex items-center gap-3.5 px-4 py-3 rounded-xl text-[15px] font-semibold nav-active">
+        <i data-lucide="settings-2" class="w-5 h-5 flex-shrink-0"></i> Settings
       </a>
     </nav>
 
@@ -210,7 +214,7 @@
         <!-- Content below banner -->
         <div :class="darkMode?'bg-slate-900':'bg-white'" class="px-7 pb-7">
 
-          <!-- Avatar + Name row — correctly offset so name is ALWAYS visible -->
+          <!-- Avatar + Name row -->
           <div class="flex flex-col sm:flex-row gap-5 items-start sm:items-end -mt-12 mb-6">
 
             <!-- Avatar upload -->
@@ -234,7 +238,7 @@
               </div>
             </form>
 
-            <!-- Name + email — pushed to right of avatar, aligned to bottom of banner edge -->
+            <!-- Name + email -->
             <div class="flex-1 min-w-0 pt-14 sm:pt-0 sm:pb-1">
               <div class="flex flex-wrap items-center gap-2 mb-0.5">
                 <h2 class="text-xl font-black leading-tight" :class="darkMode?'text-white':'text-slate-900'">{{ $user->full_name }}</h2>

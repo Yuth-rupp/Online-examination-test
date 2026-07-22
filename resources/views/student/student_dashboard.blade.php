@@ -105,34 +105,34 @@
     <!-- Section Label -->
     <p class="px-5 pt-4 pb-2 text-[10px] font-black tracking-[0.12em] uppercase text-slate-400">Main Menu</p>
 
-    <!-- Nav Links -->
-    <nav class="px-3 space-y-0.5 flex-1">
+    <!-- Nav Links (resized to match teacher sidebar) -->
+    <nav class="px-3 space-y-1.5 flex-1">
       <a href="{{ route('student.dashboard') }}"
-         class="nav-link flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-semibold {{ request()->routeIs('student.dashboard') ? 'nav-active' : 'text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800' }}">
-        <i data-lucide="layout-dashboard" class="w-4 h-4 flex-shrink-0"></i>
+         class="nav-link flex items-center gap-3.5 px-4 py-3 rounded-xl text-[15px] font-semibold {{ request()->routeIs('student.dashboard') ? 'nav-active' : 'text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800' }}">
+        <i data-lucide="layout-dashboard" class="w-5 h-5 flex-shrink-0"></i>
         Dashboard
       </a>
       <a href="{{ route('student.exams') }}"
-         class="nav-link flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-semibold {{ request()->routeIs('student.exams') ? 'nav-active' : 'text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800' }}">
-        <i data-lucide="book-open" class="w-4 h-4 flex-shrink-0"></i>
+         class="nav-link flex items-center gap-3.5 px-4 py-3 rounded-xl text-[15px] font-semibold {{ request()->routeIs('student.exams') ? 'nav-active' : 'text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800' }}">
+        <i data-lucide="book-open" class="w-5 h-5 flex-shrink-0"></i>
         My Exams
       </a>
       <a href="{{ route('student.history') }}"
-         class="nav-link flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-semibold {{ request()->routeIs('student.history') ? 'nav-active' : 'text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800' }}">
-        <i data-lucide="history" class="w-4 h-4 flex-shrink-0"></i>
+         class="nav-link flex items-center gap-3.5 px-4 py-3 rounded-xl text-[15px] font-semibold {{ request()->routeIs('student.history') ? 'nav-active' : 'text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800' }}">
+        <i data-lucide="history" class="w-5 h-5 flex-shrink-0"></i>
         History
       </a>
 
       <p class="px-2 pt-5 pb-2 text-[10px] font-black tracking-[0.12em] uppercase text-slate-400">Resources</p>
 
       <a href="{{ route('student.support') }}"
-         class="nav-link flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-semibold {{ request()->routeIs('student.support') ? 'nav-active' : 'text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800' }}">
-        <i data-lucide="headphones" class="w-4 h-4 flex-shrink-0"></i>
+         class="nav-link flex items-center gap-3.5 px-4 py-3 rounded-xl text-[15px] font-semibold {{ request()->routeIs('student.support') ? 'nav-active' : 'text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800' }}">
+        <i data-lucide="headphones" class="w-5 h-5 flex-shrink-0"></i>
         Support
       </a>
       <a href="{{ route('student.settings') }}"
-         class="nav-link flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-semibold {{ request()->routeIs('student.settings') ? 'nav-active' : 'text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800' }}">
-        <i data-lucide="settings-2" class="w-4 h-4 flex-shrink-0"></i>
+         class="nav-link flex items-center gap-3.5 px-4 py-3 rounded-xl text-[15px] font-semibold {{ request()->routeIs('student.settings') ? 'nav-active' : 'text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800' }}">
+        <i data-lucide="settings-2" class="w-5 h-5 flex-shrink-0"></i>
         Settings
       </a>
     </nav>
