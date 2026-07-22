@@ -111,12 +111,21 @@
                 <span class="text-[9px] bg-white bg-opacity-20 text-white font-bold px-2 py-0.5 rounded-full">ROOT</span>
             </a>
             <div class="flex items-center gap-3 px-3 py-2.5 rounded-xl bg-slate-50 mt-1">
-                <div class="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
-                     style="background:linear-gradient(135deg,#3b82f6,#6366f1);">
-                    <i class="fa-solid fa-user-astronaut text-white text-xs"></i>
-                </div>
+                <form id="sa-avatar-form" action="{{ route('superadmin.settings.profile') }}" method="POST" enctype="multipart/form-data" class="flex-shrink-0">
+                    @csrf
+                    <input type="hidden" name="full_name" value="{{ Auth::user()->full_name }}">
+                    <div class="relative w-8 h-8 rounded-lg flex-shrink-0 cursor-pointer group"
+                         onclick="document.getElementById('sa-avatar-input').click()" title="Click to change photo">
+                        <img id="sa-avatar-preview" class="w-8 h-8 rounded-lg object-cover"
+                             src="{{ Auth::user()->avatar_url ?? 'https://ui-avatars.com/api/?name=' . urlencode(Auth::user()->full_name ?? 'Super Admin') . '&background=3b82f6&color=fff&size=64' }}">
+                        <div class="absolute inset-0 rounded-lg bg-black transition-all flex items-center justify-center opacity-0 group-hover:opacity-40">
+                        </div>
+                        <i class="fa-solid fa-camera text-white absolute inset-0 m-auto opacity-0 group-hover:opacity-100 transition-all pointer-events-none" style="font-size:9px;width:9px;height:9px;"></i>
+                        <input type="file" id="sa-avatar-input" name="avatar" accept="image/*" class="hidden" onchange="saUploadAvatar()">
+                    </div>
+                </form>
                 <div class="flex-1 min-w-0">
-                    <p class="text-xs font-bold text-slate-900 truncate">{{ Auth::user()->name ?? 'Super Admin' }}</p>
+                    <p class="text-xs font-bold text-slate-900 truncate">{{ Auth::user()->full_name ?? 'Super Admin' }}</p>
                     <p class="text-[10px] text-slate-400 font-medium">Super Admin · Root</p>
                 </div>
                 <form action="{{ route('logout') }}" method="POST" class="inline">
@@ -717,6 +726,49 @@ function updateClock(){
         new Date().toLocaleTimeString('en-US',{hour12:false,hour:'2-digit',minute:'2-digit',second:'2-digit'});
 }
 updateClock(); setInterval(updateClock,1000);
+
+// ============================================================
+//  AVATAR UPLOAD (sidebar quick-upload, instant preview)
+// ============================================================
+async function saUploadAvatar(){
+    const input = document.getElementById('sa-avatar-input');
+    if (!(input.files && input.files[0])) return;
+    const file = input.files[0];
+    const preview = document.getElementById('sa-avatar-preview');
+    const previousSrc = preview.src;
+
+    // Instant local preview so it never looks frozen while uploading.
+    const reader = new FileReader();
+    reader.onload = e => { preview.src = e.target.result; };
+    reader.readAsDataURL(file);
+    preview.style.opacity = '.5';
+
+    const form = document.getElementById('sa-avatar-form');
+    const fd = new FormData(form);
+
+    try {
+        const res = await fetch(form.action, {
+            method: 'POST',
+            headers: { 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content, 'Accept': 'application/json' },
+            body: fd
+        });
+        const data = await res.json();
+        preview.style.opacity = '1';
+
+        if (res.ok && data.success && data.avatar_url) {
+            preview.src = data.avatar_url;
+        } else {
+            preview.src = previousSrc;
+            alert(data.message || 'Could not update your photo — please try a smaller image (max 2MB).');
+        }
+    } catch (e) {
+        preview.style.opacity = '1';
+        preview.src = previousSrc;
+        alert('Failed to upload photo — check your connection and try again.');
+    } finally {
+        input.value = '';
+    }
+}
 
 // ============================================================
 //  TAB SWITCHING

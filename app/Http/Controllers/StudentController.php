@@ -144,7 +144,7 @@ class StudentController extends Controller
     public function uploadProfilePhoto(Request $request)
     {
         $request->validate([
-            'profile_photo' => 'required|image|mimes:jpeg,png,jpg,svg|max:2048',
+            'profile_photo' => 'required|image|mimes:jpeg,png,jpg,gif,webp|max:2048',
         ]);
 
         $user = $request->user() ?? Auth::user();

@@ -486,8 +486,8 @@ class TeacherController extends Controller
 
         // ── Removal ──
         if ($request->boolean('remove')) {
-            if (!empty($profile->avatar_url) && file_exists(public_path($profile->avatar_url))) {
-                @unlink(public_path($profile->avatar_url));
+            if (!empty($profile->avatar_url)) {
+                $this->deleteStoredAvatar($profile->avatar_url);
             }
             $profile->avatar_url = null;
             $profile->save();
@@ -500,24 +500,43 @@ class TeacherController extends Controller
 
         // ── Upload ──
         $request->validate([
-            'avatar' => 'required|image|mimes:jpeg,png,jpg,gif|max:800',
+            'avatar' => 'required|image|mimes:jpeg,png,jpg,gif,webp|max:2048',
         ]);
 
-        if (!empty($profile->avatar_url) && file_exists(public_path($profile->avatar_url))) {
-            @unlink(public_path($profile->avatar_url));
+        if (!empty($profile->avatar_url)) {
+            $this->deleteStoredAvatar($profile->avatar_url);
         }
 
-        $avatarFile = $request->file('avatar');
-        $avatarName = 'avatar_' . $user->user_id . '_' . time() . '.' . $avatarFile->getClientOriginalExtension();
-        $avatarFile->move(public_path('uploads/avatars'), $avatarName);
+        // Stored through the 'public' disk (storage/app/public/profile_photos,
+        // exposed via the storage:link symlink) so it works the same way as
+        // the student/admin uploads and survives across environments that
+        // don't share the plain public/ folder.
+        $path = $request->file('avatar')->store('profile_photos', 'public');
 
-        $profile->avatar_url = 'uploads/avatars/' . $avatarName;
+        $profile->avatar_url = $path;
         $profile->save();
 
         return response()->json([
             'success'    => true,
-            'avatar_url' => asset($profile->avatar_url),
+            'avatar_url' => Storage::disk('public')->url($path),
         ]);
+    }
+
+    /**
+     * Delete a previously stored avatar, regardless of whether it was saved
+     * via the 'public' disk (new uploads) or the legacy public_path()/move()
+     * approach (older uploads made before this was standardized).
+     */
+    private function deleteStoredAvatar(string $storedPath): void
+    {
+        if (Storage::disk('public')->exists($storedPath)) {
+            Storage::disk('public')->delete($storedPath);
+            return;
+        }
+
+        if (file_exists(public_path($storedPath))) {
+            @unlink(public_path($storedPath));
+        }
     }
 
     /**
@@ -530,7 +549,7 @@ class TeacherController extends Controller
         $validatedData = $request->validate([
             'full_name'     => 'required|string|max:255',
             'email'         => 'required|email|max:255|unique:users,email,' . $user->user_id . ',user_id',
-            'avatar'        => 'nullable|image|mimes:jpeg,png,jpg,gif|max:800',
+            'avatar'        => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:2048',
             'remove_avatar' => 'nullable|in:0,1',
         ]);
 
@@ -545,21 +564,18 @@ class TeacherController extends Controller
         $profile = $user->profile ?? $user->profile()->create(['first_name' => $user->full_name, 'last_name' => '']);
 
         if ($request->boolean('remove_avatar')) {
-            if (!empty($profile->avatar_url) && file_exists(public_path($profile->avatar_url))) {
-                @unlink(public_path($profile->avatar_url));
+            if (!empty($profile->avatar_url)) {
+                $this->deleteStoredAvatar($profile->avatar_url);
             }
             $profile->avatar_url = null;
             $profile->save();
         } elseif ($request->hasFile('avatar')) {
-            if (!empty($profile->avatar_url) && file_exists(public_path($profile->avatar_url))) {
-                @unlink(public_path($profile->avatar_url));
+            if (!empty($profile->avatar_url)) {
+                $this->deleteStoredAvatar($profile->avatar_url);
             }
 
-            $avatarFile = $request->file('avatar');
-            $avatarName = 'avatar_' . $user->user_id . '_' . time() . '.' . $avatarFile->getClientOriginalExtension();
-            $avatarFile->move(public_path('uploads/avatars'), $avatarName);
-
-            $profile->avatar_url = 'uploads/avatars/' . $avatarName;
+            $path = $request->file('avatar')->store('profile_photos', 'public');
+            $profile->avatar_url = $path;
             $profile->save();
         }
 

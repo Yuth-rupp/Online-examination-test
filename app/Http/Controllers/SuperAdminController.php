@@ -566,6 +566,45 @@ class SuperAdminController extends Controller
             return response()->json(['status' => 'error', 'message' => 'SMTP failed: ' . $e->getMessage()], 422);
         }
     }
+    /**
+     * Update the signed-in super admin's own display name and/or avatar.
+     * Mirrors AdminController::updateAdminProfile so all four roles save
+     * photos through the same 'public' disk / profile_photos folder.
+     */
+    public function updateProfile(Request $request)
+    {
+        $user = $request->user() ?? auth()->user();
+
+        $request->validate([
+            'full_name' => 'required|string|max:255',
+            'avatar'    => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:2048',
+        ]);
+
+        $user->full_name = $request->input('full_name');
+
+        if ($request->hasFile('avatar')) {
+            if ($user->profile_image && \Illuminate\Support\Facades\Storage::disk('public')->exists($user->profile_image)) {
+                \Illuminate\Support\Facades\Storage::disk('public')->delete($user->profile_image);
+            }
+
+            $path = $request->file('avatar')->store('profile_photos', 'public');
+            $user->profile_image = $path;
+        }
+
+        $user->save();
+        $this->logAction('profile.update', 'USER', (string) $user->user_id);
+
+        if ($request->wantsJson()) {
+            return response()->json([
+                'success'    => true,
+                'message'    => 'Profile updated successfully.',
+                'full_name'  => $user->full_name,
+                'avatar_url' => $user->avatar_url,
+            ]);
+        }
+
+        return redirect()->route('superadmin.settings.index')->with('success', 'Profile updated successfully.');
+    }
     /* ================================================================
      *  USER MANAGEMENT
      * ================================================================ */

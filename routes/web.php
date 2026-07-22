@@ -84,7 +84,7 @@ Route::middleware(['auth', 'role:teacher'])->group(function () {
     Route::post('/teacher/settings/password', [TeacherController::class, 'updatePassword'])->name('teacher.settings.update.password');
     
     // Asynchronous avatar upload handler
-    Route::post('/teacher/settings/avatar', [TeacherController::class, 'updateAvatar'])->name('teacher.settings.avatar');
+    Route::post('/teacher/settings/avatar', [TeacherController::class, 'uploadAvatar'])->name('teacher.settings.avatar');
 
     // Real-time Teacher Notification Endpoints
     Route::get('/teacher/notifications', [NotificationController::class, 'index'])->name('teacher.notifications');
@@ -246,6 +246,7 @@ Route::middleware(['auth', 'role:super_admin'])->prefix('super-admin')->group(fu
 
     Route::get('/settings',                    [SuperAdminController::class, 'settings'])->name('superadmin.settings.index');
     Route::post('/settings',                   [SuperAdminController::class, 'updateSettings'])->name('superadmin.settings.update');
+    Route::post('/settings/profile',           [SuperAdminController::class, 'updateProfile'])->name('superadmin.settings.profile');
     Route::post('/settings/smtp-test',         [SuperAdminController::class, 'testSmtpConnectionApi'])->name('superadmin.settings.smtp.test');
     Route::post('/settings/clear-cache',       [SuperAdminController::class, 'clearDatabaseCache'])->name('superadmin.settings.clearCache');
     Route::post('/settings/optimize-db',       [SuperAdminController::class, 'optimizeDatabaseTables'])->name('superadmin.settings.optimizeDb');
