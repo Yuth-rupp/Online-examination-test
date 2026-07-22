@@ -612,8 +612,9 @@
             {
               id: '{{ $exam->exam_id }}',
               title: '{{ addslashes($exam->title) }}',
+              courseId: '{{ $exam->course->id ?? $exam->course_id }}',
               code: '{{ addslashes($exam->course->code ?? "DAT-464") }}',
-              dept: '{{ addslashes($exam->course->course_name ?? "Database Dept") }}',
+              dept: '{{ addslashes($exam->course->name ?? "Database Dept") }}',
               date: '{{ \Carbon\Carbon::parse($exam->start_time)->format("M d, Y") }}',
               time: '{{ \Carbon\Carbon::parse($exam->start_time)->format("h:i A") }}',
               duration: '{{ $exam->duration ?? 100 }} mins',
@@ -629,9 +630,12 @@
         get filteredExams() {
           return this.exams.filter(e => {
             const matchStatus = e.status === this.activeFolderTab;
-            const matchSearch = this.searchQuery === '' ||
-              e.title.toLowerCase().includes(this.searchQuery.toLowerCase()) ||
-              e.code.toLowerCase().includes(this.searchQuery.toLowerCase());
+            const q = this.searchQuery.toLowerCase().trim();
+            const matchSearch = q === '' ||
+              e.title.toLowerCase().includes(q) ||
+              e.code.toLowerCase().includes(q) ||
+              e.dept.toLowerCase().includes(q) ||
+              String(e.courseId).toLowerCase().includes(q);
             return matchStatus && matchSearch;
           });
         },
@@ -679,8 +683,9 @@
                 this.exams.push({
                   id: String(se.exam_id),
                   title: se.title,
+                  courseId: String((se.course && se.course.id) || se.course_id || ''),
                   code: (se.course && se.course.code) || 'DAT-464',
-                  dept: (se.course && se.course.course_name) || 'Database Dept',
+                  dept: (se.course && se.course.name) || 'Database Dept',
                   date: start.toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' }),
                   time: start.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
                   duration: (se.duration || 100) + ' mins',

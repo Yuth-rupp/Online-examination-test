@@ -29,7 +29,19 @@ class StudentController extends Controller
             ->where('status', 'active')
             ->pluck('course_id');
 
-        $totalExams = Exam::whereIn('course_id', $enrolledCourseIds)
+        // A student's completed exams must never disappear from "assigned"
+        // just because their enrollment record later lapsed or changed —
+        // that's what was causing "Total Exams Assigned: 0" while
+        // "Exams Completed: 2" at the same time. So the visible course set
+        // is active enrollments PLUS any course the student already has a
+        // submission in.
+        $submittedCourseIds = Submission::where('user_id', $user->user_id)
+            ->join('exams', 'submissions.exam_id', '=', 'exams.exam_id')
+            ->pluck('exams.course_id');
+
+        $accessibleCourseIds = $enrolledCourseIds->merge($submittedCourseIds)->unique()->values();
+
+        $totalExams = Exam::whereIn('course_id', $accessibleCourseIds)
             ->where('status', 'published')
             ->count();
 
@@ -43,13 +55,13 @@ class StudentController extends Controller
             ->get();
 
         $upcomingExams = Exam::with('course')
-            ->whereIn('course_id', $enrolledCourseIds)
+            ->whereIn('course_id', $accessibleCourseIds)
             ->where('status', 'published') 
             ->orderBy('start_time', 'asc')
             ->get();
 
         $liveExam = Exam::with('course')
-            ->whereIn('course_id', $enrolledCourseIds)
+            ->whereIn('course_id', $accessibleCourseIds)
             ->where('start_time', '<=', now())
             ->where('end_time', '>=', now())
             ->where('status', 'published')
@@ -75,6 +87,7 @@ class StudentController extends Controller
             'submissions'
         ));
     }
+
 
     /**
      * Render the student's dynamic profile and exam history data panel.
@@ -212,10 +225,20 @@ class StudentController extends Controller
             ->where('status', 'active')
             ->pluck('course_id');
 
+        // Same fix as the dashboard: a completed exam must stay visible
+        // even if the student's enrollment for that course later lapsed —
+        // otherwise the "Completed" tab and count silently drop to 0 while
+        // the dashboard (which counts raw submissions) still shows them.
+        $submittedCourseIds = Submission::where('user_id', $user->user_id)
+            ->join('exams', 'submissions.exam_id', '=', 'exams.exam_id')
+            ->pluck('exams.course_id');
+
+        $accessibleCourseIds = $enrolledCourseIds->merge($submittedCourseIds)->unique()->values();
+
         $hiddenExamIds = StudentHiddenExam::where('user_id', $user->user_id)->pluck('exam_id');
 
         $examsQuery = Exam::with('course')
-            ->whereIn('course_id', $enrolledCourseIds)
+            ->whereIn('course_id', $accessibleCourseIds)
             ->whereNotIn('exam_id', $hiddenExamIds);
 
         if ($request->filled('course_id')) {
