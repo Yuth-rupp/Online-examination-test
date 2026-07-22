@@ -841,26 +841,30 @@ class SuperAdminController extends Controller
 
     public function updateSettings(Request $request)
     {
-        $v = $request->validate([
-            'site_name'          => 'required|string|max:255',
-            'default_lang'       => 'required|string|in:en,km',
-            'mail_host'          => 'required|string',
-            'mail_password'      => 'required|string',
-            'max_tab_switches'   => 'required|integer|min:0|max:10',
-            'face_poll_interval' => 'required|string|in:5,15',
-        ]);
+        $fields = $request->except(['_token']);
 
-        $pl = $request->has('proctor_lockdown') ? '1' : '0';
-
-        DB::transaction(function () use ($v, $pl) {
-            foreach (array_merge($v, ['proctor_lockdown' => $pl]) as $k => $val) {
-                DB::table('system_settings')->where('key', $k)->update(['value' => $val, 'updated_at' => now()]);
+        DB::transaction(function () use ($fields) {
+            foreach ($fields as $key => $value) {
+                DB::table('system_settings')->updateOrInsert(
+                    ['key' => $key],
+                    ['value' => $value, 'updated_at' => now()]
+                );
             }
             $this->logAction('global.settings.update', 'SYSTEM_CONFIG', '0');
         });
 
         Artisan::call('config:clear');
-        return redirect()->route('superadmin.settings.index')->with('success', 'Global variables written to cache.');
+
+        // Return JSON for AJAX calls
+        if ($request->expectsJson() || $request->ajax()) {
+            return response()->json([
+                'status'  => 'success',
+                'message' => 'Settings saved and applied to all departments.',
+            ]);
+        }
+
+        return redirect()->route('superadmin.settings.index')
+            ->with('success', 'Global settings updated — applied to all departments.');
     }
 
     public function testSmtpConnectionApi(Request $request)
@@ -873,6 +877,102 @@ class SuperAdminController extends Controller
         } catch (\Throwable $e) {
             $this->logAction('settings.smtp.test.failure', 'SYSTEM_CONFIG', '0');
             return response()->json(['status' => 'error', 'message' => 'SMTP failed: ' . $e->getMessage()], 422);
+        }
+    }
+
+    /**
+     * Clear application cache (config, route, view, app)
+     */
+    public function clearDatabaseCache()
+    {
+        try {
+            Artisan::call('cache:clear');
+            Artisan::call('config:clear');
+            Artisan::call('route:clear');
+            Artisan::call('view:clear');
+            $this->logAction('settings.cache.clear', 'SYSTEM_CONFIG', '0');
+            return response()->json(['status' => 'success', 'message' => 'All caches cleared across all departments.']);
+        } catch (\Exception $e) {
+            return response()->json(['status' => 'error', 'message' => $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * Optimize all database tables
+     */
+    public function optimizeDatabaseTables()
+    {
+        try {
+            $tables = DB::select('SHOW TABLES');
+            $dbName = 'Tables_in_' . config('database.connections.mysql.database');
+            foreach ($tables as $table) {
+                $tableName = $table->$dbName;
+                DB::statement("OPTIMIZE TABLE `{$tableName}`");
+            }
+            $this->logAction('settings.db.optimize', 'SYSTEM_CONFIG', '0');
+            return response()->json(['status' => 'success', 'message' => 'All database tables optimized.']);
+        } catch (\Exception $e) {
+            return response()->json(['status' => 'error', 'message' => $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * Clear Laravel log files
+     */
+    public function clearSystemLogs()
+    {
+        try {
+            $logPath = storage_path('logs');
+            $files = glob($logPath . '/*.log');
+            $count = 0;
+            foreach ($files as $file) {
+                if (is_file($file)) { unlink($file); $count++; }
+            }
+            $this->logAction('settings.logs.clear', 'SYSTEM_CONFIG', '0');
+            return response()->json(['status' => 'success', 'message' => "Cleared {$count} log file(s)."]);
+        } catch (\Exception $e) {
+            return response()->json(['status' => 'error', 'message' => $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * Flush proctoring / job queue (emergency action)
+     */
+    public function flushProctoringQueue()
+    {
+        try {
+            Artisan::call('queue:clear');
+            $this->logAction('settings.queue.flush', 'SYSTEM_CONFIG_CRITICAL', '0');
+            return response()->json(['status' => 'success', 'message' => 'Queue flushed — all pending jobs cleared.']);
+        } catch (\Exception $e) {
+            return response()->json(['status' => 'error', 'message' => $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * Purge old audit logs beyond retention window
+     */
+    public function purgeSystemAuditLogs()
+    {
+        try {
+            $retentionDays = DB::table('system_settings')
+                ->where('key', 'audit_retention_days')
+                ->value('value') ?? 90;
+
+            if ($retentionDays == 0) {
+                return response()->json(['status' => 'error', 'message' => 'Retention is set to "Forever" — nothing to purge.']);
+            }
+
+            $cutoff = now()->subDays((int) $retentionDays);
+            $deleted = DB::table('audit_logs')->where('created_at', '<', $cutoff)->delete();
+            $this->logAction('settings.audit.purge', 'SYSTEM_CONFIG_CRITICAL', '0');
+
+            return response()->json([
+                'status'  => 'success',
+                'message' => "Purged {$deleted} audit entries older than {$retentionDays} days.",
+            ]);
+        } catch (\Exception $e) {
+            return response()->json(['status' => 'error', 'message' => $e->getMessage()], 500);
         }
     }
 
@@ -917,10 +1017,19 @@ class SuperAdminController extends Controller
     public function adminIndex()
     {
         $iid = auth()->user()->institution_id;
+
         $admins = User::with('department:id,name')
             ->when($iid, fn($q) => $q->where('institution_id', $iid))
             ->orderBy('user_id', 'desc')->get();
-        return view('superadmin.user_management', compact('admins'));
+
+        // Pass departments so the front end can show assignment dropdowns
+        $departments = DB::table('departments')
+            ->when($iid, fn($q) => $q->where('institution_id', $iid))
+            ->select('id', 'name', 'code')
+            ->orderBy('name')
+            ->get();
+
+        return view('superadmin.user_management', compact('admins', 'departments'));
     }
 
     public function adminApiIndex()
@@ -1008,6 +1117,60 @@ class SuperAdminController extends Controller
         DB::transaction(function () use ($u, $v) {
             $u->role = $v['role']; $u->save();
             $this->logAction('admin.account.role_update', 'USER_MANAGEMENT', $u->user_id);
+        });
+
+        return response()->json(['status' => 'success']);
+    }
+
+    /**
+     * Change a user's department assignment.
+     * Used by the inline dropdown on the User Management page.
+     */
+    public function adminChangeDepartment(Request $request, $id)
+    {
+        if (auth()->id() == $id) {
+            return response()->json(['message' => 'Cannot change your own department.'], 403);
+        }
+
+        $iid = auth()->user()->institution_id;
+        $u = User::when($iid, fn($q) => $q->where('institution_id', $iid))->findOrFail($id);
+
+        $deptId = $request->input('department_id');
+
+        // Validate department belongs to institution if provided
+        if ($deptId) {
+            $exists = DB::table('departments')
+                ->where('id', $deptId)
+                ->when($iid, fn($q) => $q->where('institution_id', $iid))
+                ->exists();
+
+            if (!$exists) {
+                return response()->json(['message' => 'Department not found in your institution.'], 422);
+            }
+        }
+
+        DB::transaction(function () use ($u, $deptId) {
+            // Update the user's department_id column
+            $u->department_id = $deptId ?: null;
+            $u->save();
+
+            // If user is admin, also update the department_user pivot table
+            if ($u->role === 'admin' && method_exists($u, 'managedDepartments')) {
+                if ($deptId) {
+                    $u->managedDepartments()->sync([$deptId]);
+                } else {
+                    $u->managedDepartments()->detach();
+                }
+            }
+
+            // If user is teacher, sync the department_teacher pivot
+            if ($u->role === 'teacher' && method_exists($u, 'departments')) {
+                if ($deptId) {
+                    $u->departments()->syncWithoutDetaching([$deptId]);
+                }
+            }
+
+            $this->logAction('admin.user.department.change', 'USER_MANAGEMENT', $u->user_id);
         });
 
         return response()->json(['status' => 'success']);

@@ -37,6 +37,7 @@
 </head>
 <body class="bg-slate-50 text-slate-800" style="font-family:'Inter',sans-serif;">
 <div class="flex min-h-screen">
+
     {{-- ===================== SIDEBAR ===================== --}}
     <aside class="w-64 bg-white border-r border-slate-100 flex flex-col fixed h-full z-20"
            style="box-shadow:4px 0 24px rgba(148,163,184,0.08);">
@@ -68,9 +69,12 @@
                 <span class="w-8 h-8 flex items-center justify-center rounded-lg flex-shrink-0"><i class="fa-solid fa-chart-line text-xs text-slate-400"></i></span><span>Reports & Analytics</span>
             </a>
             <div class="pt-4 pb-1"><p class="text-[10px] font-bold text-slate-300 uppercase tracking-widest px-3 mb-2">Root Access</p></div>
+
+            {{-- ACTIVE --}}
             <a href="{{ route('superadmin.admins.index') }}" class="flex items-center gap-3 px-3 py-2.5 bg-blue-600 text-white font-semibold rounded-xl text-sm mb-0.5 transition-all duration-200" style="box-shadow:0 4px 12px rgba(59,130,246,0.30);">
                 <span class="w-8 h-8 flex items-center justify-center rounded-lg bg-white bg-opacity-20 flex-shrink-0"><i class="fa-solid fa-users text-xs text-white"></i></span><span>User Management</span>
             </a>
+
             <a href="{{ route('superadmin.audit-logs.index') }}" class="flex items-center gap-3 px-3 py-2.5 text-slate-500 hover:text-slate-800 hover:bg-slate-100 font-medium rounded-xl text-sm mb-0.5 transition-all duration-200">
                 <span class="w-8 h-8 flex items-center justify-center rounded-lg flex-shrink-0"><i class="fa-solid fa-shield-halved text-xs text-slate-400"></i></span><span>Audit Trails</span>
             </a>
@@ -94,6 +98,7 @@
             </div>
         </div>
     </aside>
+
     {{-- ===================== MAIN ===================== --}}
     <main class="flex-1 ml-64 min-h-screen flex flex-col">
         <header class="sticky top-0 z-10 border-b border-slate-100 h-16 flex items-center px-8 gap-4"
@@ -124,7 +129,9 @@
                 </button>
             </div>
         </header>
+
         <div class="p-8 flex-1" style="display:flex;flex-direction:column;gap:20px;">
+
             {{-- ========== METRIC CARDS ========== --}}
             <div class="grid grid-cols-2 xl:grid-cols-4 gap-4">
                 @php
@@ -151,6 +158,7 @@
                 </div>
                 @endforeach
             </div>
+
             {{-- ========== TABLE ========== --}}
             <div class="bg-white rounded-2xl border border-slate-100 flex flex-col overflow-hidden"
                  style="box-shadow:0 1px 4px rgba(148,163,184,0.06);">
@@ -190,6 +198,8 @@
         </div>
     </main>
 </div>
+
+
 {{-- ===================== CREATE MODAL ===================== --}}
 <div id="create-modal" class="fixed inset-0 z-50 items-center justify-center p-4"
      style="display:none;background:rgba(15,23,42,0.50);backdrop-filter:blur(8px);">
@@ -227,6 +237,18 @@
                 <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Role</label>
                 <div class="grid grid-cols-2 gap-2" id="role-picker"></div>
             </div>
+
+            {{-- ═══ DEPARTMENT DROPDOWN (visible for admin & teacher roles) ═══ --}}
+            <div id="dept-field" style="display:none;">
+                <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">
+                    <i class="fa-solid fa-building-columns mr-1 text-blue-400"></i> Assign to Department
+                </label>
+                <select id="new-department"
+                        class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-medium text-slate-800 outline-none transition-all focus:border-blue-500 focus:bg-white cursor-pointer">
+                    <option value="">— No department (assign later) —</option>
+                </select>
+                <p id="dept-hint" class="text-[10px] text-slate-400 font-medium mt-1.5 leading-relaxed"></p>
+            </div>
         </div>
         <div class="flex items-center gap-3 px-6 pb-6">
             <button onclick="closeModal()" class="flex-1 py-2.5 rounded-xl border border-slate-200 text-sm font-semibold text-slate-600 hover:bg-slate-50 transition-all">Cancel</button>
@@ -237,14 +259,22 @@
         </div>
     </div>
 </div>
+
+
 {{-- Toast --}}
 <div id="toast-container" class="fixed bottom-6 right-6 z-50 flex flex-col gap-2" style="pointer-events:none;"></div>
+
+
 {{-- ===================== SCRIPTS ===================== --}}
 <script>
 (function() {
     'use strict';
     const CURRENT_AUTH_ID = {{ auth()->id() ?? 0 }};
     const CSRF = document.querySelector('meta[name=csrf-token]').content;
+
+    // ── Department data from server ──
+    const ALL_DEPARTMENTS = {!! json_encode($departments ?? []) !!};
+
     const ROLE_GRADS = {
         super_admin: 'linear-gradient(135deg,#7c3aed,#6d28d9)',
         admin:       'linear-gradient(135deg,#2563eb,#1d4ed8)',
@@ -257,6 +287,7 @@
         teacher:     { bg:'#fffbeb', color:'#b45309', border:'#fde68a', label:'Teacher' },
         student:     { bg:'#f0fdf4', color:'#059669', border:'#a7f3d0', label:'Student' },
     };
+
     // ── State ──
     let allUsers = {!! json_encode($admins ?? []) !!};
     let activeTab = 'all';
@@ -291,6 +322,7 @@
     }
     function updateCards() {
         const sa = allUsers.filter(u => u.role === 'super_admin').length;
+        const ad = allUsers.filter(u => u.role === 'admin').length;
         const te = allUsers.filter(u => u.role === 'teacher').length;
         const st = allUsers.filter(u => u.role === 'student').length;
         setMetric('card-total', allUsers.length);
@@ -300,11 +332,13 @@
         document.getElementById('total-record-count').textContent = `(${allUsers.length} records)`;
     }
 
-    // ── Helper ──
+    // ── Helpers ──
     function getInitials(name) {
         if (!name) return '??';
         return name.split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase();
     }
+    function esc(s) { const d = document.createElement('div'); d.appendChild(document.createTextNode(s || '')); return d.innerHTML; }
+
     function filteredUsers() {
         const search = (document.getElementById('search-input').value || '').toLowerCase();
         return allUsers.filter(u => {
@@ -314,7 +348,29 @@
         });
     }
 
-    // ── Smooth Render Table (Prevents Flickering / Re-fading) ──
+    function getDeptName(u) {
+        if (u.department && u.department.name) return u.department.name;
+        if (u.department_id) {
+            const d = ALL_DEPARTMENTS.find(dep => dep.id === u.department_id);
+            if (d) return d.name;
+        }
+        return null;
+    }
+
+    // ── Build department dropdown options HTML ──
+    function deptOptionsHtml(currentDeptId) {
+        let html = `<option value="">— None —</option>`;
+        ALL_DEPARTMENTS.forEach(d => {
+            const sel = (d.id == currentDeptId) ? 'selected' : '';
+            html += `<option value="${d.id}" ${sel}>${esc(d.name)}</option>`;
+        });
+        return html;
+    }
+
+
+    // ============================================================
+    //  RENDER TABLE
+    // ============================================================
     window.renderTable = function(forceAnimation = false) {
         const tbody = document.getElementById('user-table-body');
         const users = filteredUsers();
@@ -335,8 +391,39 @@
             const grad = ROLE_GRADS[u.role] || ROLE_GRADS.student;
             const isSelf = u.user_id === CURRENT_AUTH_ID;
             const isActive = u.status === 'active';
-            const deptName = u.department ? u.department.name : '—';
+            const deptName = getDeptName(u);
+            const needsDept = (u.role === 'admin' || u.role === 'teacher');
 
+            // ── Department cell ──
+            let deptCellHtml;
+            if (!needsDept) {
+                // Students & super admins don't need department assignment shown
+                deptCellHtml = `<span class="text-[11px] text-slate-300 font-medium">—</span>`;
+            } else if (deptName) {
+                // Has a department — show it with option to change
+                deptCellHtml = `
+                    <div class="flex items-center gap-2">
+                        <span class="text-[10px] font-bold uppercase tracking-wide px-2.5 py-1 rounded-lg border"
+                              style="background:#eff6ff;color:#1d4ed8;border-color:#bfdbfe;">
+                            <i class="fa-solid fa-building-columns mr-1" style="font-size:9px;"></i>${esc(deptName)}
+                        </span>
+                        ${isSelf ? '' : `<select onchange="updateUserDepartment(${u.user_id},this.value)"
+                            class="text-[10px] font-bold border border-slate-200 rounded-lg px-1.5 py-1 bg-slate-50 text-slate-500 cursor-pointer outline-none focus:border-blue-500"
+                            title="Change department">${deptOptionsHtml(u.department_id)}</select>`}
+                    </div>`;
+            } else {
+                // No department — show assign dropdown
+                deptCellHtml = isSelf
+                    ? `<span class="text-[11px] text-slate-300 font-medium">—</span>`
+                    : `<select onchange="updateUserDepartment(${u.user_id},this.value)"
+                            class="text-[11px] font-bold border border-amber-200 rounded-lg px-2 py-1.5 bg-amber-50 text-amber-700 cursor-pointer outline-none focus:border-blue-500"
+                            title="Assign department">
+                            <option value="">⚠ Not assigned</option>
+                            ${ALL_DEPARTMENTS.map(d => `<option value="${d.id}">${esc(d.name)}</option>`).join('')}
+                       </select>`;
+            }
+
+            // ── Actions cell ──
             const actionCellHtml = isSelf
                 ? `<span class="text-[10px] font-bold px-2.5 py-1 rounded-lg bg-blue-50 text-blue-600 border border-blue-100 inline-block">
                     <i class="fa-solid fa-lock mr-1" style="font-size:9px;"></i>Self · Protected
@@ -376,7 +463,7 @@
                         <span class="text-[11px] font-bold" style="color:${isActive?'#059669':'#e11d48'};">${isActive?'Active':'Suspended'}</span>
                     </div>
                 </td>
-                <td class="px-4 py-3.5 text-xs text-slate-400 font-medium">${esc(deptName)}</td>
+                <td class="px-4 py-3.5">${deptCellHtml}</td>
                 <td class="px-4 py-3.5 text-right">${actionCellHtml}</td>
             `;
 
@@ -390,11 +477,10 @@
                 row.innerHTML = innerContent;
                 tbody.appendChild(row);
             } else {
-                // Update row contents smoothly without destroying element
                 if (row.innerHTML !== innerContent) {
                     row.innerHTML = innerContent;
                 }
-                tbody.appendChild(row); // Keep ordered
+                tbody.appendChild(row);
             }
         });
 
@@ -411,7 +497,10 @@
         isInitialRender = false;
     };
 
-    // ── Tab filter ──
+
+    // ============================================================
+    //  TAB FILTER
+    // ============================================================
     window.setTab = function(role, btn) {
         activeTab = role;
         document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
@@ -419,24 +508,55 @@
         renderTable(true);
     };
 
-    // ── Fetch latest users (real API, completely silent update) ──
+
+    // ============================================================
+    //  FETCH LATEST USERS (silent poll)
+    // ============================================================
     function fetchLatestUsers() {
         fetch('{{ route("superadmin.admins.api") }}', {
             headers: { 'Accept': 'application/json', 'X-CSRF-TOKEN': CSRF, 'X-Requested-With': 'XMLHttpRequest' }
         })
         .then(r => r.json())
         .then(data => {
-            // Check if users array changed
             if (JSON.stringify(data) !== JSON.stringify(allUsers)) {
                 allUsers = data;
                 updateCards();
-                renderTable(false); // Seamless update without re-animating
+                renderTable(false);
             }
         })
         .catch(err => console.error('User poll failed:', err));
     }
 
-    // ── Toggle user status ──
+
+    // ============================================================
+    //  UPDATE USER DEPARTMENT (inline dropdown change)
+    // ============================================================
+    window.updateUserDepartment = function(userId, deptId) {
+        const body = { department_id: deptId || null };
+
+        fetch(`/super-admin/admins/${userId}/change-department`, {
+            method: 'PATCH',
+            headers: { 'Accept': 'application/json', 'Content-Type': 'application/json', 'X-CSRF-TOKEN': CSRF, 'X-Requested-With': 'XMLHttpRequest' },
+            body: JSON.stringify(body)
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.status === 'success') {
+                const deptName = deptId ? (ALL_DEPARTMENTS.find(d => d.id == deptId)?.name || 'Department') : 'none';
+                showToast(`Department updated to ${deptName}.`, 'success');
+                fetchLatestUsers();
+            } else {
+                showToast(data.message || 'Failed to update department.', 'error');
+                fetchLatestUsers();
+            }
+        })
+        .catch(() => { showToast('Network error.', 'error'); fetchLatestUsers(); });
+    };
+
+
+    // ============================================================
+    //  TOGGLE USER STATUS
+    // ============================================================
     window.toggleUserStatus = function(userId) {
         fetch(`/super-admin/admins/${userId}/toggle-status`, {
             method: 'PATCH',
@@ -454,7 +574,10 @@
         .catch(() => showToast('Network error.', 'error'));
     };
 
-    // ── Change role ──
+
+    // ============================================================
+    //  CHANGE ROLE
+    // ============================================================
     window.updateUserRole = function(userId, role) {
         fetch(`/super-admin/admins/${userId}/change-role`, {
             method: 'PATCH',
@@ -474,7 +597,10 @@
         .catch(() => { showToast('Network error.', 'error'); fetchLatestUsers(); });
     };
 
-    // ── Modal ──
+
+    // ============================================================
+    //  MODAL — ADD ACCOUNT
+    // ============================================================
     window.openModal = function() {
         document.getElementById('create-modal').style.display = 'flex';
         document.getElementById('new-name').value = '';
@@ -482,10 +608,13 @@
         document.getElementById('new-password').value = '';
         selectedRole = 'admin';
         renderRolePicker();
+        updateDeptField();
     };
+
     window.closeModal = function() {
         document.getElementById('create-modal').style.display = 'none';
     };
+
     function renderRolePicker() {
         const roles = [
             { key: 'student', label: 'Student', icon: 'fa-graduation-cap', color: '#059669' },
@@ -502,10 +631,43 @@
             </button>`;
         }).join('');
     }
+
     window.selectRole = function(role) {
         selectedRole = role;
         renderRolePicker();
+        updateDeptField();
     };
+
+    // ── Show/hide department dropdown based on selected role ──
+    function updateDeptField() {
+        const field = document.getElementById('dept-field');
+        const select = document.getElementById('new-department');
+        const hint = document.getElementById('dept-hint');
+
+        // Show for admin and teacher roles
+        if (selectedRole === 'admin' || selectedRole === 'teacher') {
+            field.style.display = 'block';
+
+            // Populate dropdown with departments
+            let html = `<option value="">— No department (assign later) —</option>`;
+            ALL_DEPARTMENTS.forEach(d => {
+                html += `<option value="${d.id}">${esc(d.name)} (${d.code || ''})</option>`;
+            });
+            select.innerHTML = html;
+
+            if (selectedRole === 'admin') {
+                hint.innerHTML = `<i class="fa-solid fa-circle-info text-blue-400 mr-1"></i>
+                    The admin will only see and manage users, exams, and data inside this department.
+                    If left empty, you can assign them later from the <strong>Department Directory</strong>.`;
+            } else {
+                hint.innerHTML = `<i class="fa-solid fa-circle-info text-blue-400 mr-1"></i>
+                    The teacher will be linked to this department's courses and exams.`;
+            }
+        } else {
+            field.style.display = 'none';
+        }
+    }
+
 
     // ── Toggle password visibility ──
     window.togglePw = function() {
@@ -515,27 +677,47 @@
         else { pw.type = 'password'; eye.className = 'fa-solid fa-eye text-xs'; }
     };
 
-    // ── Submit create account ──
+
+    // ============================================================
+    //  SUBMIT CREATE ACCOUNT (with department)
+    // ============================================================
     window.submitCreateAccount = function() {
         const name = document.getElementById('new-name').value.trim();
         const email = document.getElementById('new-email').value.trim();
         const password = document.getElementById('new-password').value;
+        const deptId = document.getElementById('new-department').value || null;
+
         if (!name || !email || !password) { showToast('All fields are required.', 'error'); return; }
         if (password.length < 8) { showToast('Password must be at least 8 characters.', 'error'); return; }
+
         const btn = document.getElementById('submit-btn');
         btn.innerHTML = '<i class="fa-solid fa-spinner animate-spin mr-1.5"></i> Creating...';
         btn.disabled = true;
+
+        const payload = {
+            full_name: name,
+            email: email,
+            password: password,
+            role: selectedRole,
+        };
+
+        // Include department_id if role is admin or teacher and a department was selected
+        if ((selectedRole === 'admin' || selectedRole === 'teacher') && deptId) {
+            payload.department_id = parseInt(deptId, 10);
+        }
+
         fetch('{{ route("superadmin.admins.store") }}', {
             method: 'POST',
             headers: { 'Accept': 'application/json', 'Content-Type': 'application/json', 'X-CSRF-TOKEN': CSRF, 'X-Requested-With': 'XMLHttpRequest' },
-            body: JSON.stringify({ full_name: name, email: email, password: password, role: selectedRole })
+            body: JSON.stringify(payload)
         })
         .then(r => r.json())
         .then(data => {
             btn.innerHTML = '<i class="fa-solid fa-user-plus mr-1.5"></i> Create Account';
             btn.disabled = false;
             if (data.status === 'success') {
-                showToast('Account created for ' + name + '.', 'success');
+                const deptInfo = deptId ? ` → assigned to ${ALL_DEPARTMENTS.find(d => d.id == deptId)?.name || 'department'}` : '';
+                showToast(`Account created for ${name}${deptInfo}.`, 'success');
                 closeModal();
                 fetchLatestUsers();
             } else {
@@ -549,7 +731,10 @@
         });
     };
 
-    // ── Toast ──
+
+    // ============================================================
+    //  TOAST
+    // ============================================================
     function showToast(message, type) {
         const container = document.getElementById('toast-container');
         const toast = document.createElement('div');
@@ -563,7 +748,7 @@
         requestAnimationFrame(() => toast.classList.add('toast-visible'));
         setTimeout(() => { toast.classList.remove('toast-visible'); setTimeout(() => toast.remove(), 300); }, 4000);
     }
-    function esc(s) { const d = document.createElement('div'); d.appendChild(document.createTextNode(s || '')); return d.innerHTML; }
+
 
     // ── INIT ──
     updateCards();

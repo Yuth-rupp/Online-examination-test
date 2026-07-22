@@ -263,6 +263,7 @@ Route::middleware(['auth', 'role:super_admin'])->prefix('super-admin')->group(fu
     Route::post('/admins/store',               [SuperAdminController::class, 'adminStore'])->name('superadmin.admins.store');
     Route::patch('/admins/{id}/toggle-status', [SuperAdminController::class, 'adminToggleStatus'])->name('superadmin.admins.toggleStatus');
     Route::patch('/admins/{id}/change-role',   [SuperAdminController::class, 'adminChangeRole'])->name('superadmin.admins.changeRole');
+    Route::patch('/admins/{id}/change-department', [SuperAdminController::class, 'adminChangeDepartment'])->name('superadmin.admins.changeDepartment');
 
     // ── DEPARTMENT DIRECTORY (create departments, hand each one to an admin) ──
     Route::get('/departments',                        [DepartmentController::class, 'index'])->name('superadmin.departments.index');
