@@ -13,6 +13,7 @@ use App\Http\Controllers\ProctorHandshakeController;
 use App\Http\Controllers\AdminController;
 use App\Http\Controllers\SuperAdminController;
 use App\Http\Controllers\DepartmentController;
+use App\Http\Controllers\InstitutionController;
 use App\Models\Exam;
 
 /*
@@ -77,6 +78,7 @@ Route::middleware(['auth', 'role:teacher'])->group(function () {
 
     Route::get('/teacher/dashboard',  [TeacherController::class, 'index'])->name('teacher.dashboard');
     Route::get('/teacher/analytics',  [TeacherController::class, 'analytics'])->name('teacher.analytics');
+    Route::get('/teacher/analytics/live-data', [TeacherController::class, 'analyticsLiveData'])->name('teacher.analytics.liveData');
     Route::get('/teacher/settings',   function () { return view('teacher.settings'); })->name('teacher.settings');
     Route::post('/teacher/settings',  [TeacherController::class, 'updateSettings'])->name('teacher.settings.update');
     Route::post('/teacher/settings/password', [TeacherController::class, 'updatePassword'])->name('teacher.settings.update.password');
@@ -262,6 +264,13 @@ Route::middleware(['auth', 'role:super_admin'])->prefix('super-admin')->group(fu
     Route::put('/departments/{department}/update',     [DepartmentController::class, 'update'])->name('superadmin.departments.update');
     Route::post('/departments/{department}/assign-admin',       [DepartmentController::class, 'assignAdmin'])->name('superadmin.departments.assignAdmin');
     Route::delete('/departments/{department}/admins/{userId}',  [DepartmentController::class, 'removeAdmin'])->name('superadmin.departments.removeAdmin');
+
+    // ── INSTITUTION DIRECTORY (onboard a university's email domain so its
+    //    students/teachers can self-register — see AuthController::register()) ──
+    Route::get('/institutions',                        [InstitutionController::class, 'index'])->name('superadmin.institutions.index');
+    Route::post('/institutions/store',                  [InstitutionController::class, 'store'])->name('superadmin.institutions.store');
+    Route::put('/institutions/{institution}/update',     [InstitutionController::class, 'update'])->name('superadmin.institutions.update');
+    Route::patch('/institutions/{institution}/toggle-status', [InstitutionController::class, 'toggleStatus'])->name('superadmin.institutions.toggleStatus');
 });
 
 /* =========================================================================

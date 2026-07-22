@@ -46,6 +46,10 @@
                     renderAll();
                     pulseBell();
                     showNotifToast(payload.title, payload.body);
+                    // Let any other real-time widget on this page (Analytics
+                    // cards, Grading Queue counts, etc.) know something just
+                    // changed so it can refetch immediately.
+                    window.dispatchEvent(new CustomEvent('examsystem:live-update', { detail: payload }));
                 });
 
             window.Echo.connector.pusher.connection.bind('connected', () => console.log('[Notifications] Live channel connected'));

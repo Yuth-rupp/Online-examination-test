@@ -620,7 +620,7 @@
                 title: '{{ addslashes($sub->exam->title) }}',
                 code: '{{ addslashes($sub->exam->course->code ?? "") }}',
                 score: {{ $sub->total_score ?? 0 }},
-                maxScore: 100,
+                maxScore: {{ $sub->max_score ?? 100 }},
                 percentage: {{ round($sub->percentage ?? 0) }},
                 grade: '{{ $sub->percentage >= 85 ? "A" : ($sub->percentage >= 70 ? "B+" : "C") }}',
                 percentile: '{{ $sub->percentage >= 85 ? "Top 5%" : ($sub->percentage >= 70 ? "Top 12%" : "Top 26%") }}',
@@ -824,6 +824,40 @@
           URL.revokeObjectURL(url);
         },
 
+        // ─── LIVE SYNC ─────────────────────────────────
+        // Re-pulls this student's submissions (with the real per-exam max
+        // score) every 15s, so a score the teacher just finished grading
+        // appears here — and in the graph above — without a page refresh.
+        // Mirrors the same polling fallback pattern used by the notification bell.
+        async syncSubmissionsFromServer() {
+          try {
+            const res = await fetch('{{ route('student.history') }}', {
+              headers: { 'Accept': 'application/json' }
+            });
+            if (!res.ok) return;
+            const data = await res.json();
+            this.submissions = (data || [])
+              .filter(s => s.exam)
+              .map(s => {
+                const pct = Math.round(s.percentage || 0);
+                return {
+                  id: String(s.id),
+                  title: s.exam.title,
+                  code: (s.exam.course && s.exam.course.code) || '',
+                  score: s.total_score || 0,
+                  maxScore: s.max_score || 100,
+                  percentage: pct,
+                  grade: pct >= 85 ? 'A' : (pct >= 70 ? 'B+' : 'C'),
+                  percentile: pct >= 85 ? 'Top 5%' : (pct >= 70 ? 'Top 12%' : 'Top 26%'),
+                  submittedAt: new Date(s.created_at).toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' })
+                };
+              });
+            this.$nextTick(() => lucide.createIcons());
+          } catch (e) {
+            console.warn('Failed to sync exam history from server', e);
+          }
+        },
+
         // ─── CLOCK ───────────────────────────────────
 
         updateClock() {
@@ -838,6 +872,7 @@
           this.$watch('darkMode', val => localStorage.setItem('darkMode', val));
           this.updateClock();
           setInterval(() => this.updateClock(), 1000);
+          setInterval(() => this.syncSubmissionsFromServer(), 15000);
           lucide.createIcons();
         }
       }));

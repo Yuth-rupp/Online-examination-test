@@ -60,7 +60,8 @@ class StudentController extends Controller
                 'completedExams' => $completedExams,
                 'averageScore'   => $averageScore,
                 'upcomingExams'  => $upcomingExams,
-                'liveExam'       => $liveExam
+                'liveExam'       => $liveExam,
+                'submissions'    => $submissions
             ]);
         }
 
@@ -238,10 +239,19 @@ class StudentController extends Controller
     {
         $user = $request->user() ?? Auth::user();
 
-        $submissions = Submission::with('exam.course')
+        $submissions = Submission::with('exam.course', 'exam.questions')
             ->where('user_id', $user->user_id)
             ->orderBy('created_at', 'desc')
-            ->get();
+            ->get()
+            ->each(function ($sub) {
+                // Real max score = sum of each question's teacher-configured
+                // points on this exam — not a hardcoded 100. Falls back to
+                // 5 pts/question (matching the grading screen's own
+                // fallback) if points were never set.
+                $questions = $sub->exam->questions ?? collect();
+                $maxScore = $questions->sum('points') ?: ($questions->count() * 5) ?: 100;
+                $sub->setAttribute('max_score', $maxScore);
+            });
 
         if ($request->wantsJson() || $request->is('api/*')) {
             return response()->json($submissions);
@@ -534,6 +544,8 @@ class StudentController extends Controller
 
         $totalQuestions        = $exam->questions->count();
         $correctCount          = 0;
+        $earnedPoints          = 0;
+        $maxAutoPoints         = 0;
         $requiresManualGrading = false;
 
         foreach ($exam->questions as $question) {
@@ -545,6 +557,11 @@ class StudentController extends Controller
                 $requiresManualGrading = true;
                 continue;
             }
+
+            // Each question carries its own teacher-set point value —
+            // score by that weight, not just a flat "1 per question" count.
+            $questionPoints = (int) ($question->points ?? 1);
+            $maxAutoPoints += $questionPoints;
 
             // ✅ FIX 2: Use correct_option — that's what addQuestion() saves.
             //    Old code used ->correct_answer ?? ->answer which are always null.
@@ -560,13 +577,15 @@ class StudentController extends Controller
 
                 if ($studentStr === $correctStr) {
                     $correctCount++;
+                    $earnedPoints += $questionPoints;
                 }
             }
         }
 
-        $mcqCount  = $exam->questions->where('type', 'MCQ')->count()
-                   + $exam->questions->where('type', 'True/False')->count();
-        $percentage = $mcqCount > 0 ? round(($correctCount / $mcqCount) * 100, 2) : 0;
+        // Percentage is now earned points ÷ actual points available on this
+        // exam (whatever the teacher configured per question) — not a
+        // hardcoded/assumed total.
+        $percentage = $maxAutoPoints > 0 ? round(($earnedPoints / $maxAutoPoints) * 100, 2) : 0;
 
         // Upsert exam_sessions row
         $activeSessionId = DB::table('exam_sessions')
@@ -590,7 +609,7 @@ class StudentController extends Controller
             'exam_id'     => $exam->exam_id,
             'session_id'  => $activeSessionId,
             'started_at'  => now(),
-            'total_score' => $correctCount,
+            'total_score' => $earnedPoints,
             'percentage'  => $percentage,
             'status'      => $requiresManualGrading ? 'pending_grading' : 'graded',
             'created_at'  => now(),

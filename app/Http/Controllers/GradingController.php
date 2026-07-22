@@ -5,6 +5,8 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Models\Submission;
 use App\Models\Exam;
+use App\Models\Notification;
+use App\Support\RubricSplitter;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
 
@@ -21,7 +23,9 @@ class GradingController extends Controller
         // (including a brand-new one) sees every submission in the system.
         $teacherExamIds = Exam::where('created_by', $user->user_id)->pluck('exam_id');
 
-        $submissions = Submission::with(['student', 'exam.course'])
+        // FIX: also eager-load exam.questions so the queue can show each
+        // submission's REAL max points instead of a hardcoded "/40".
+        $submissions = Submission::with(['student', 'exam.course', 'exam.questions'])
             ->whereIn('exam_id', $teacherExamIds)
             ->orderBy('created_at', 'desc')
             ->get();
@@ -53,8 +57,14 @@ class GradingController extends Controller
         //  $submissionAnswers is now a Collection like:
         //  { "5": "A", "6": "TRUE", "7": "Some essay text..." }
 
-        $prev = Submission::where('id', '<', $submission->id)->orderBy('id', 'desc')->first();
-        $next = Submission::where('id', '>', $submission->id)->orderBy('id', 'asc')->first();
+        // FIX: scope prev/next to this teacher's own exams — the old query
+        // walked every submission id in the whole database, which could
+        // land on another teacher's paper (or fail the ->whereIn() guard
+        // entirely) when this teacher's ids weren't sequential.
+        $prev = Submission::whereIn('exam_id', $teacherExamIds)
+            ->where('id', '<', $submission->id)->orderBy('id', 'desc')->first();
+        $next = Submission::whereIn('exam_id', $teacherExamIds)
+            ->where('id', '>', $submission->id)->orderBy('id', 'asc')->first();
 
         return view('teacher.grading.evaluate',
             compact('submission', 'prev', 'next', 'submissionAnswers'));
@@ -65,12 +75,26 @@ class GradingController extends Controller
      */
     public function store(Request $request, $submission_id)
     {
-        $submission = Submission::findOrFail($submission_id);
+        $submission = Submission::with('exam.questions')->findOrFail($submission_id);
+
+        // ── Dynamic rubric max ──────────────────────────────────────────
+        // FIX: the rubric used to always validate against a hardcoded
+        // 10 / 10 / 5 (25 total) no matter what the essay question was
+        // actually configured to be worth. If the teacher's exam had a
+        // 5-point essay question, the UI and the server disagreed about
+        // what "full marks" meant. Now both sides derive the same three
+        // maximums from the exam's real configured essay points via
+        // RubricSplitter — so a submitted score can never exceed what the
+        // exam is actually worth.
+        $questions   = $submission->exam->questions ?? collect();
+        $essayQs     = $questions->filter(fn($q) => in_array(strtolower($q->type ?? ''), ['essay', 'text', 'essay/text']));
+        $essayMaxPts = $essayQs->sum('points') ?: ($essayQs->count() ? 25 : 0);
+        $rubricMax   = RubricSplitter::split((int) $essayMaxPts);
 
         $validated = $request->validate([
-            'accuracy' => 'required|integer|min:0|max:10',
-            'depth'    => 'required|integer|min:0|max:10',
-            'clarity'  => 'required|integer|min:0|max:5',
+            'accuracy' => "required|integer|min:0|max:{$rubricMax['accuracy']}",
+            'depth'    => "required|integer|min:0|max:{$rubricMax['depth']}",
+            'clarity'  => "required|integer|min:0|max:{$rubricMax['clarity']}",
             'feedback' => 'nullable|string',
         ]);
 
@@ -79,7 +103,14 @@ class GradingController extends Controller
         
         $manualScore = (int)$validated['accuracy'] + (int)$validated['depth'] + (int)$validated['clarity'];
         $finalScore = $autoScore + $manualScore;
-        $percentage = round(($finalScore / 40) * 100, 2);
+
+        // Real total possible points for THIS exam — the same calculation
+        // used on the grading screen (evaluate.blade.php) — instead of a
+        // hardcoded 40 that ignored what the teacher actually set per
+        // question. This is why a 20-point exam was showing as "100".
+        $questions = $submission->exam->questions ?? collect();
+        $totalPts  = $questions->sum('points') ?: ($questions->count() * 5) ?: 40;
+        $percentage = min(100, round(($finalScore / $totalPts) * 100, 2));
 
         // Synchronize rubric metrics and save notes directly to feedback column
         $submission->update([
@@ -94,12 +125,54 @@ class GradingController extends Controller
             'graded_at'        => now()
         ]);
 
-        // Route fallback action check triggers redirect parameters with accurate explicit signature names
+        // Push a live "Exam Graded" notification to the student. This is what the
+        // NotificationObserver picks up and broadcasts over the
+        // notifications.{userId} private channel — the same pipe the "Exam
+        // Submitted" notification already uses on the student side.
+        $examTitle = $submission->exam->title ?? 'your exam';
+        Notification::create([
+            'user_id' => $submission->user_id,
+            'title'   => 'Exam Graded',
+            'body'    => "Your exam \"{$examTitle}\" has been graded. You scored {$percentage}%.",
+            'type'    => 'success',
+            'data'    => [
+                'submission_id' => $submission->id,
+                'exam_id'       => $submission->exam_id,
+                'percentage'    => $percentage,
+            ],
+        ]);
+
+        // ── Save & Grade Next ────────────────────────────────────────────
+        // FIX: this used to redirect with ['id' => ...] but the route is
+        // registered as /teacher/grading/evaluate/{student_id} — passing
+        // the wrong key meant the URL never resolved correctly and "Save &
+        // Grade Next" silently failed to advance. It also picked "next" by
+        // raw id across every submission in the database rather than the
+        // teacher's own remaining pending-grading queue.
+        //
+        // Now: jump to the next PENDING submission still waiting in THIS
+        // teacher's queue (oldest first, same order the queue page uses).
+        // If there isn't one — including the "only one student" case —
+        // go back to the queue with a clear "all caught up" message
+        // instead of silently doing nothing.
         if ($request->input('action') === 'save_next') {
-            $next = Submission::where('id', '>', $submission->id)->orderBy('id', 'asc')->first();
+            $teacherExamIds = Exam::where('created_by', Auth::user()->user_id)->pluck('exam_id');
+
+            $next = Submission::whereIn('exam_id', $teacherExamIds)
+                ->where('id', '!=', $submission->id)
+                ->where('status', 'pending_grading')
+                ->orderBy('created_at', 'asc')
+                ->first();
+
             if ($next) {
-                return redirect()->route('teacher.grading.show', ['id' => $next->id]);
+                return redirect()
+                    ->route('teacher.grading.show', ['student_id' => $next->id])
+                    ->with('success', 'Grade saved! Moved to the next student.');
             }
+
+            return redirect()
+                ->route('teacher.grading.queue')
+                ->with('success', "Grade saved! You're all caught up — no more submissions waiting to be graded.");
         }
 
         return redirect()->route('teacher.grading.queue')->with('success', 'Grading session updated successfully.');

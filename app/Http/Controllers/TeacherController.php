@@ -345,8 +345,40 @@ class TeacherController extends Controller
      */
     public function analytics()
     {
-        $user = Auth::user();
+        $data = $this->buildAnalyticsPayload(Auth::user());
 
+        return view('teacher.teacher-analytic', $data);
+    }
+
+    /**
+     * JSON endpoint used by the Analytics page to poll for fresh numbers
+     * every few seconds — and by Echo's instant-refresh listener the
+     * moment a submission is graded — so the dashboard that's already
+     * labelled "LIVE" actually behaves that way instead of only ever
+     * reflecting whatever was true at the moment the page first loaded.
+     */
+    public function analyticsLiveData(Request $request)
+    {
+        $data = $this->buildAnalyticsPayload($request->user() ?? Auth::user());
+
+        return response()->json([
+            'totalStudentsCount'     => $data['totalStudentsCount'],
+            'activeSessionsCount'    => $data['activeSessionsCount'],
+            'averageClassScore'      => $data['averageClassScore'],
+            'examPassRatePercentage' => $data['examPassRatePercentage'],
+            'totalSubmissionsCount'  => $data['totalSubmissionsCount'],
+            'liveSubmissionsRaw'     => $data['liveSubmissionsRaw'],
+            'generated_at'           => now()->toIso8601String(),
+        ]);
+    }
+
+    /**
+     * Shared data builder behind both the Analytics page and its live
+     * polling endpoint, so the two can never drift out of sync with
+     * each other.
+     */
+    private function buildAnalyticsPayload($user): array
+    {
         // 1. Gather master collections owned by this authenticated teacher
         $teacherExams = Exam::where('created_by', $user->user_id)->get();
         $teacherExamIds = $teacherExams->pluck('exam_id');
@@ -427,10 +459,10 @@ class TeacherController extends Controller
 
         $monthsLabels = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
-        return view('teacher.teacher-analytic', compact(
-            'totalStudentsCount', 
-            'activeSessionsCount', 
-            'averageClassScore', 
+        return compact(
+            'totalStudentsCount',
+            'activeSessionsCount',
+            'averageClassScore',
             'examPassRatePercentage',
             'totalSubmissionsCount',
             'monthsLabels',
@@ -438,7 +470,7 @@ class TeacherController extends Controller
             'hardestQuestions',
             'teacherExams',
             'liveSubmissionsRaw'
-        ));
+        );
     }
 
     /**

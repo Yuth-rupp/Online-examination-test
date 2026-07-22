@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Institutions | ExamSystem</title>
+    <script>
+      (function () {
+        if (localStorage.getItem('darkMode') === 'true') {
+          document.documentElement.classList.add('dark');
+        }
+      })();
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <style>
+        * { font-family: 'Inter', sans-serif; }
+        .admin-brand-gradient { background: linear-gradient(135deg, #2563eb 0%, #1e40af 100%); }
+        .admin-topbar { background: linear-gradient(120deg, #1d4ed8 0%, #2563eb 45%, #1e3a8a 100%); }
+        .card { background:#fff; border:1px solid #e8edf5; box-shadow:0 2px 10px rgba(15,23,42,0.04); }
+        .modal-overlay { background: rgba(15,23,42,0.35); backdrop-filter: blur(4px); }
+        .form-input { border:1px solid #e2e8f0; background:#fff; }
+        .form-input:focus { outline:none; border-color:#2563eb; box-shadow:0 0 0 3px rgba(37,99,235,0.12); }
+    </style>
+</head>
+<body class="antialiased bg-slate-50 text-slate-800">
+
+<div class="flex min-h-screen">
+
+    @include('partials.admin-sidebar')
+
+    <main class="flex-1 ml-64 min-h-screen flex flex-col">
+
+        <header class="flex items-center justify-between px-7 py-4 border-b sticky top-0 z-20 admin-topbar" style="box-shadow:0 4px 24px rgba(29,78,216,0.28)">
+            <div>
+                <h1 class="text-white font-bold text-lg">Institution Directory</h1>
+                <p class="text-blue-100 text-xs mt-0.5">Onboard a university's email domain so its students and teachers can self-register.</p>
+            </div>
+            <div class="text-right">
+                <h4 class="text-sm font-semibold text-white">{{ Auth::user()->full_name ?? 'Super Admin' }}</h4>
+                <span class="text-xs text-blue-200">Super Administrator</span>
+            </div>
+        </header>
+
+        <div class="p-7">
+
+            @if(session('success'))
+            <div class="mb-5 p-3.5 rounded-xl flex items-center gap-2.5 text-sm font-medium text-emerald-700" style="background:#f0fdf4;border:1px solid #bbf7d0">
+                <i class="fa-solid fa-circle-check text-emerald-500"></i> {{ session('success') }}
+            </div>
+            @endif
+
+            @if($errors->any())
+            <div class="mb-5 p-3.5 rounded-xl text-sm font-medium text-red-700" style="background:#fef2f2;border:1px solid #fecaca">
+                <ul class="list-disc pl-5">
+                    @foreach($errors->all() as $error)<li>{{ $error }}</li>@endforeach
+                </ul>
+            </div>
+            @endif
+
+            <div class="flex items-center justify-between mb-5">
+                <div>
+                    <h2 class="text-xl font-bold text-slate-900">How this works</h2>
+                    <p class="text-sm text-slate-500 mt-1 max-w-2xl">
+                        The registration form checks a new signup's email domain against this list. If nobody
+                        has added a university's domain here yet, that university's students and teachers will
+                        see: <span class="italic">"Your email domain isn't registered to a university on this
+                        platform yet."</span> — add it below and self-registration opens up for that domain immediately.
+                    </p>
+                </div>
+                <button type="button" onclick="document.getElementById('add-inst-modal').classList.remove('hidden')"
+                    class="flex items-center gap-2 text-white text-xs font-bold px-4 py-2.5 rounded-xl admin-brand-gradient whitespace-nowrap">
+                    <i class="fa-solid fa-plus"></i> Onboard University
+                </button>
+            </div>
+
+            <div class="card rounded-2xl overflow-hidden">
+                <table class="w-full text-sm">
+                    <thead>
+                        <tr class="bg-slate-50 border-b border-slate-100 text-left">
+                            <th class="px-5 py-3 text-[11px] font-black uppercase tracking-wide text-slate-400">University</th>
+                            <th class="px-5 py-3 text-[11px] font-black uppercase tracking-wide text-slate-400">Email Domain</th>
+                            <th class="px-5 py-3 text-[11px] font-black uppercase tracking-wide text-slate-400">Users</th>
+                            <th class="px-5 py-3 text-[11px] font-black uppercase tracking-wide text-slate-400">Status</th>
+                            <th class="px-5 py-3 text-[11px] font-black uppercase tracking-wide text-slate-400 text-right">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @forelse($institutions as $inst)
+                        <tr class="border-b border-slate-50 last:border-0">
+                            <td class="px-5 py-4 font-bold text-slate-900">{{ $inst->name }}</td>
+                            <td class="px-5 py-4">
+                                <code class="text-xs bg-slate-100 text-slate-600 px-2 py-1 rounded-lg">{{ '@' . $inst->domain }}</code>
+                            </td>
+                            <td class="px-5 py-4 text-slate-600">{{ $inst->users_count }}</td>
+                            <td class="px-5 py-4">
+                                <span class="text-[11px] font-semibold px-2.5 py-1 rounded-full {{ $inst->is_active ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-slate-100 text-slate-500 border border-slate-200' }}">
+                                    {{ $inst->is_active ? 'Active — registration open' : 'Inactive — registration blocked' }}
+                                </span>
+                            </td>
+                            <td class="px-5 py-4 text-right">
+                                <div class="flex items-center justify-end gap-3">
+                                    <button type="button" onclick="document.getElementById('edit-inst-{{ $inst->id }}').classList.remove('hidden')"
+                                        class="text-xs font-semibold text-slate-500 hover:text-slate-800">
+                                        <i class="fa-solid fa-pen"></i> Edit
+                                    </button>
+                                    <form action="{{ route('superadmin.institutions.toggleStatus', $inst->id) }}" method="POST"
+                                          onsubmit="return confirm('{{ $inst->is_active ? 'Deactivate this university? New self-registrations from this domain will be blocked immediately.' : 'Reactivate this university?' }}');">
+                                        @csrf @method('PATCH')
+                                        <button type="submit" class="text-xs font-semibold {{ $inst->is_active ? 'text-red-500 hover:text-red-700' : 'text-emerald-600 hover:text-emerald-800' }}">
+                                            <i class="fa-solid {{ $inst->is_active ? 'fa-ban' : 'fa-circle-check' }}"></i> {{ $inst->is_active ? 'Deactivate' : 'Activate' }}
+                                        </button>
+                                    </form>
+                                </div>
+                            </td>
+                        </tr>
+
+                        @empty
+                        <tr>
+                            <td colspan="5" class="px-5 py-12 text-center text-slate-400">
+                                <i class="fa-solid fa-building-columns text-3xl mb-3 block"></i>
+                                No universities onboarded yet. Add one so its students and teachers can self-register.
+                            </td>
+                        </tr>
+                        @endforelse
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Edit modals (one per institution, outside the table for valid HTML) -->
+            @foreach($institutions as $inst)
+            <div id="edit-inst-{{ $inst->id }}" class="modal-overlay hidden fixed inset-0 z-30 flex items-center justify-center p-4">
+                <div class="bg-white rounded-2xl w-full max-w-md overflow-hidden">
+                    <div class="p-5 border-b border-slate-100 flex items-center justify-between">
+                        <h3 class="font-bold text-slate-900">Edit {{ $inst->name }}</h3>
+                        <button type="button" onclick="document.getElementById('edit-inst-{{ $inst->id }}').classList.add('hidden')" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark"></i></button>
+                    </div>
+                    <form action="{{ route('superadmin.institutions.update', $inst->id) }}" method="POST" class="p-5 space-y-4">
+                        @csrf @method('PUT')
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">University Name</label>
+                            <input name="name" value="{{ $inst->name }}" required class="form-input w-full px-3.5 py-2.5 rounded-xl text-sm">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Email Domain</label>
+                            <input name="domain" value="{{ $inst->domain }}" required placeholder="e.g. rupp.edu.kh" class="form-input w-full px-3.5 py-2.5 rounded-xl text-sm">
+                            <p class="text-[11px] text-slate-400 mt-1">Just the domain — no "@" and no "student.".</p>
+                        </div>
+                        <div class="flex gap-3 pt-1">
+                            <button type="button" onclick="document.getElementById('edit-inst-{{ $inst->id }}').classList.add('hidden')" class="flex-1 py-2.5 rounded-xl text-sm font-semibold text-slate-600 border border-slate-200">Cancel</button>
+                            <button type="submit" class="flex-1 py-2.5 rounded-xl text-sm font-bold text-white admin-brand-gradient">Save</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            @endforeach
+        </div>
+    </main>
+</div>
+
+<!-- Onboard university modal -->
+<div id="add-inst-modal" class="modal-overlay hidden fixed inset-0 z-30 flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl w-full max-w-md overflow-hidden">
+        <div class="p-5 border-b border-slate-100 flex items-center justify-between">
+            <h3 class="font-bold text-slate-900">Onboard a University</h3>
+            <button type="button" onclick="document.getElementById('add-inst-modal').classList.add('hidden')" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <form action="{{ route('superadmin.institutions.store') }}" method="POST" class="p-5 space-y-4">
+            @csrf
+            <div>
+                <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">University Name</label>
+                <input name="name" required placeholder="e.g. Royal University of Phnom Penh" class="form-input w-full px-3.5 py-2.5 rounded-xl text-sm">
+            </div>
+            <div>
+                <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Email Domain</label>
+                <input name="domain" required placeholder="e.g. rupp.edu.kh" class="form-input w-full px-3.5 py-2.5 rounded-xl text-sm">
+                <p class="text-[11px] text-slate-400 mt-1">Just the domain — no "@". Anyone with an email ending in this domain will be able to self-register.</p>
+            </div>
+            <div class="flex gap-3 pt-1">
+                <button type="button" onclick="document.getElementById('add-inst-modal').classList.add('hidden')" class="flex-1 py-2.5 rounded-xl text-sm font-semibold text-slate-600 border border-slate-200">Cancel</button>
+                <button type="submit" class="flex-1 py-2.5 rounded-xl text-sm font-bold text-white admin-brand-gradient">Onboard</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+</body>
+</html>

@@ -324,16 +324,16 @@
                                 <span class="text-[10px] font-bold text-[#94A3B8] uppercase tracking-widest">Score</span>
                                 <span class="text-xs font-black"
                                       :class="sub.status === 'graded' ? 'text-[#1E293B]' : 'text-[#94A3B8]'"
-                                      x-text="sub.status === 'graded' ? sub.total_score + ' / 40' : '— / 40'"></span>
+                                      x-text="sub.status === 'graded' ? sub.total_score + ' / ' + sub.total_max : '— / ' + sub.total_max"></span>
                             </div>
                             <div class="h-2 bg-[#F1F5F9] rounded-full overflow-hidden">
                                 <div class="h-full rounded-full transition-all duration-700"
                                      :class="sub.status === 'graded'
-                                         ? (sub.total_score >= 30 ? 'bg-gradient-to-r from-emerald-400 to-teal-400'
-                                           : sub.total_score >= 20 ? 'bg-gradient-to-r from-amber-400 to-orange-400'
+                                         ? (sub.total_score >= sub.total_max*0.75 ? 'bg-gradient-to-r from-emerald-400 to-teal-400'
+                                           : sub.total_score >= sub.total_max*0.5 ? 'bg-gradient-to-r from-amber-400 to-orange-400'
                                            : 'bg-gradient-to-r from-red-400 to-rose-400')
                                          : 'bg-[#E2E8F0]'"
-                                     :style="`width:${sub.status === 'graded' ? Math.round(sub.total_score/40*100) : 0}%`">
+                                     :style="`width:${sub.status === 'graded' ? Math.round(sub.total_score/sub.total_max*100) : 0}%`">
                                 </div>
                             </div>
                         </div>
@@ -400,6 +400,13 @@ function queueApp(){
         submissions: [
             @if(isset($submissions) && count($submissions) > 0)
                 @foreach($submissions as $sub)
+                @php
+                    // FIX: real max points for this exam, instead of a
+                    // hardcoded "/40" that ignored what the teacher
+                    // actually configured per question.
+                    $subQuestions = $sub->exam->questions ?? collect();
+                    $subTotalMax  = $subQuestions->sum('points') ?: ($subQuestions->count() * 5) ?: 40;
+                @endphp
                 {
                     id: '{{ $sub->id }}',
                     student_name: '{{ addslashes($sub->student->full_name ?? "You Phatyuth") }}',
@@ -409,6 +416,7 @@ function queueApp(){
                     clean_exam_id: '{{ substr($sub->exam_id, 0, 8) }}',
                     status: '{{ $sub->status }}',
                     total_score: {{ $sub->total_score ?? 0 }},
+                    total_max: {{ $subTotalMax }},
                 },
                 @endforeach
             @else

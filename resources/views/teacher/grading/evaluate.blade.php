@@ -77,6 +77,28 @@
     $essayMaxPts = $essayQs->sum('points')  ?: ($hasEssay ? 25 : 0);
 
     /*
+     * ── DYNAMIC RUBRIC MAX ───────────────────────────────────────────
+     * FIX: Accuracy/Depth/Clarity sliders used to be hardcoded to a max
+     * of 10/10/5 (25 total) no matter what the essay question was really
+     * worth — so a 5-point essay would show "posted / 25" even though the
+     * exam only awards 5 points for it. RubricSplitter derives the three
+     * slider maximums straight from $essayMaxPts (the exam's real
+     * configured value), and GradingController::store() validates
+     * against the exact same numbers, so the UI and the saved score can
+     * never disagree again.
+     */
+    $rubricMax = \App\Support\RubricSplitter::split((int) $essayMaxPts);
+    $accMax    = $rubricMax['accuracy'];
+    $depMax    = $rubricMax['depth'];
+    $claMax    = $rubricMax['clarity'];
+
+    // Clamp any previously-saved scores down to the new max, in case they
+    // were saved back when the max was the old hardcoded 10/10/5.
+    $savedAccuracy = min($submission->accuracy_score ?? 0, $accMax);
+    $savedDepth    = min($submission->depth_score    ?? 0, $depMax);
+    $savedClarity  = min($submission->clarity_score  ?? 0, $claMax);
+
+    /*
      * ── ANSWER MAP ──────────────────────────────────
      * Merge the controller-loaded $submissionAnswers (keyed by question_id)
      * with standard Eloquent answers if loaded.
@@ -129,14 +151,17 @@
 
 <body class="bg-slate-100 text-slate-800 min-h-screen overflow-x-hidden"
       x-data="GWS(
-          {{ $submission->accuracy_score ?? 0 }},
-          {{ $submission->depth_score    ?? 0 }},
-          {{ $submission->clarity_score  ?? 0 }},
+          {{ $savedAccuracy }},
+          {{ $savedDepth }},
+          {{ $savedClarity }},
           {{ $autoScore }},
           {{ $hasEssay ? 'true' : 'false' }},
           {{ $essayMaxPts }},
           {{ $totalPts }},
-          {{ $autoPts }}
+          {{ $autoPts }},
+          {{ $accMax }},
+          {{ $depMax }},
+          {{ $claMax }}
       )">
 
 <form action="{{ route('teacher.grading.store', $submission->id) }}" method="POST" id="GF">
@@ -615,10 +640,10 @@
                     <div class="flex items-center justify-between mb-2">
                         <span class="text-[11px] font-bold text-slate-600">📐 Accuracy</span>
                         <div class="text-[11px] font-black tabular-nums px-2 py-0.5 rounded-lg" style="background:#EEF2FF;color:#4338CA">
-                            <span x-text="accuracy"></span>/10
+                            <span x-text="accuracy"></span>/{{ $accMax }}
                         </div>
                     </div>
-                    <input type="range" name="accuracy" min="0" max="10" x-model.number="accuracy"
+                    <input type="range" name="accuracy" min="0" max="{{ $accMax }}" x-model.number="accuracy"
                            @input="upSlider($event.target)" class="w-full slider"
                            style="background:linear-gradient(to right,#4F46E5 0%,#4F46E5 0%,#E2E8F0 0%,#E2E8F0 100%)">
                 </div>
@@ -626,10 +651,10 @@
                     <div class="flex items-center justify-between mb-2">
                         <span class="text-[11px] font-bold text-slate-600">🔭 Depth</span>
                         <div class="text-[11px] font-black tabular-nums px-2 py-0.5 rounded-lg" style="background:#EEF2FF;color:#4338CA">
-                            <span x-text="depth"></span>/10
+                            <span x-text="depth"></span>/{{ $depMax }}
                         </div>
                     </div>
-                    <input type="range" name="depth" min="0" max="10" x-model.number="depth"
+                    <input type="range" name="depth" min="0" max="{{ $depMax }}" x-model.number="depth"
                            @input="upSlider($event.target)" class="w-full slider"
                            style="background:linear-gradient(to right,#4F46E5 0%,#4F46E5 0%,#E2E8F0 0%,#E2E8F0 100%)">
                 </div>
@@ -637,10 +662,10 @@
                     <div class="flex items-center justify-between mb-2">
                         <span class="text-[11px] font-bold text-slate-600">✨ Clarity</span>
                         <div class="text-[11px] font-black tabular-nums px-2 py-0.5 rounded-lg" style="background:#EEF2FF;color:#4338CA">
-                            <span x-text="clarity"></span>/5
+                            <span x-text="clarity"></span>/{{ $claMax }}
                         </div>
                     </div>
-                    <input type="range" name="clarity" min="0" max="5" x-model.number="clarity"
+                    <input type="range" name="clarity" min="0" max="{{ $claMax }}" x-model.number="clarity"
                            @input="upSlider($event.target)" class="w-full slider"
                            style="background:linear-gradient(to right,#4F46E5 0%,#4F46E5 0%,#E2E8F0 0%,#E2E8F0 100%)">
                 </div>
@@ -747,12 +772,13 @@ function openM(){document.getElementById('M').classList.remove('hidden')}
 function closeM(){document.getElementById('M').classList.add('hidden')}
 document.getElementById('M').addEventListener('click',function(e){if(e.target===this)closeM()});
 
-// Alpine — autoPts now passed as 8th argument
-function GWS(acc,dep,cla,auto,hasE,eMax,tMax,aPts){
+// Alpine — autoPts now passed as 8th argument; rubric sub-maxes as 9th-11th
+// so the client-side total always matches what the server will validate.
+function GWS(acc,dep,cla,auto,hasE,eMax,tMax,aPts,accMax,depMax,claMax){
     return{
         accuracy:acc, depth:dep, clarity:cla,
         autoScore:auto, hasEssay:hasE, essayMax:eMax, totalMax:tMax,
-        autoPts:aPts,
+        autoPts:aPts, accMax:accMax, depMax:depMax, claMax:claMax,
         essayTotal(){ return +this.accuracy + +this.depth + +this.clarity; },
         totalScore(){ return this.autoScore + (this.hasEssay ? this.essayTotal() : 0); },
         upSlider(s){

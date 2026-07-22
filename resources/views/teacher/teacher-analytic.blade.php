@@ -77,6 +77,7 @@
                         <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 ld"></span> LIVE
                     </span>
                     <span class="text-[10px] text-white/40 font-semibold">Real-Time Analytics</span>
+                    <span class="text-[9px] text-white/30 font-medium" id="lastRefreshedLabel">· updated just now</span>
                 </div>
                 <h1 class="text-[16px] font-black text-white tracking-tight">Analytics Engine</h1>
                 <p class="text-[10px] text-white/50 mt-0.5">Evaluation data based on active exam tracking</p>
@@ -170,7 +171,7 @@
                         <span class="text-[9px] font-black text-blue-700 bg-blue-100 px-2 py-0.5 rounded-full">TOTAL</span>
                     </div>
                     <p class="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">System Students</p>
-                    <p class="text-3xl font-black text-slate-900 tabular-nums">{{ number_format($totalStudentsCount) }}</p>
+                    <p class="text-3xl font-black text-slate-900 tabular-nums" id="cardStudents">{{ number_format($totalStudentsCount) }}</p>
                     <div class="mt-3 h-1.5 rounded-full overflow-hidden" style="background:#EFF6FF">
                         <div class="h-full rounded-full bf" style="background:linear-gradient(90deg,#2563EB,#60A5FA);width:100%"></div>
                     </div>
@@ -633,6 +634,61 @@ function exportCSV(){
 
 // ── INIT ───────────────────────────
 document.addEventListener('DOMContentLoaded', processUpdate);
+
+// ══════════════════════════════════════════════════════════════════
+// REAL-TIME REFRESH
+// ──────────────────────────────────────────────────────────────────
+// The page used to compute everything once from data baked in at
+// page-load time and just call itself "LIVE" — it never actually
+// refreshed. Now it polls the analytics JSON endpoint on an interval
+// (works everywhere, no socket setup required) AND listens for the
+// 'examsystem:live-update' event dispatched by the notification
+// script the instant a new "Exam Graded" push comes in over Echo —
+// so a grade you just saved shows up on this dashboard within a
+// second or two instead of waiting for the next poll.
+// ══════════════════════════════════════════════════════════════════
+let liveRefreshInFlight = false;
+let secsSinceRefresh = 0;
+
+async function fetchLiveAnalytics(){
+    if (liveRefreshInFlight) return;
+    liveRefreshInFlight = true;
+    try{
+        const res = await fetch('{{ route('teacher.analytics.liveData') }}', { headers: { 'Accept': 'application/json' } });
+        if(!res.ok) return;
+        const data = await res.json();
+
+        // Replace the client-side dataset the whole page filters/renders from.
+        DATASET.length = 0;
+        (data.liveSubmissionsRaw || []).forEach(r => DATASET.push(r));
+
+        // Cards that aren't derived from DATASET (they come straight from the server).
+        const studentsEl = document.getElementById('cardStudents');
+        if (studentsEl) studentsEl.textContent = Number(data.totalStudentsCount || 0).toLocaleString();
+
+        processUpdate();
+        secsSinceRefresh = 0;
+    }catch(e){
+        console.warn('[Analytics] Live refresh failed', e);
+    }finally{
+        liveRefreshInFlight = false;
+    }
+}
+
+// Poll fallback — works even if websockets aren't configured yet.
+setInterval(fetchLiveAnalytics, 8000);
+
+// Instant refresh the moment a grading-related notification arrives.
+window.addEventListener('examsystem:live-update', fetchLiveAnalytics);
+
+// Keep the "· updated Ns ago" label honest between refreshes.
+setInterval(() => {
+    secsSinceRefresh += 1;
+    const stamp = document.getElementById('lastRefreshedLabel');
+    if (!stamp) return;
+    stamp.textContent = secsSinceRefresh <= 2 ? '· updated just now' : `· updated ${secsSinceRefresh}s ago`;
+}, 1000);
+
 </script>
 
 @include('partials.teacher-notification-realtime')

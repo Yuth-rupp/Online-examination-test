@@ -601,11 +601,81 @@
           return `${m}m ${s}s`;
         },
 
+        // ── Live sync: pulls fresh exams + submissions from the server and
+        //    merges them into the reactive list. This is what makes newly
+        //    published exams show up, and completed/graded exams flip to
+        //    "completed" with their score, without a manual page refresh.
+        async syncExamsFromServer() {
+          try {
+            const res = await fetch('{{ route('student.exams') }}', {
+              headers: { 'Accept': 'application/json' }
+            });
+            if (!res.ok) return;
+            const data = await res.json();
+            const serverExams = data.exams || [];
+            const submissions = data.submissions || [];
+
+            serverExams.forEach(se => {
+              const submission = submissions.find(s => String(s.exam_id) === String(se.exam_id));
+              const existing = this.exams.find(e => String(e.id) === String(se.exam_id));
+
+              if (existing) {
+                // Update completion/score in place so an already-rendered
+                // card flips to "completed" the moment grading finishes.
+                if (submission) {
+                  existing.isSubmittedByStudent = true;
+                  existing.score = submission.percentage !== null && submission.percentage !== undefined
+                    ? Number(submission.percentage)
+                    : existing.score;
+                  existing.status = 'completed';
+                }
+              } else {
+                // Brand new exam the teacher just published — add it.
+                const start = new Date(se.start_time);
+                const end = new Date(se.end_time);
+                const now = new Date();
+                let status = 'upcoming';
+                if (submission) status = 'completed';
+                else if (now >= start && now <= end) status = 'ongoing';
+                else if (now > end) status = 'completed';
+
+                this.exams.push({
+                  id: String(se.exam_id),
+                  title: se.title,
+                  courseId: String((se.course && se.course.id) || se.course_id || ''),
+                  code: (se.course && se.course.code) || 'DAT-464',
+                  dept: (se.course && se.course.name) || 'Database Department',
+                  date: start.toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' }),
+                  time: start.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
+                  duration: (se.duration || 100) + ' mins',
+                  durationMins: se.duration || 100,
+                  startTimeRaw: se.start_time,
+                  endTimeRaw: se.end_time,
+                  isSubmittedByStudent: !!submission,
+                  status: status,
+                  countdown: '',
+                  progressPct: 0,
+                  score: submission && submission.percentage !== null && submission.percentage !== undefined
+                    ? Number(submission.percentage)
+                    : undefined
+                });
+              }
+            });
+          } catch (e) {
+            console.warn('Failed to sync exams from server', e);
+          }
+        },
+
         init() {
           this.$watch('darkMode', val => localStorage.setItem('darkMode', val));
 
           this.updateClock();
           setInterval(() => this.updateClock(), 1000);
+
+          // Poll the server every 15s for newly published exams and
+          // freshly graded scores — mirrors the same fallback-polling
+          // pattern already used by the notification bell.
+          setInterval(() => this.syncExamsFromServer(), 15000);
 
           setInterval(() => {
             const now = new Date();

@@ -636,6 +636,75 @@
           });
         },
 
+        // ── Live sync: pulls fresh metrics, exams, and submissions from the
+        //    server and merges them into the reactive state. This is what
+        //    makes a newly published exam show up under "Upcoming", and a
+        //    freshly graded score flip an exam to "Completed", without a
+        //    manual page refresh — same polling pattern used on the Exams
+        //    and History pages.
+        async syncDashboardFromServer() {
+          try {
+            const res = await fetch('{{ route('student.dashboard') }}', {
+              headers: { 'Accept': 'application/json' }
+            });
+            if (!res.ok) return;
+            const data = await res.json();
+
+            this.metrics.totalExams = data.totalExams ?? this.metrics.totalExams;
+            this.metrics.completedExams = data.completedExams ?? this.metrics.completedExams;
+            this.metrics.averageScore = Math.round(data.averageScore ?? this.metrics.averageScore);
+
+            const submissions = data.submissions || [];
+            const serverExams = data.upcomingExams || [];
+
+            serverExams.forEach(se => {
+              const submission = submissions.find(s => String(s.exam_id) === String(se.exam_id));
+              const existing = this.exams.find(e => String(e.id) === String(se.exam_id));
+
+              if (existing) {
+                if (submission) {
+                  existing.isSubmitted = true;
+                  existing.status = 'completed';
+                }
+              } else {
+                // Brand new exam the teacher just published — add it.
+                const start = new Date(se.start_time);
+                const end = new Date(se.end_time || start);
+                const now = new Date();
+                let status = 'upcoming';
+                if (submission) status = 'completed';
+                else if (now >= start && now <= end) status = 'ongoing';
+                else if (now > end) status = 'completed';
+
+                this.exams.push({
+                  id: String(se.exam_id),
+                  title: se.title,
+                  code: (se.course && se.course.code) || 'DAT-464',
+                  dept: (se.course && se.course.course_name) || 'Database Dept',
+                  date: start.toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' }),
+                  time: start.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
+                  duration: (se.duration || 100) + ' mins',
+                  startTimeRaw: se.start_time,
+                  endTimeRaw: se.end_time,
+                  isSubmitted: !!submission,
+                  status: status
+                });
+              }
+            });
+
+            // Refresh the trend chart with the latest graded submissions.
+            this.weeklyData = submissions.slice(0, 5).map(s => ({
+              title: (s.exam && s.exam.title) || 'Exam',
+              score: Math.round(s.percentage || 0),
+              date: new Date(s.created_at).toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' })
+            }));
+
+            this.$nextTick(() => lucide.createIcons());
+          } catch (e) {
+            console.warn('Failed to sync dashboard from server', e);
+          }
+        },
+
         init() {
           setInterval(() => {
             const now = new Date();
@@ -648,6 +717,10 @@
               else exam.status = 'upcoming';
             });
           }, 1000);
+
+          // Poll the server every 15s for newly published exams and
+          // freshly graded scores.
+          setInterval(() => this.syncDashboardFromServer(), 15000);
 
           lucide.createIcons();
         }
