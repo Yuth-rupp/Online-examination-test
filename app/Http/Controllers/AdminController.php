@@ -394,10 +394,22 @@ class AdminController extends Controller
             ->where('user_id', '!=', Auth::id())
             ->inDepartments($this->scopedDepartmentIds())
             ->findOrFail($id);
-        $user->status = ($user->status === 'active' || !$user->status) ? 'suspended' : 'active';
+
+        // A 'pending' account is a self-registered teacher awaiting
+        // approval (see AuthController::register). The same button an
+        // Admin uses to activate/suspend everyone else doubles as the
+        // approval action here: pending -> active. From there it behaves
+        // like any other account (active <-> suspended toggle below).
+        if ($user->status === 'pending') {
+            $user->status = 'active';
+            $actionName = 'Approved';
+        } else {
+            $user->status = ($user->status === 'active' || !$user->status) ? 'suspended' : 'active';
+            $actionName = $user->status === 'suspended' ? 'Suspended' : 'Activated';
+        }
+
         $user->save();
 
-        $actionName = $user->status === 'suspended' ? 'Suspended' : 'Activated';
         $this->logSecurityEvent(Auth::id(), 'comments', 'Status Control', $actionName . ' profile node availability rules.');
 
         return redirect()->route('admin.users')->with('success', 'Account status updated.');

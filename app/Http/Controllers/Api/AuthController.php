@@ -47,9 +47,14 @@ class AuthController extends Controller
         // never able to pick someone else's institution from a dropdown.
         // We match it automatically from their email domain against the
         // `institutions.domain` column (e.g. "student@rupp.edu.kh" ->
-        // the institution whose domain is "rupp.edu.kh"). If no active
-        // institution owns that domain, registration is refused rather
-        // than silently creating an orphaned/misplaced account.
+        // the institution whose domain is "rupp.edu.kh").
+        //
+        // If no institution owns that domain yet, we NO LONGER block
+        // registration. Instead we auto-onboard the domain by creating a
+        // new (active) institution row on the fly, so students/teachers
+        // can always self-register on first use. A super_admin can rename
+        // the auto-created institution, set a logo, etc. afterwards from
+        // the admin panel.
         $emailDomain = strtolower(substr(strrchr($data['email'], '@'), 1));
 
         $institution = \App\Models\Institution::where('domain', $emailDomain)
@@ -57,9 +62,27 @@ class AuthController extends Controller
             ->first();
 
         if (!$institution) {
-            return back()
-                ->withErrors(['email' => 'Your email domain isn\'t registered to a university on this platform yet. Contact your university\'s Super Admin, or reach out to us to onboard your school.'])
-                ->withInput($request->except('password'));
+            // Derive a human-friendly default name from the domain, e.g.
+            // "rupp.edu.kh" -> "Rupp", "gmail.com" -> "Gmail". This is just
+            // a starting point; a super_admin can rename it later.
+            $label = ucfirst(strtok($emailDomain, '.'));
+
+            $institution = \App\Models\Institution::firstOrCreate(
+                ['domain' => $emailDomain],
+                [
+                    'name'      => $label,
+                    'is_active' => true,
+                ]
+            );
+
+            // Edge case: the domain existed already but was marked
+            // inactive (e.g. a school the Super Admin deliberately
+            // suspended). Respect that instead of silently reactivating it.
+            if (!$institution->is_active) {
+                return back()
+                    ->withErrors(['email' => 'Your university\'s account on this platform is currently inactive. Please contact your Super Admin.'])
+                    ->withInput($request->except('password'));
+            }
         }
 
         $fullName = $data['first_name'] . ' ' . $data['last_name'];
@@ -71,13 +94,26 @@ class AuthController extends Controller
         //    people register at the same instant.
         $institutionalId = InstitutionalIdGenerator::generate($data['role'], $institution->id);
 
+        // 🔒 ROLE INTEGRITY: the "Registering as" dropdown is filled in by
+        // the person themselves — nothing on the client can prove that a
+        // "Teacher" signup is actually a real member of staff. Anyone can
+        // pick Teacher off a public form. Because the teacher role carries
+        // real privileges elsewhere in the app (creating/grading exams,
+        // department assignment, teacher-only routes), we do NOT activate
+        // self-registered teacher accounts immediately. They're created in
+        // a 'pending' state and can't log in until an Admin at their
+        // institution approves them from Admin > Users. Students carry no
+        // elevated privileges from a self-declared role, so they stay
+        // auto-active.
+        $initialStatus = $data['role'] === 'teacher' ? 'pending' : 'active';
+
         // 3. Save and commit the user data fields into your database table
         $user = User::create([
             'full_name'        => $fullName,
             'email'            => $data['email'],
             'password_hash'    => Hash::make($data['password']), // Maps to your custom migration column
             'role'             => $data['role'],
-            'status'           => 'active',
+            'status'           => $initialStatus,
             'institution_id'   => $institution->id,
             'institutional_id' => $institutionalId,
         ]);
@@ -88,6 +124,7 @@ class AuthController extends Controller
             'registered_email'            => $user->email,
             'registered_role'             => $user->role,
             'registered_institutional_id' => $user->institutional_id,
+            'registered_pending_approval' => $initialStatus === 'pending',
         ]);
     }
 
@@ -119,6 +156,24 @@ class AuthController extends Controller
             if ($user->role === 'super_admin') {
                 return redirect()->route('superadmin.login.page')
                     ->with('error', 'Super Admin authentication requires a secure validation token. Please log in here.')
+                    ->withInput($request->only('email'));
+            }
+
+            // 🔒 ACCOUNT STATUS GATE: correct credentials alone aren't
+            // enough to sign in. A self-registered teacher sitting in
+            // 'pending' hasn't been approved by an Admin yet, and any
+            // account an Admin has 'suspended' must stay locked out. This
+            // runs for every role, not just teacher, so a suspended
+            // student/admin account is blocked here too.
+            if ($user->status === 'pending') {
+                return redirect()->back()
+                    ->with('error', 'Your teacher account is awaiting approval from your institution\'s Admin. You\'ll be able to log in once it\'s approved.')
+                    ->withInput($request->only('email'));
+            }
+
+            if ($user->status !== 'active') {
+                return redirect()->back()
+                    ->with('error', 'Your account is not currently active. Please contact your institution\'s Admin.')
                     ->withInput($request->only('email'));
             }
 

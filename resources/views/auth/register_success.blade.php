@@ -72,12 +72,28 @@
 
                 <div class="space-y-3">
                     <h2 class="text-3xl font-bold text-gray-800 tracking-tight leading-tight">Account Created Successfully</h2>
-                    <p class="text-sm text-gray-500 font-normal leading-relaxed">
-                        Your account has been created using <br>
-                        <span class="font-semibold text-gray-700">{{ session('registered_email', 'name@university.edu') }}</span>. 
-                        You can now sign in and start your examination journey.
-                    </p>
+                    @if(session('registered_pending_approval'))
+                        <p class="text-sm text-gray-500 font-normal leading-relaxed">
+                            Your teacher account has been created using <br>
+                            <span class="font-semibold text-gray-700">{{ session('registered_email', 'name@university.edu') }}</span>.
+                            It's now awaiting approval from your institution's Admin before you can sign in.
+                        </p>
+                    @else
+                        <p class="text-sm text-gray-500 font-normal leading-relaxed">
+                            Your account has been created using <br>
+                            <span class="font-semibold text-gray-700">{{ session('registered_email', 'name@university.edu') }}</span>. 
+                            You can now sign in and start your examination journey.
+                        </p>
+                    @endif
                 </div>
+
+                @if(session('registered_pending_approval'))
+                    <div class="bg-amber-50 border border-amber-200 rounded-lg p-4 text-left">
+                        <p class="text-xs text-amber-700 leading-normal font-medium">
+                            ⏳ Pending Admin approval — you'll be able to log in once your teacher account is reviewed and approved.
+                        </p>
+                    </div>
+                @endif
 
                 @if(session('registered_institutional_id'))
                     <div class="bg-[#F4F6F9] border border-gray-100 rounded-lg p-4 text-left">
