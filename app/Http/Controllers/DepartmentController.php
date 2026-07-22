@@ -39,15 +39,26 @@ class DepartmentController extends Controller
      */
     public function index()
     {
-        $departments = Department::withCount(['students', 'teachers'])
-            ->with(['admins:user_id,full_name,email,department_id'])
+        $iid = auth()->user()->institution_id ?? null;
+
+        $departments = Department::when($iid, fn($q) => $q->where('institution_id', $iid))
+            ->withCount([
+                'users as students_count' => fn($q) => $q->where('role', 'student'),
+                'teachers as teachers_count'
+            ])
+            ->with(['admins' => fn($q) => $q->select('users.user_id', 'full_name', 'email')])
             ->orderBy('name')
             ->get();
 
         $institutions = Institution::orderBy('name')->get(['id', 'name']);
 
         // Admins who don't manage any department yet — candidates to assign.
-        $unassignedAdmins = User::where('role', 'admin')->whereNull('department_id')->get(['user_id', 'full_name', 'email']);
+        $unassignedAdmins = User::when($iid, fn($q) => $q->where('institution_id', $iid))
+            ->where('role', 'admin')
+            ->where('status', 'active')
+            ->whereNull('department_id')
+            ->orderBy('full_name')
+            ->get(['users.user_id', 'full_name', 'email']);
 
         return view('superadmin.departments', compact('departments', 'institutions', 'unassignedAdmins'));
     }
@@ -64,20 +75,27 @@ class DepartmentController extends Controller
             'description'    => 'nullable|string|max:1000',
         ]);
 
-        $department = Department::create($validated);
-
-        DB::table('audit_logs')->insert([
-            'user_id'    => Auth::id(),
-            'action'     => 'created',
-            'payload'    => json_encode([
-                'target_title' => 'Department Directory',
-                'summary'      => 'Created new department: ' . $department->name,
-            ]),
-            'ip_address' => $request->ip() ?? '127.0.0.1',
-            'created_at' => now(),
+        $department = Department::create([
+            'institution_id' => $validated['institution_id'],
+            'name'           => $validated['name'],
+            'code'           => strtoupper($validated['code']),
+            'description'    => $validated['description'] ?? null,
+            'is_active'      => true,
         ]);
 
-        return redirect()->route('superadmin.departments.index')->with('success', 'Department created.');
+        try {
+            DB::table('audit_logs')->insert([
+                'user_id'        => Auth::id(),
+                'institution_id' => $validated['institution_id'],
+                'action'         => 'department.create',
+                'model_type'     => 'DEPARTMENT',
+                'model_id'       => $department->id,
+                'ip_address'     => $request->ip() ?? '127.0.0.1',
+                'created_at'     => now(),
+            ]);
+        } catch (\Exception $e) {}
+
+        return redirect()->route('superadmin.departments.index')->with('success', 'Department "' . $department->name . '" created.');
     }
 
     /**
@@ -92,16 +110,27 @@ class DepartmentController extends Controller
             'is_active'   => 'nullable|boolean',
         ]);
 
+        $validated['code'] = strtoupper($validated['code']);
         $validated['is_active'] = $request->boolean('is_active');
         $department->update($validated);
+
+        try {
+            DB::table('audit_logs')->insert([
+                'user_id'        => Auth::id(),
+                'institution_id' => $department->institution_id,
+                'action'         => 'department.update',
+                'model_type'     => 'DEPARTMENT',
+                'model_id'       => $department->id,
+                'ip_address'     => $request->ip() ?? '127.0.0.1',
+                'created_at'     => now(),
+            ]);
+        } catch (\Exception $e) {}
 
         return redirect()->route('superadmin.departments.index')->with('success', 'Department updated.');
     }
 
     /**
-     * Put an existing admin in charge of a department (this is what turns
-     * a plain "admin" into a scoped "department admin" — it just sets
-     * their users.department_id). Super admin only.
+     * Put an existing admin in charge of a department.
      */
     public function assignAdmin(Request $request, Department $department)
     {
@@ -110,43 +139,68 @@ class DepartmentController extends Controller
         ]);
 
         $admin = User::where('role', 'admin')->findOrFail($validated['user_id']);
-        $admin->department_id = $department->id;
-        $admin->save();
 
-        DB::table('audit_logs')->insert([
-            'user_id'    => Auth::id(),
-            'action'     => 'comments',
-            'payload'    => json_encode([
-                'target_title' => 'Department Directory',
-                'summary'      => "Put {$admin->full_name} in charge of {$department->name}.",
-            ]),
-            'ip_address' => $request->ip() ?? '127.0.0.1',
-            'created_at' => now(),
-        ]);
+        DB::transaction(function () use ($department, $admin) {
+            $admin->department_id = $department->id;
+            $admin->save();
 
-        return redirect()->route('superadmin.departments.index')->with('success', 'Department admin assigned.');
+            if (method_exists($department, 'admins')) {
+                $department->admins()->syncWithoutDetaching([$admin->user_id]);
+            }
+        });
+
+        try {
+            DB::table('audit_logs')->insert([
+                'user_id'        => Auth::id(),
+                'institution_id' => $department->institution_id,
+                'action'         => 'department.admin.assign',
+                'model_type'     => 'DEPARTMENT',
+                'model_id'       => $department->id,
+                'ip_address'     => $request->ip() ?? '127.0.0.1',
+                'created_at'     => now(),
+            ]);
+        } catch (\Exception $e) {}
+
+        return redirect()->route('superadmin.departments.index')->with('success', $admin->full_name . ' put in charge of ' . $department->name . '.');
     }
 
     /**
-     * Remove an admin from their department (they become an unscoped/
-     * global admin again until reassigned). Super admin only.
+     * Remove an admin from their department.
      */
     public function removeAdmin(Department $department, $userId)
     {
-        $admin = User::where('role', 'admin')->where('department_id', $department->id)->findOrFail($userId);
-        $admin->department_id = null;
-        $admin->save();
+        $admin = User::where('role', 'admin')->findOrFail($userId);
+
+        DB::transaction(function () use ($department, $admin) {
+            if ((int)$admin->department_id === (int)$department->id) {
+                $admin->department_id = null;
+                $admin->save();
+            }
+
+            if (method_exists($department, 'admins')) {
+                $department->admins()->detach($admin->user_id);
+            }
+        });
+
+        try {
+            DB::table('audit_logs')->insert([
+                'user_id'        => Auth::id(),
+                'institution_id' => $department->institution_id,
+                'action'         => 'department.admin.remove',
+                'model_type'     => 'DEPARTMENT',
+                'model_id'       => $department->id,
+                'ip_address'     => request()->ip() ?? '127.0.0.1',
+                'created_at'     => now(),
+            ]);
+        } catch (\Exception $e) {}
 
         return redirect()->route('superadmin.departments.index')->with('success', 'Department admin removed.');
     }
 
-    /* ===================== DEPARTMENT ADMIN: teacher roster for their department ===================== */
+    /* ===================== DEPARTMENT ADMIN: teacher roster ===================== */
 
     /**
-     * Show the teachers currently teaching in this department, plus a
-     * search box to pull in a teacher who already exists elsewhere in the
-     * system (this is the "one teacher, many departments" screen).
-     * Available to the department's own admin, or any super_admin.
+     * Show the teachers currently teaching in this department.
      */
     public function teachers(Department $department)
     {
@@ -158,10 +212,7 @@ class DepartmentController extends Controller
     }
 
     /**
-     * Search teachers by name/email across the whole institution, so a
-     * department admin can find a teacher who is already teaching
-     * somewhere else and add them here too. Read-only — only name/email
-     * are exposed, not the teacher's full profile.
+     * Search teachers across the institution to pull into department.
      */
     public function searchTeachers(Request $request, Department $department)
     {
@@ -186,9 +237,7 @@ class DepartmentController extends Controller
     }
 
     /**
-     * Add an existing teacher to this department (attaches the pivot row —
-     * does NOT change the teacher's home department_id, and does NOT
-     * remove them from any other department they already teach in).
+     * Add an existing teacher to this department.
      */
     public function assignTeacher(Request $request, Department $department)
     {
@@ -201,23 +250,23 @@ class DepartmentController extends Controller
         $teacher = User::where('role', 'teacher')->findOrFail($validated['user_id']);
         $department->teachers()->syncWithoutDetaching([$teacher->user_id]);
 
-        DB::table('audit_logs')->insert([
-            'user_id'    => Auth::id(),
-            'action'     => 'comments',
-            'payload'    => json_encode([
-                'target_title' => 'Department Teaching Roster',
-                'summary'      => "Added {$teacher->full_name} to teach in {$department->name}.",
-            ]),
-            'ip_address' => $request->ip() ?? '127.0.0.1',
-            'created_at' => now(),
-        ]);
+        try {
+            DB::table('audit_logs')->insert([
+                'user_id'        => Auth::id(),
+                'institution_id' => $department->institution_id,
+                'action'         => 'department.teacher.assign',
+                'model_type'     => 'DEPARTMENT',
+                'model_id'       => $department->id,
+                'ip_address'     => $request->ip() ?? '127.0.0.1',
+                'created_at'     => now(),
+            ]);
+        } catch (\Exception $e) {}
 
         return redirect()->route('admin.departments.teachers', $department)->with('success', 'Teacher added to this department.');
     }
 
     /**
-     * Remove a teacher from this department's teaching roster (they keep
-     * teaching in any other department they're still linked to).
+     * Remove a teacher from this department's teaching roster.
      */
     public function removeTeacher(Department $department, $userId)
     {

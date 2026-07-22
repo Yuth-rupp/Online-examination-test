@@ -26,41 +26,39 @@ class Department extends Model
     }
 
     /**
-     * Everyone whose "home" department (users.department_id) is this one —
-     * this includes students, teachers, and the department's own admin(s).
+     * Everyone whose home department (users.department_id) is this department.
+     * Foreign Key on users table: 'department_id'
+     * Local Key on departments table: 'id'
      */
     public function users()
     {
-        return $this->hasMany(User::class, 'department_id', 'user_id');
+        return $this->hasMany(User::class, 'department_id', 'id');
     }
 
     /**
-     * Convenience: only the students that live in this department.
+     * Convenience relationship: only students belonging to this department.
      */
     public function students()
     {
-        return $this->users()->where('role', 'student');
+        return $this->hasMany(User::class, 'department_id', 'id')->where('role', 'student');
     }
 
     /**
-     * The admin(s) whose users.department_id points at this department.
-     * In the common case this is a single person.
+     * Department Admins directly assigned via department_id 
+     * OR through the department_user pivot table.
      */
     public function admins()
     {
-        return $this->users()->where('role', 'admin');
+        return $this->belongsToMany(User::class, 'department_user', 'department_id', 'user_id');
     }
 
     /**
-     * All teachers linked to this department — through the pivot table,
-     * so this naturally includes teachers who ALSO teach other
-     * departments (e.g. a teacher in Data Science, Bio Engineering, and
-     * Mathematics shows up here for all three).
+     * All teachers linked to this department through the pivot table.
      */
     public function teachers()
     {
         return $this->belongsToMany(User::class, 'department_teacher', 'department_id', 'user_id')
-                     ->withTimestamps();
+                    ->withTimestamps();
     }
 
     /**
