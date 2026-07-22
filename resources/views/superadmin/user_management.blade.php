@@ -70,11 +70,12 @@
             </a>
             <div class="pt-4 pb-1"><p class="text-[10px] font-bold text-slate-300 uppercase tracking-widest px-3 mb-2">Root Access</p></div>
 
+            {{-- USER MANAGEMENT --}}
             <a href="{{ route('superadmin.admins.index') }}" class="flex items-center gap-3 px-3 py-2.5 bg-blue-600 text-white font-semibold rounded-xl text-sm mb-0.5 transition-all duration-200" style="box-shadow:0 4px 12px rgba(59,130,246,0.30);">
                 <span class="w-8 h-8 flex items-center justify-center rounded-lg bg-white bg-opacity-20 flex-shrink-0"><i class="fa-solid fa-users text-xs text-white"></i></span><span>User Management</span>
             </a>
 
-            {{-- 🚀 DEPARTMENT DIRECTORY LINK ADDED HERE --}}
+            {{-- DEPARTMENT DIRECTORY --}}
             <a href="{{ route('superadmin.departments.index') }}" class="flex items-center gap-3 px-3 py-2.5 text-slate-500 hover:text-slate-800 hover:bg-slate-100 font-medium rounded-xl text-sm mb-0.5 transition-all duration-200">
                 <span class="w-8 h-8 flex items-center justify-center rounded-lg flex-shrink-0"><i class="fa-solid fa-building-columns text-xs text-slate-400"></i></span><span>Department Directory</span>
             </a>
@@ -380,10 +381,12 @@
 
             // Department cell dropdown
             let deptCellHtml;
-            if (isSelf) {
+            if (isSelf || u.role === 'super_admin') {
                 deptCellHtml = `<span class="text-[11px] text-slate-300 font-medium">—</span>`;
             } else if (!ALL_DEPARTMENTS || ALL_DEPARTMENTS.length === 0) {
-                deptCellHtml = `<span class="text-[10px] font-bold text-slate-400 bg-slate-100 px-2.5 py-1 rounded-lg">No Depts Created</span>`;
+                deptCellHtml = `<a href="{{ route('superadmin.departments.index') }}" class="text-[10px] font-bold text-amber-600 bg-amber-50 border border-amber-200 px-2.5 py-1 rounded-lg hover:bg-amber-100 transition-all inline-flex items-center gap-1">
+                    <i class="fa-solid fa-plus text-[9px]"></i> Create Dept First
+                </a>`;
             } else {
                 deptCellHtml = `
                     <select onchange="updateUserDepartment(${u.user_id},this.value)"
@@ -593,7 +596,7 @@
 
             if (!ALL_DEPARTMENTS || ALL_DEPARTMENTS.length === 0) {
                 select.innerHTML = `<option value="">⚠️ No departments created yet</option>`;
-                hint.innerHTML = `<span class="text-amber-600 font-semibold"><i class="fa-solid fa-triangle-exclamation mr-1"></i> Please create a department in the Department Directory first.</span>`;
+                hint.innerHTML = `<span class="text-amber-600 font-semibold"><i class="fa-solid fa-triangle-exclamation mr-1"></i> Please create a department in the <a href="{{ route('superadmin.departments.index') }}" class="underline font-bold">Department Directory</a> first.</span>`;
                 return;
             }
 
