@@ -166,7 +166,7 @@
                                 <i class="fa-solid fa-trash text-[10px]"></i> Remove
                             </button>
                         </div>
-                        <p class="text-[9px] text-slate-400 mt-2">JPG, GIF or PNG · Max 800KB</p>
+                        <p class="text-[9px] text-slate-400 mt-2">JPG, GIF, PNG or WEBP · Max 2MB</p>
                     </div>
                 </div>
 
@@ -572,13 +572,27 @@ function setAllAvatars(src) {
     if (sidebar) sidebar.src = src;
 }
 
+// Preload an image URL off-screen first, then swap it in — this avoids the
+// brief broken-image / blank flash you'd otherwise see while the browser
+// fetches the freshly-uploaded file over the network.
+function setAllAvatarsSmooth(src) {
+    if (!src) { setAllAvatars(src); return; }
+    const img = new Image();
+    img.onload = () => setAllAvatars(src);
+    img.onerror = () => setAllAvatars(src); // still swap even if preload fails; browser will show its own fallback
+    img.src = src;
+}
+
 function setAvatarUploading(isUploading) {
     const preview = document.getElementById('avatarPreview');
     if (preview) preview.style.opacity = isUploading ? '.5' : '1';
 }
 
+let avatarUploadInFlight = false;
+
 async function handleAvatarUpload(inp) {
     if (!(inp.files && inp.files[0])) return;
+    if (avatarUploadInFlight) return; // ignore rapid double-selects while one is already saving
     const file = inp.files[0];
 
     // Instant local preview so it never looks frozen while uploading.
@@ -586,6 +600,7 @@ async function handleAvatarUpload(inp) {
     reader.onload = e => setAllAvatars(e.target.result);
     reader.readAsDataURL(file);
 
+    avatarUploadInFlight = true;
     setAvatarUploading(true);
     const fd = new FormData();
     fd.append('avatar', file);
@@ -600,17 +615,19 @@ async function handleAvatarUpload(inp) {
         setAvatarUploading(false);
 
         if (res.ok && data.success) {
-            setAllAvatars(data.avatar_url || FALLBACK);
+            setAllAvatarsSmooth(data.avatar_url || FALLBACK);
             document.getElementById('removeAvatarFlag').value = '0';
             inp.value = ''; // avoid re-uploading the same file if the profile form is submitted later
             toast('Profile photo updated', 'success');
         } else {
             setAllAvatars(FALLBACK);
-            toast(data.message || 'Photo must be under 800KB (JPG, PNG or GIF)', 'error');
+            toast(data.message || 'Photo must be under 2MB (JPG, PNG, GIF or WEBP)', 'error');
         }
     } catch (e) {
         setAvatarUploading(false);
         toast('Failed to upload photo — check your connection', 'error');
+    } finally {
+        avatarUploadInFlight = false;
     }
 }
 

@@ -167,8 +167,12 @@
             <p class="text-xs font-black text-slate-800 leading-none">{{ Auth::user()->full_name ?? 'Student' }}</p>
             <p class="text-[10px] text-slate-400 font-mono mt-0.5">{{ Auth::user()->user_id ?? 'STU' }}</p>
           </div>
-          <div class="w-8 h-8 rounded-xl bg-gradient-to-br from-amber-400 to-orange-400 flex items-center justify-center text-[11px] font-black text-amber-900">
-            {{ Auth::user() ? strtoupper(substr(Auth::user()->full_name, 0, 2)) : 'ST' }}
+          <div class="w-8 h-8 rounded-xl overflow-hidden bg-gradient-to-br from-amber-400 to-orange-400 flex items-center justify-center text-[11px] font-black text-amber-900">
+            @if(Auth::user() && Auth::user()->avatar_url)
+              <img src="{{ Auth::user()->avatar_url }}" class="w-full h-full object-cover" alt="{{ Auth::user()->full_name }}">
+            @else
+              {{ Auth::user() ? strtoupper(substr(Auth::user()->full_name, 0, 2)) : 'ST' }}
+            @endif
           </div>
         </div>
       </div>

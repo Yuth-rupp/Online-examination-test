@@ -142,10 +142,14 @@
          :class="darkMode ? 'bg-slate-800 border-slate-700' : 'bg-slate-50 border-slate-100'">
       <div class="flex items-center gap-3">
         <div class="relative flex-shrink-0">
-          <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-amber-400 to-orange-400 flex items-center justify-center shadow-sm">
-            <span class="text-xs font-black text-amber-900 uppercase">
-              {{ Auth::user() ? strtoupper(substr(Auth::user()->full_name, 0, 2)) : 'YP' }}
-            </span>
+          <div class="w-9 h-9 rounded-xl overflow-hidden bg-gradient-to-br from-amber-400 to-orange-400 flex items-center justify-center shadow-sm">
+            @if(Auth::user() && Auth::user()->avatar_url)
+              <img src="{{ Auth::user()->avatar_url }}" class="w-full h-full object-cover" alt="{{ Auth::user()->full_name }}">
+            @else
+              <span class="text-xs font-black text-amber-900 uppercase">
+                {{ Auth::user() ? strtoupper(substr(Auth::user()->full_name, 0, 2)) : 'YP' }}
+              </span>
+            @endif
           </div>
           <div class="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-emerald-400 rounded-full border-2"
                :class="darkMode ? 'border-slate-800' : 'border-slate-50'"></div>
@@ -205,8 +209,12 @@
 
         <!-- Avatar + Name -->
         <div class="flex items-center gap-2.5 pl-1">
-          <div class="w-8 h-8 rounded-xl bg-gradient-to-br from-amber-400 to-orange-400 flex items-center justify-center text-[11px] font-black text-amber-900 shadow-sm">
-            {{ Auth::user() ? strtoupper(substr(Auth::user()->full_name, 0, 2)) : 'YP' }}
+          <div class="w-8 h-8 rounded-xl overflow-hidden bg-gradient-to-br from-amber-400 to-orange-400 flex items-center justify-center text-[11px] font-black text-amber-900 shadow-sm">
+            @if(Auth::user() && Auth::user()->avatar_url)
+              <img src="{{ Auth::user()->avatar_url }}" class="w-full h-full object-cover" alt="{{ Auth::user()->full_name }}">
+            @else
+              {{ Auth::user() ? strtoupper(substr(Auth::user()->full_name, 0, 2)) : 'YP' }}
+            @endif
           </div>
           <div class="hidden sm:block">
             <p class="text-sm font-bold leading-none" :class="darkMode ? 'text-white' : 'text-slate-800'">
