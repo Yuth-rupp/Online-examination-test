@@ -171,7 +171,7 @@
                 </div>
             </div>
             {{-- ========== STUCK EXAMS ALERT ========== --}}
-            @if($stuckExams->count() > 0)
+            @if(isset($stuckExams) && $stuckExams->count() > 0)
             <div class="bg-amber-50 border border-amber-200 rounded-2xl px-5 py-4 flex items-start gap-3">
                 <div class="w-10 h-10 bg-amber-100 rounded-xl flex items-center justify-center flex-shrink-0">
                     <i class="fa-solid fa-triangle-exclamation text-amber-600 text-sm"></i>
@@ -182,15 +182,17 @@
                 </div>
                 <div class="flex gap-2 flex-shrink-0">
                     @foreach($stuckExams as $stuck)
-                    <button onclick="openForceEnd({{ $stuck->id }}, '{{ addslashes($stuck->title ?? $stuck->name ?? 'Exam #'.$stuck->id) }}')"
+                    @php $stuckId = $stuck->exam_id ?? $stuck->id; @endphp
+                    <button onclick="openForceEnd('{{ $stuckId }}', '{{ addslashes($stuck->title ?? $stuck->name ?? 'Exam #'.$stuckId) }}')"
                             class="text-[10px] font-bold bg-amber-600 text-white px-3 py-1.5 rounded-lg hover:bg-amber-700 transition-all">
-                        Force End #{{ $stuck->id }}
+                        Force End #{{ Str::limit($stuckId, 8, '') }}
                     </button>
                     @endforeach
                 </div>
             </div>
             @endif
             {{-- ========== EXAMS TABLE ========== --}}
+            @php $examList = $exams ?? $allExams ?? collect(); @endphp
             <div class="bg-white rounded-2xl border border-slate-100" style="box-shadow:0 1px 4px rgba(148,163,184,0.06);">
                 <div class="flex items-center justify-between px-6 py-4 border-b border-slate-100">
                     <div class="flex items-center gap-2.5">
@@ -200,9 +202,9 @@
                             <p class="text-[11px] text-slate-400 font-medium">Complete list of examinations in the system</p>
                         </div>
                     </div>
-                    <span class="text-[10px] font-bold bg-blue-50 text-blue-600 border border-blue-100 px-2.5 py-0.5 rounded-full">{{ $allExams->count() }} total</span>
+                    <span class="text-[10px] font-bold bg-blue-50 text-blue-600 border border-blue-100 px-2.5 py-0.5 rounded-full">{{ $examList->count() }} total</span>
                 </div>
-                @if($allExams->count() === 0)
+                @if($examList->count() === 0)
                 <div class="flex flex-col items-center justify-center py-20 px-6 text-center">
                     <div class="w-16 h-16 bg-slate-50 rounded-2xl flex items-center justify-center mb-4">
                         <i class="fa-solid fa-file-circle-plus text-slate-300 text-2xl"></i>
@@ -225,8 +227,9 @@
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-slate-50">
-                            @foreach($allExams as $i => $exam)
+                            @foreach($examList as $i => $exam)
                             @php
+                                $examId = $exam->exam_id ?? $exam->id;
                                 $status = $exam->status ?? 'draft';
                                 $stColors = match($status) {
                                     'active'    => ['bg'=>'bg-emerald-50','text'=>'text-emerald-600','border'=>'border-emerald-100'],
@@ -237,7 +240,10 @@
                                 };
                             @endphp
                             <tr class="fade-in hover:bg-slate-50 transition-colors" style="animation-delay:{{ $i * 0.04 }}s;">
-                                <td class="px-6 py-3.5 font-mono text-xs text-slate-400 font-semibold">#{{ $exam->id }}</td>
+                                {{-- Line 240 Fix --}}
+                                <td class="px-6 py-3.5 font-mono text-xs text-slate-400 font-semibold" title="{{ $examId }}">
+                                    #{{ Str::limit($examId, 8, '') }}
+                                </td>
                                 <td class="px-4 py-3.5">
                                     <p class="text-[13px] font-bold text-slate-800 truncate" style="max-width:260px;">{{ $exam->title ?? $exam->name ?? 'Untitled Exam' }}</p>
                                 </td>
@@ -246,18 +252,22 @@
                                         {{ ucfirst($status) }}
                                     </span>
                                 </td>
-                                <td class="px-4 py-3.5 text-center font-mono text-xs text-slate-600 font-semibold">{{ $exam->session_count }}</td>
+                                <td class="px-4 py-3.5 text-center font-mono text-xs text-slate-600 font-semibold">
+                                    {{ $exam->session_count ?? $exam->sessions_count ?? 0 }}
+                                </td>
                                 <td class="px-4 py-3.5 text-center">
-                                    @if($exam->flagged_count > 0)
+                                    @if(($exam->flagged_count ?? 0) > 0)
                                     <span class="text-[10px] font-bold text-rose-600 bg-rose-50 border border-rose-100 px-2 py-0.5 rounded-full">{{ $exam->flagged_count }}</span>
                                     @else
                                     <span class="text-xs text-slate-300">0</span>
                                     @endif
                                 </td>
-                                <td class="px-4 py-3.5 text-xs text-slate-400 font-medium">{{ \Carbon\Carbon::parse($exam->created_at)->format('M j, Y') }}</td>
+                                <td class="px-4 py-3.5 text-xs text-slate-400 font-medium">
+                                    {{ $exam->created_at ? \Carbon\Carbon::parse($exam->created_at)->format('M j, Y') : '—' }}
+                                </td>
                                 <td class="px-4 py-3.5 text-center">
                                     @if($status === 'active')
-                                    <button onclick="openForceEnd({{ $exam->id }}, '{{ addslashes($exam->title ?? $exam->name ?? 'Exam #'.$exam->id) }}')"
+                                    <button onclick="openForceEnd('{{ $examId }}', '{{ addslashes($exam->title ?? $exam->name ?? 'Exam #'.$examId) }}')"
                                             class="text-[10px] font-bold text-rose-600 bg-rose-50 border border-rose-100 px-2.5 py-1 rounded-lg hover:bg-rose-100 transition-all">
                                         <i class="fa-solid fa-stop mr-1"></i>Force End
                                     </button>
@@ -273,6 +283,7 @@
                 @endif
             </div>
             {{-- ========== DEPARTMENT BREAKDOWN ========== --}}
+            @if(isset($departments) && count($departments) > 0)
             <div class="bg-white rounded-2xl border border-slate-100" style="box-shadow:0 1px 4px rgba(148,163,184,0.06);">
                 <div class="flex items-center justify-between px-6 py-4 border-b border-slate-100">
                     <div class="flex items-center gap-2.5">
@@ -283,14 +294,14 @@
                 <div class="p-6 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
                     @foreach($departments as $dept)
                     <div class="rounded-xl border border-slate-100 p-4 hover:shadow-md hover:-translate-y-0.5 transition-all cursor-default">
-                        <p class="text-[13px] font-bold text-slate-800 mb-3">{{ $dept->department }}</p>
+                        <p class="text-[13px] font-bold text-slate-800 mb-3">{{ $dept->department ?? $dept->name ?? 'Department' }}</p>
                         <div class="flex gap-3">
                             <div class="flex-1 text-center bg-blue-50 rounded-lg py-2.5">
-                                <p class="text-lg font-extrabold text-blue-600 leading-none">{{ $dept->exam_count }}</p>
+                                <p class="text-lg font-extrabold text-blue-600 leading-none">{{ $dept->exam_count ?? 0 }}</p>
                                 <p class="text-[9px] font-semibold text-blue-300 mt-1">Exams</p>
                             </div>
                             <div class="flex-1 text-center bg-emerald-50 rounded-lg py-2.5">
-                                <p class="text-lg font-extrabold text-emerald-600 leading-none">{{ $dept->sessions }}</p>
+                                <p class="text-lg font-extrabold text-emerald-600 leading-none">{{ $dept->sessions ?? 0 }}</p>
                                 <p class="text-[9px] font-semibold text-emerald-300 mt-1">Active</p>
                             </div>
                         </div>
@@ -298,6 +309,7 @@
                     @endforeach
                 </div>
             </div>
+            @endif
         </div>
         <footer class="px-8 py-4 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-300">
             <span>© {{ date('Y') }} ExamSystem — Exams Oversight</span>
