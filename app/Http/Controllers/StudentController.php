@@ -103,6 +103,13 @@ class StudentController extends Controller
 
         $averageScore = Submission::where('user_id', $user->user_id)->avg('percentage') ?? 0;
 
+        if ($request->wantsJson()) {
+            return response()->json([
+                'averageScore' => $averageScore,
+                'submissions'  => $submissions,
+            ]);
+        }
+
         return view('student.settings', compact('user', 'submissions', 'averageScore'));
     }
 

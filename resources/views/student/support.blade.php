@@ -76,6 +76,7 @@
     .pulse-dot { animation: pulseDot 2s infinite; }
     @keyframes pulseDot { 0%, 100% { opacity:1; } 50% { opacity:0.4; } }
   </style>
+  @include('partials.notification-styles')
 </head>
 
 <body class="min-h-screen flex antialiased transition-colors duration-300"
@@ -187,12 +188,15 @@
           <i data-lucide="moon" class="w-4 h-4" x-show="!darkMode"></i>
         </button>
 
-        <!-- Notification Bell -->
-        <button id="bell-btn" @click="openDrawer = true"
+        @include('partials.notification-bell')
+
+        <!-- Support Ticket Status Bell (separate from general notifications above —
+             tracks resolved support tickets specifically) -->
+        <button id="ticket-bell-btn" @click="openDrawer = true" title="Support ticket updates"
                 class="relative p-2.5 rounded-xl transition-colors cursor-pointer"
                 :class="darkMode ? 'bg-slate-800 text-slate-400 hover:bg-slate-700' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'">
-          <i data-lucide="bell" class="w-4 h-4" id="bell-icon"></i>
-          <span id="bell-counter"
+          <i data-lucide="life-buoy" class="w-4 h-4" id="ticket-bell-icon"></i>
+          <span id="ticket-bell-counter"
                 class="absolute -top-1 -right-1 bg-red-500 text-white font-black text-[9px] w-4 h-4 rounded-full flex items-center justify-center border border-white dark:border-slate-800 hidden">0</span>
         </button>
 
@@ -656,7 +660,7 @@
     let cachedResolvedCount = null;
 
     function shakeBell() {
-      const bellIcon = document.getElementById('bell-icon');
+      const bellIcon = document.getElementById('ticket-bell-icon');
       if (bellIcon) {
         bellIcon.classList.add('bell-shake');
         setTimeout(() => bellIcon.classList.remove('bell-shake'), 600);
@@ -664,7 +668,7 @@
     }
 
     function setBellCounter(count) {
-      const counter = document.getElementById('bell-counter');
+      const counter = document.getElementById('ticket-bell-counter');
       if (!counter) return;
       if (count > 0) {
         counter.innerText = count;
@@ -790,10 +794,11 @@
 
     // Reset bell counter when drawer is opened
     document.addEventListener('click', (e) => {
-      if (e.target.closest('#bell-btn') || e.target.closest('[\\@click*="openDrawer = true"]')) {
+      if (e.target.closest('#ticket-bell-btn') || e.target.closest('[\\@click*="openDrawer = true"]')) {
         setBellCounter(0);
       }
     });
   </script>
+  @include('partials.notification-realtime')
 </body>
 </html>

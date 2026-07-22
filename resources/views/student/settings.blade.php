@@ -17,8 +17,6 @@
   <script>tailwind.config = { darkMode: 'class' }</script>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
   <script src="https://unpkg.com/lucide@latest"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/pusher/8.3.0/pusher.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/laravel-echo@1.16.0/dist/echo.iife.js"></script>
   <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
 
   <style>
@@ -79,6 +77,7 @@
       main { padding-left: 0 !important; }
     }
   </style>
+  @include('partials.notification-styles')
 </head>
 
 <body class="min-h-screen flex antialiased transition-colors duration-300"
@@ -168,75 +167,7 @@
           <i data-lucide="moon" class="w-4 h-4" x-show="!darkMode"></i>
         </button>
 
-        <!-- ── Notification Bell ── -->
-        <div class="relative" id="notif-wrapper">
-          <button id="notif-bell-btn"
-                  class="relative p-2.5 rounded-xl cursor-pointer transition-colors"
-                  :class="darkMode?'bg-slate-800 text-slate-400 hover:bg-slate-700':'bg-slate-100 text-slate-500 hover:bg-slate-200'">
-            <i data-lucide="bell" class="w-4 h-4" id="bell-icon"></i>
-            <!-- Badge: only shows if unreadCount > 0 -->
-            <span x-show="unreadCount > 0"
-                  x-text="unreadCount"
-                  class="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 bg-red-500 text-white text-[9px] font-black rounded-full flex items-center justify-center border border-white dark:border-slate-900 leading-none"></span>
-          </button>
-
-          <!-- Dropdown panel -->
-          <div id="notif-dropdown"
-               class="notif-dropdown hidden absolute right-0 top-12 w-80 rounded-2xl border shadow-2xl overflow-hidden z-50"
-               :class="darkMode?'bg-slate-900 border-slate-700':'bg-white border-slate-100'">
-
-            <div class="px-4 py-3 border-b flex items-center justify-between"
-                 :class="darkMode?'border-slate-800':'border-slate-100'">
-              <div class="flex items-center gap-2">
-                <span class="text-xs font-black" :class="darkMode?'text-white':'text-slate-900'">Notifications</span>
-                <span x-show="unreadCount > 0"
-                      class="px-1.5 py-0.5 text-[10px] font-black bg-red-500 text-white rounded-md"
-                      x-text="unreadCount"></span>
-              </div>
-              <button @click="clearAllNotifications()"
-                      class="text-[11px] font-bold text-indigo-500 hover:text-indigo-600 cursor-pointer transition-colors">
-                Clear all
-              </button>
-            </div>
-
-            <div class="max-h-72 overflow-y-auto">
-              <template x-if="notifications.filter(n=>!n.cleared).length === 0">
-                <div class="py-10 text-center">
-                  <i data-lucide="bell-off" class="w-8 h-8 mx-auto mb-2" :class="darkMode?'text-slate-700':'text-slate-200'"></i>
-                  <p class="text-xs text-slate-400 font-medium">You're all caught up!</p>
-                </div>
-              </template>
-
-              <template x-for="notif in notifications.filter(n=>!n.cleared)" :key="notif.id">
-                <div class="px-4 py-3 border-b flex items-start gap-3 cursor-pointer transition-colors"
-                     :class="[darkMode?'border-slate-800 hover:bg-slate-800':'border-slate-50 hover:bg-slate-50', notif.read?'opacity-55':'']"
-                     @click="markRead(notif.id)">
-                  <!-- Icon bubble -->
-                  <div class="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 mt-0.5"
-                       :class="notif.type==='success'?'bg-emerald-50 dark:bg-emerald-500/10':notif.type==='warn'?'bg-amber-50 dark:bg-amber-500/10':'bg-indigo-50 dark:bg-indigo-500/10'">
-                    <i :data-lucide="notif.type==='success'?'check-circle-2':notif.type==='warn'?'alert-triangle':'info'"
-                       class="w-4 h-4"
-                       :class="notif.type==='success'?'text-emerald-500':notif.type==='warn'?'text-amber-500':'text-indigo-500'"></i>
-                  </div>
-                  <div class="flex-1 min-w-0">
-                    <p class="text-xs font-bold leading-snug" :class="darkMode?'text-white':'text-slate-800'" x-text="notif.title"></p>
-                    <p class="text-[11px] text-slate-400 mt-0.5 leading-relaxed" x-text="notif.body"></p>
-                    <p class="text-[10px] text-slate-400 mt-1" x-text="notif.time"></p>
-                  </div>
-                  <span x-show="!notif.read" class="w-2 h-2 bg-indigo-500 rounded-full flex-shrink-0 mt-2 pulse-dot"></span>
-                </div>
-              </template>
-            </div>
-
-            <div class="px-4 py-2.5 border-t" :class="darkMode?'border-slate-800':'border-slate-100'">
-              <a href="{{ route('student.support') }}"
-                 class="w-full flex items-center justify-center gap-1.5 text-xs font-bold text-indigo-500 hover:text-indigo-600 transition-colors py-1">
-                <i data-lucide="external-link" class="w-3 h-3"></i>
-                Go to Support
-              </a>
-            </div>
-          </div>
-        </div>
+        @include('partials.notification-bell')
         <!-- ── End Bell ── -->
 
         <div class="w-px h-6 mx-1" :class="darkMode?'bg-slate-700':'bg-slate-200'"></div>
@@ -677,25 +608,6 @@
         liveTime: '',
         liveDate: '',
 
-        notifications: [],
-        unreadCount: 0,
-
-        // ── Pull the latest notifications + unread count from the server
-        async fetchNotifications() {
-          try {
-            const res = await fetch('{{ route('student.notifications') }}', {
-              headers: { 'Accept': 'application/json' }
-            });
-            if (!res.ok) return;
-            const data = await res.json();
-            this.notifications = data.notifications.map(n => ({ ...n, cleared: false }));
-            this.unreadCount = data.unread_count;
-            lucide.createIcons();
-          } catch (e) {
-            console.error('Failed to load notifications', e);
-          }
-        },
-
         metrics: {
           averageScore: {{ round($averageScore ?? 0) }}
         },
@@ -713,61 +625,34 @@
           @endif
         ],
 
-        // ── Real-time: receive a notification the instant it's created server-side
-        handleLiveNotification(payload) {
-          this.notifications.unshift({ ...payload, read: false, cleared: false });
-          this.unreadCount += 1;
-          const bellIcon = document.getElementById('bell-icon');
-          if (bellIcon) {
-            bellIcon.classList.add('bell-ring');
-            setTimeout(() => bellIcon.classList.remove('bell-ring'), 500);
-          }
-          lucide.createIcons();
-        },
-
-        // ── Mark a single notification as read on the server
-        async markRead(id) {
-          const notif = this.notifications.find(n => n.id === id);
-          if (notif && !notif.read) {
-            notif.read = true;
-            this.unreadCount = Math.max(0, this.unreadCount - 1);
-            try {
-              await fetch(`/student/notifications/${id}/read`, {
-                method: 'POST',
-                headers: {
-                  'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
-                  'Accept': 'application/json'
-                }
-              });
-            } catch (e) {
-              console.error('Failed to mark notification as read', e);
-            }
-          }
-        },
-
-        // ── Permanently clear all notifications on the server
-        async clearAllNotifications() {
-          this.notifications.forEach(n => { n.cleared = true; n.read = true; });
-          this.unreadCount = 0;
-          document.getElementById('notif-dropdown').classList.add('hidden');
-          try {
-            await fetch('{{ route('student.notifications.clear') }}', {
-              method: 'POST',
-              headers: {
-                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
-                'Accept': 'application/json'
-              }
-            });
-            this.notifications = [];
-          } catch (e) {
-            console.error('Failed to clear notifications', e);
-          }
-        },
-
         updateClock() {
           const now = new Date();
           this.liveTime = now.toLocaleTimeString('en-US', { hour:'2-digit', minute:'2-digit', second:'2-digit' });
           this.liveDate = now.toLocaleDateString('en-US', { weekday:'short', month:'short', day:'numeric' });
+        },
+
+        // ── Live sync: refreshes the average score and performance chart
+        //    the moment a submission is newly graded, without a manual
+        //    page refresh — same polling pattern used on the Dashboard,
+        //    Exams, and History pages.
+        async syncSettingsFromServer() {
+          try {
+            const res = await fetch('{{ route('student.settings') }}', {
+              headers: { 'Accept': 'application/json' }
+            });
+            if (!res.ok) return;
+            const data = await res.json();
+
+            this.metrics.averageScore = Math.round(data.averageScore ?? this.metrics.averageScore);
+
+            const submissions = data.submissions || [];
+            this.chartBars = submissions.slice(0, 7).reverse().map(s => ({
+              score: Math.round(s.percentage || 0),
+              label: new Date(s.created_at).toLocaleDateString('en-US', { month: 'short', day: '2-digit' })
+            }));
+          } catch (e) {
+            console.warn('Failed to sync settings from server', e);
+          }
         },
 
         init() {
@@ -775,60 +660,13 @@
           this.updateClock();
           setInterval(() => this.updateClock(), 1000);
 
-          // Real-time notifications: load immediately, then poll every 20s as a fallback
-          this.fetchNotifications();
-          setInterval(() => this.fetchNotifications(), 20000);
-
-          // Live push over websocket — updates the bell the instant something happens,
-          // no need to wait for the next poll.
-          const userId = {{ Auth::user()->user_id ?? 'null' }};
-          if (userId && !window.Echo) {
-            window.Pusher = Pusher;
-            window.Echo = new Echo({
-              broadcaster: 'pusher',
-              key: '{{ config('broadcasting.connections.pusher.key') ?: 'examsystemkeyabc123' }}',
-              cluster: '{{ config('broadcasting.connections.pusher.options.cluster') ?: 'mt1' }}',
-              forceTLS: true,
-              authEndpoint: '{{ url('/broadcasting/auth') }}',
-              auth: { headers: { 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '', 'Accept': 'application/json' } }
-            });
-          }
-          if (userId && window.Echo) {
-            window.Echo.private('notifications.' + userId)
-              .listen('.NotificationCreated', (payload) => this.handleLiveNotification(payload));
-          }
+          setInterval(() => this.syncSettingsFromServer(), 15000);
 
           lucide.createIcons();
         }
       }));
     });
-
-    // ── Notification dropdown toggle (vanilla JS to avoid @click.away bugs)
-    document.addEventListener('DOMContentLoaded', () => {
-      const bellBtn    = document.getElementById('notif-bell-btn');
-      const dropdown   = document.getElementById('notif-dropdown');
-      const bellIcon   = document.getElementById('bell-icon');
-      const notifWrapper = document.getElementById('notif-wrapper');
-
-      bellBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        const isHidden = dropdown.classList.contains('hidden');
-        dropdown.classList.toggle('hidden');
-        if (isHidden) {
-          // Bell shake animation
-          bellIcon.classList.add('bell-ring');
-          setTimeout(() => bellIcon.classList.remove('bell-ring'), 500);
-          lucide.createIcons();
-        }
-      });
-
-      // Close when clicking anywhere outside the notif wrapper
-      document.addEventListener('click', (e) => {
-        if (!notifWrapper.contains(e.target)) {
-          dropdown.classList.add('hidden');
-        }
-      });
-    });
   </script>
+  @include('partials.notification-realtime')
 </body>
 </html>
