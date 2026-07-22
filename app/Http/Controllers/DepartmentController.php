@@ -34,8 +34,7 @@ class DepartmentController extends Controller
     /* ===================== SUPER ADMIN: department directory ===================== */
 
     /**
-     * List every department (super_admin only — this is the "create the
-     * departments and hand each one to an admin" screen).
+     * List every department (super_admin only).
      */
     public function index()
     {
@@ -46,13 +45,13 @@ class DepartmentController extends Controller
                 'users as students_count' => fn($q) => $q->where('role', 'student'),
                 'teachers as teachers_count'
             ])
-            ->with(['admins' => fn($q) => $q->select('users.user_id', 'full_name', 'email')])
+            ->with(['admins' => fn($q) => $q->select('users.user_id', 'full_name', 'email', 'department_id')])
             ->orderBy('name')
             ->get();
 
         $institutions = Institution::orderBy('name')->get(['id', 'name']);
 
-        // Admins who don't manage any department yet — candidates to assign.
+        // Admins who don't manage any department yet
         $unassignedAdmins = User::when($iid, fn($q) => $q->where('institution_id', $iid))
             ->where('role', 'admin')
             ->where('status', 'active')
@@ -139,15 +138,8 @@ class DepartmentController extends Controller
         ]);
 
         $admin = User::where('role', 'admin')->findOrFail($validated['user_id']);
-
-        DB::transaction(function () use ($department, $admin) {
-            $admin->department_id = $department->id;
-            $admin->save();
-
-            if (method_exists($department, 'admins')) {
-                $department->admins()->syncWithoutDetaching([$admin->user_id]);
-            }
-        });
+        $admin->department_id = $department->id;
+        $admin->save();
 
         try {
             DB::table('audit_logs')->insert([
@@ -171,16 +163,10 @@ class DepartmentController extends Controller
     {
         $admin = User::where('role', 'admin')->findOrFail($userId);
 
-        DB::transaction(function () use ($department, $admin) {
-            if ((int)$admin->department_id === (int)$department->id) {
-                $admin->department_id = null;
-                $admin->save();
-            }
-
-            if (method_exists($department, 'admins')) {
-                $department->admins()->detach($admin->user_id);
-            }
-        });
+        if ((int)$admin->department_id === (int)$department->id) {
+            $admin->department_id = null;
+            $admin->save();
+        }
 
         try {
             DB::table('audit_logs')->insert([

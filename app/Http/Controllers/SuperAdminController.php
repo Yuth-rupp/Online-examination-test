@@ -509,12 +509,12 @@ class SuperAdminController extends Controller
                 'users as students_count' => fn($q) => $q->where('role', 'student'),
                 'users as teachers_count' => fn($q) => $q->where('role', 'teacher'),
             ])
-            ->with(['admins' => fn($q) => $q->select('users.user_id', 'full_name', 'email')])
+            ->with(['admins' => fn($q) => $q->select('users.user_id', 'full_name', 'email', 'department_id')])
             ->orderBy('name')->get();
 
         $unassignedAdmins = User::when($iid, fn($q) => $q->where('institution_id', $iid))
             ->where('role', 'admin')->where('status', 'active')
-            ->whereDoesntHave('managedDepartments')->orderBy('full_name')->get();
+            ->whereNull('department_id')->orderBy('full_name')->get();
 
         $institutions = DB::table('institutions')
             ->when($iid, fn($q) => $q->where('id', $iid))->get();
@@ -576,8 +576,8 @@ class SuperAdminController extends Controller
         $admin = User::when($iid, fn($q) => $q->where('institution_id', $iid))->where('role', 'admin')->findOrFail($request->input('user_id'));
 
         DB::transaction(function () use ($dept, $admin) {
-            $dept->admins()->syncWithoutDetaching([$admin->user_id]);
-            if (!$admin->department_id) { $admin->department_id = $dept->id; $admin->save(); }
+            $admin->department_id = $dept->id;
+            $admin->save();
             $this->logAction('department.admin.assign', 'DEPARTMENT', $dept->id);
         });
 
@@ -591,8 +591,10 @@ class SuperAdminController extends Controller
         $admin = User::when($iid, fn($q) => $q->where('institution_id', $iid))->findOrFail($userId);
 
         DB::transaction(function () use ($dept, $admin) {
-            $dept->admins()->detach($admin->user_id);
-            if ((int) $admin->department_id === (int) $dept->id) { $admin->department_id = null; $admin->save(); }
+            if ((int) $admin->department_id === (int) $dept->id) { 
+                $admin->department_id = null; 
+                $admin->save(); 
+            }
             $this->logAction('department.admin.remove', 'DEPARTMENT', $dept->id);
         });
 
@@ -1017,9 +1019,6 @@ class SuperAdminController extends Controller
             if ($u->role === 'teacher' && $did) {
                 $u->departments()->syncWithoutDetaching([$did]);
             }
-            if ($u->role === 'admin' && $did && method_exists($u, 'managedDepartments')) {
-                $u->managedDepartments()->syncWithoutDetaching([$did]);
-            }
 
             $this->logAction('admin.account.create', 'USER_MANAGEMENT', $u->user_id);
             return $u;
@@ -1099,17 +1098,11 @@ class SuperAdminController extends Controller
         }
 
         DB::transaction(function () use ($u, $deptId) {
+            // Update the user's direct department_id column
             $u->department_id = $deptId ?: null;
             $u->save();
 
-            if ($u->role === 'admin' && method_exists($u, 'managedDepartments')) {
-                if ($deptId) {
-                    $u->managedDepartments()->sync([$deptId]);
-                } else {
-                    $u->managedDepartments()->detach();
-                }
-            }
-
+            // If user is teacher, sync the department_teacher pivot
             if ($u->role === 'teacher' && method_exists($u, 'departments')) {
                 if ($deptId) {
                     $u->departments()->syncWithoutDetaching([$deptId]);

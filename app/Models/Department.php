@@ -27,8 +27,6 @@ class Department extends Model
 
     /**
      * Everyone whose home department (users.department_id) is this department.
-     * Foreign Key on users table: 'department_id'
-     * Local Key on departments table: 'id'
      */
     public function users()
     {
@@ -44,12 +42,11 @@ class Department extends Model
     }
 
     /**
-     * Department Admins directly assigned via department_id 
-     * OR through the department_user pivot table.
+     * Department Admins directly assigned via users.department_id
      */
     public function admins()
     {
-        return $this->belongsToMany(User::class, 'department_user', 'department_id', 'user_id');
+        return $this->hasMany(User::class, 'department_id', 'id')->where('role', 'admin');
     }
 
     /**
