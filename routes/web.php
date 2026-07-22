@@ -168,6 +168,7 @@ Route::middleware(['auth', 'role:student'])->group(function () {
     Route::post('/student/settings/update',       [StudentController::class, 'updateProfile'])->name('student.profile.update');
     Route::post('/student/settings/photo',        [StudentController::class, 'uploadProfilePhoto'])->name('student.profile.photo');
     Route::get('/student/exams',                  [StudentController::class, 'exams'])->name('student.exams');
+    Route::delete('/student/exams/{id}',          [StudentController::class, 'deleteExam'])->name('student.exams.delete');
     Route::get('/student/history',                [StudentController::class, 'mySubmissions'])->name('student.history');
     Route::post('/student/history',               [StudentController::class, 'storeExamSubmission'])->name('student.submission.store');
     Route::post('/student/exams/log-violation',   [StudentController::class, 'logProctorViolation'])->name('student.exams.logViolation');

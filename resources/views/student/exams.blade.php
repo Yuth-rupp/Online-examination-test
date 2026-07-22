@@ -418,13 +418,21 @@
                   </button>
                 </template>
 
-                <!-- COMPLETED: Review Score -->
+                <!-- COMPLETED: Review Score + Remove -->
                 <template x-if="exam.status === 'completed'">
                   <a href="{{ route('student.history') }}"
                      class="flex-1 flex items-center justify-center gap-2 py-2.5 bg-gradient-to-r from-indigo-500 to-violet-500 hover:from-indigo-600 hover:to-violet-600 text-white text-xs font-black rounded-xl transition-all shadow-sm shadow-indigo-200 dark:shadow-indigo-900/20">
                     <i data-lucide="bar-chart-2" class="w-3.5 h-3.5"></i>
                     Review Score
                   </a>
+                </template>
+                <template x-if="exam.status === 'completed'">
+                  <button @click="deleteExam(exam)"
+                          title="Remove from list"
+                          class="flex-shrink-0 flex items-center justify-center w-10 h-10 rounded-xl text-xs font-bold transition-all cursor-pointer"
+                          :class="darkMode ? 'bg-slate-800 text-slate-400 hover:bg-red-500/10 hover:text-red-400' : 'bg-slate-100 text-slate-500 hover:bg-red-50 hover:text-red-500'">
+                    <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                  </button>
                 </template>
               </div>
 
@@ -549,6 +557,34 @@
               String(e.courseId).toLowerCase().includes(q);
             return matchStatus && matchSearch;
           });
+        },
+
+        async deleteExam(exam) {
+          if (!confirm(`Remove "${exam.title}" from your exam list? This won't affect your grade or submission — it just clears it from this page.`)) {
+            return;
+          }
+
+          try {
+            const res = await fetch(`/student/exams/${exam.id}`, {
+              method: 'DELETE',
+              headers: {
+                'Accept': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+              }
+            });
+
+            const data = await res.json().catch(() => ({}));
+
+            if (!res.ok) {
+              alert(data.message || 'Could not remove this exam. Please try again.');
+              return;
+            }
+
+            this.exams = this.exams.filter(e => e.id !== exam.id);
+          } catch (e) {
+            console.warn('Failed to delete exam', e);
+            alert('Could not remove this exam. Please check your connection and try again.');
+          }
         },
 
         showExamDetails(exam) {

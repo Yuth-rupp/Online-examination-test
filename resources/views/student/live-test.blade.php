@@ -279,6 +279,14 @@
                 <h2 class="text-xl font-black text-slate-900 leading-snug">
                   {{ $qText }}
                 </h2>
+
+                @if(!empty($question->media_url))
+                  <div class="mt-4 max-w-xl">
+                    <img src="{{ asset($question->media_url) }}"
+                         alt="Question image"
+                         class="rounded-2xl border border-slate-100 shadow-sm max-h-80 object-contain">
+                  </div>
+                @endif
               </div>
             </div>
 

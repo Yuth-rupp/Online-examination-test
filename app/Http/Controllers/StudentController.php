@@ -12,6 +12,7 @@ use App\Models\Course;
 use App\Models\Enrollment;
 use App\Models\Exam;
 use App\Models\Submission;
+use App\Models\StudentHiddenExam;
 use App\Models\AuditLog; 
 use App\Events\StudentFrameSubmitted; 
 
@@ -211,8 +212,11 @@ class StudentController extends Controller
             ->where('status', 'active')
             ->pluck('course_id');
 
+        $hiddenExamIds = StudentHiddenExam::where('user_id', $user->user_id)->pluck('exam_id');
+
         $examsQuery = Exam::with('course')
-            ->whereIn('course_id', $enrolledCourseIds);
+            ->whereIn('course_id', $enrolledCourseIds)
+            ->whereNotIn('exam_id', $hiddenExamIds);
 
         if ($request->filled('course_id')) {
             $examsQuery->where('course_id', $request->input('course_id'));
@@ -230,6 +234,54 @@ class StudentController extends Controller
         }
 
         return view('student.exams', compact('exams', 'submissions'));
+    }
+
+    /**
+     * Let a student remove an exam card from their own "My Exams" list.
+     * This never deletes the Exam, Submission, or grade data — it only
+     * records that this student no longer wants to see it, so teachers
+     * and other students are completely unaffected. Only exams that are
+     * already completed (submitted, or past their end time) can be
+     * dismissed, so a student can't accidentally hide an upcoming or
+     * live exam they still need to take.
+     */
+    public function deleteExam(Request $request, $id)
+    {
+        $user = $request->user() ?? Auth::user();
+
+        $exam = Exam::where('exam_id', $id)->first();
+
+        if (!$exam) {
+            return response()->json(['message' => 'Exam not found.'], 404);
+        }
+
+        $enrolled = Enrollment::where('user_id', $user->user_id)
+            ->where('course_id', $exam->course_id)
+            ->where('status', 'active')
+            ->exists();
+
+        if (!$enrolled) {
+            return response()->json(['message' => 'You are not enrolled in this exam.'], 403);
+        }
+
+        $hasSubmitted = Submission::where('user_id', $user->user_id)
+            ->where('exam_id', $exam->exam_id)
+            ->exists();
+
+        $examEnded = !empty($exam->end_time) && Carbon::parse($exam->end_time)->isPast();
+
+        if (!$hasSubmitted && !$examEnded) {
+            return response()->json([
+                'message' => 'Only completed exams can be removed from your list.'
+            ], 422);
+        }
+
+        StudentHiddenExam::firstOrCreate([
+            'user_id' => $user->user_id,
+            'exam_id' => $exam->exam_id,
+        ]);
+
+        return response()->json(['message' => 'Exam removed from your list.']);
     }
 
     /**
