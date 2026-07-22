@@ -33,7 +33,6 @@ class SuperAdminController extends Controller
                             ->where('created_at', '<', now()->subDays(7))->count();
         $userGrowth   = $usersLW > 0 ? round((($totalUsers - $usersLW) / $usersLW) * 100, 1) : 0;
 
-        // Audit logs — try-catch in case table doesn't exist yet
         $recentLogs = collect();
         try {
             $recentLogs = AuditLog::with('user')->orderBy('created_at', 'desc')->take(10)->get()
@@ -418,9 +417,9 @@ class SuperAdminController extends Controller
     public function auditLogs()
     {
         $logs = collect();
-        $eventsToday  = 0;
+        $eventsToday   = 0;
         $criticalCount = 0;
-        $uniqueActors = 0;
+        $uniqueActors  = 0;
         $lastEventTime = '—';
 
         try {
@@ -459,7 +458,6 @@ class SuperAdminController extends Controller
         ));
     }
 
-    /** Polling endpoint for audit trail — returns latest logs as JSON. */
     public function auditLogsApi()
     {
         try {
@@ -602,20 +600,14 @@ class SuperAdminController extends Controller
     }
 
     /* ================================================================
-     *  DATABASE & BACKUP — REAL-TIME VIA LARAVEL REVERB
+     *  DATABASE & BACKUP
      * ================================================================ */
-
-    /**
-     * Render the Database & Backup page.
-     * Reads snapshot files from storage/app/backups/ directory.
-     */
     public function backups()
     {
         $lastBackup  = null;
         $storageUsed = $this->getStorageUsedPercent();
         $snapshots   = $this->getSnapshotsFromDisk();
 
-        // Get last backup timestamp
         if (!empty($snapshots)) {
             $lastBackup = $snapshots[0]['created_at'] ?? null;
         } else {
@@ -630,10 +622,6 @@ class SuperAdminController extends Controller
         return view('superadmin.backups', compact('lastBackup', 'storageUsed', 'snapshots'));
     }
 
-    /**
-     * API endpoint — returns snapshot data as JSON.
-     * Called on initial page load and as a WebSocket-disconnected fallback.
-     */
     public function backupApi()
     {
         $snapshots   = $this->getSnapshotsFromDisk();
@@ -655,35 +643,23 @@ class SuperAdminController extends Controller
         ]);
     }
 
-    /**
-     * Trigger a manual database backup.
-     * Dispatches the CreateBackupJob to the queue.
-     * The job broadcasts BackupStarted → BackupCompleted/BackupFailed via WebSocket.
-     */
     public function triggerBackup()
     {
         $user = auth()->user();
 
-        // Dispatch the backup job to the queue
         CreateBackupJob::dispatch(
             $user->full_name ?? $user->name ?? 'Super Admin',
             'manual'
         );
 
-        // Log the trigger action immediately (the job logs completion separately)
         $this->logAction('backup.manual.triggered', 'DATABASE_BACKUP', '0');
 
         return response()->json([
             'status'  => 'success',
             'message' => 'Backup job dispatched. You will receive real-time updates via WebSocket.',
-        ], 202); // 202 Accepted — job is queued, not complete yet
+        ], 202);
     }
 
-    /**
-     * Restore the database from a snapshot file.
-     * Validates the RESTORE confirmation phrase, then dispatches RestoreDatabaseJob.
-     * The job broadcasts RestoreStarted → RestoreCompleted/RestoreFailed via WebSocket.
-     */
     public function restoreBackup(Request $request, $snapshotId)
     {
         $request->validate([
@@ -697,7 +673,6 @@ class SuperAdminController extends Controller
             ], 422);
         }
 
-        // Verify the snapshot file exists on disk
         $filepath = storage_path('app/backups/' . $snapshotId . '.sql');
         if (!file_exists($filepath)) {
             return response()->json([
@@ -708,10 +683,8 @@ class SuperAdminController extends Controller
 
         $user = auth()->user();
 
-        // Log the trigger immediately as CRITICAL
         $this->logAction('backup.restore.triggered.CRITICAL', 'DATABASE_RESTORE', $snapshotId);
 
-        // Dispatch the restore job to the queue
         RestoreDatabaseJob::dispatch(
             $snapshotId,
             $user->full_name ?? $user->name ?? 'Super Admin'
@@ -723,10 +696,6 @@ class SuperAdminController extends Controller
         ], 202);
     }
 
-    /**
-     * Delete a snapshot file from disk.
-     * Does NOT affect the audit trail — only removes the .sql file.
-     */
     public function deleteBackup($snapshotId)
     {
         $filepath = storage_path('app/backups/' . $snapshotId . '.sql');
@@ -741,10 +710,6 @@ class SuperAdminController extends Controller
         return response()->json(['status' => 'success', 'message' => 'Snapshot deleted.']);
     }
 
-    /**
-     * Read snapshot files from the storage/app/backups/ directory.
-     * Falls back to audit_logs if no files exist (legacy support).
-     */
     private function getSnapshotsFromDisk(): array
     {
         $backupDir = storage_path('app/backups');
@@ -764,7 +729,6 @@ class SuperAdminController extends Controller
             $basename   = pathinfo($file, PATHINFO_FILENAME);
             $sizeMb     = round(filesize($file) / 1024 / 1024, 2);
 
-            // Parse timestamp from filename: SNAP-YYYY-MM-DD-HHmmss
             $dateStr = str_replace('SNAP-', '', $basename);
             $parts   = explode('-', $dateStr);
 
@@ -776,7 +740,6 @@ class SuperAdminController extends Controller
                 $createdAt = date('Y-m-d H:i:s', filemtime($file));
             }
 
-            // Determine type from audit log if possible
             $type = 'automated';
             try {
                 $log = DB::table('audit_logs')
@@ -799,15 +762,11 @@ class SuperAdminController extends Controller
             ];
         }
 
-        // Sort by created_at descending (newest first)
         usort($snapshots, fn($a, $b) => strcmp($b['created_at'], $a['created_at']));
 
         return array_slice($snapshots, 0, 20);
     }
 
-    /**
-     * Fallback: read snapshots from the audit_logs table (legacy support).
-     */
     private function getSnapshotsFromAuditLogs(): array
     {
         try {
@@ -855,7 +814,6 @@ class SuperAdminController extends Controller
 
         Artisan::call('config:clear');
 
-        // Return JSON for AJAX calls
         if ($request->expectsJson() || $request->ajax()) {
             return response()->json([
                 'status'  => 'success',
@@ -880,9 +838,6 @@ class SuperAdminController extends Controller
         }
     }
 
-    /**
-     * Clear application cache (config, route, view, app)
-     */
     public function clearDatabaseCache()
     {
         try {
@@ -897,9 +852,6 @@ class SuperAdminController extends Controller
         }
     }
 
-    /**
-     * Optimize all database tables
-     */
     public function optimizeDatabaseTables()
     {
         try {
@@ -916,9 +868,6 @@ class SuperAdminController extends Controller
         }
     }
 
-    /**
-     * Clear Laravel log files
-     */
     public function clearSystemLogs()
     {
         try {
@@ -935,9 +884,6 @@ class SuperAdminController extends Controller
         }
     }
 
-    /**
-     * Flush proctoring / job queue (emergency action)
-     */
     public function flushProctoringQueue()
     {
         try {
@@ -949,9 +895,6 @@ class SuperAdminController extends Controller
         }
     }
 
-    /**
-     * Purge old audit logs beyond retention window
-     */
     public function purgeSystemAuditLogs()
     {
         try {
@@ -1071,7 +1014,13 @@ class SuperAdminController extends Controller
                 'department_id'  => $did,
             ]);
 
-            if ($u->role === 'teacher' && $did) $u->departments()->syncWithoutDetaching([$did]);
+            if ($u->role === 'teacher' && $did) {
+                $u->departments()->syncWithoutDetaching([$did]);
+            }
+            if ($u->role === 'admin' && $did && method_exists($u, 'managedDepartments')) {
+                $u->managedDepartments()->syncWithoutDetaching([$did]);
+            }
+
             $this->logAction('admin.account.create', 'USER_MANAGEMENT', $u->user_id);
             return $u;
         });
@@ -1115,7 +1064,8 @@ class SuperAdminController extends Controller
             return response()->json(['message' => 'Cannot change only Super Admin role.'], 422);
 
         DB::transaction(function () use ($u, $v) {
-            $u->role = $v['role']; $u->save();
+            $u->role = $v['role']; 
+            $u->save();
             $this->logAction('admin.account.role_update', 'USER_MANAGEMENT', $u->user_id);
         });
 
@@ -1137,7 +1087,6 @@ class SuperAdminController extends Controller
 
         $deptId = $request->input('department_id');
 
-        // Validate department belongs to institution if provided
         if ($deptId) {
             $exists = DB::table('departments')
                 ->where('id', $deptId)
@@ -1150,11 +1099,9 @@ class SuperAdminController extends Controller
         }
 
         DB::transaction(function () use ($u, $deptId) {
-            // Update the user's department_id column
             $u->department_id = $deptId ?: null;
             $u->save();
 
-            // If user is admin, also update the department_user pivot table
             if ($u->role === 'admin' && method_exists($u, 'managedDepartments')) {
                 if ($deptId) {
                     $u->managedDepartments()->sync([$deptId]);
@@ -1163,7 +1110,6 @@ class SuperAdminController extends Controller
                 }
             }
 
-            // If user is teacher, sync the department_teacher pivot
             if ($u->role === 'teacher' && method_exists($u, 'departments')) {
                 if ($deptId) {
                     $u->departments()->syncWithoutDetaching([$deptId]);
@@ -1322,9 +1268,6 @@ class SuperAdminController extends Controller
         return $alerts;
     }
 
-    /**
-     * Write one audit-log row using YOUR actual column names.
-     */
     private function logAction($action, $modelType, $modelId)
     {
         try {
@@ -1337,8 +1280,6 @@ class SuperAdminController extends Controller
                 'ip_address'     => request()->ip(),
                 'created_at'     => now(),
             ]);
-        } catch (\Exception $e) {
-            // Table may not exist yet — silently fail
-        }
+        } catch (\Exception $e) {}
     }
 }

@@ -70,9 +70,13 @@
             </a>
             <div class="pt-4 pb-1"><p class="text-[10px] font-bold text-slate-300 uppercase tracking-widest px-3 mb-2">Root Access</p></div>
 
-            {{-- ACTIVE --}}
             <a href="{{ route('superadmin.admins.index') }}" class="flex items-center gap-3 px-3 py-2.5 bg-blue-600 text-white font-semibold rounded-xl text-sm mb-0.5 transition-all duration-200" style="box-shadow:0 4px 12px rgba(59,130,246,0.30);">
                 <span class="w-8 h-8 flex items-center justify-center rounded-lg bg-white bg-opacity-20 flex-shrink-0"><i class="fa-solid fa-users text-xs text-white"></i></span><span>User Management</span>
+            </a>
+
+            {{-- 🚀 DEPARTMENT DIRECTORY LINK ADDED HERE --}}
+            <a href="{{ route('superadmin.departments.index') }}" class="flex items-center gap-3 px-3 py-2.5 text-slate-500 hover:text-slate-800 hover:bg-slate-100 font-medium rounded-xl text-sm mb-0.5 transition-all duration-200">
+                <span class="w-8 h-8 flex items-center justify-center rounded-lg flex-shrink-0"><i class="fa-solid fa-building-columns text-xs text-slate-400"></i></span><span>Department Directory</span>
             </a>
 
             <a href="{{ route('superadmin.audit-logs.index') }}" class="flex items-center gap-3 px-3 py-2.5 text-slate-500 hover:text-slate-800 hover:bg-slate-100 font-medium rounded-xl text-sm mb-0.5 transition-all duration-200">
@@ -238,7 +242,7 @@
                 <div class="grid grid-cols-2 gap-2" id="role-picker"></div>
             </div>
 
-            {{-- ═══ DEPARTMENT DROPDOWN (visible for admin & teacher roles) ═══ --}}
+            {{-- ═══ DEPARTMENT DROPDOWN ═══ --}}
             <div id="dept-field" style="display:none;">
                 <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">
                     <i class="fa-solid fa-building-columns mr-1 text-blue-400"></i> Assign to Department
@@ -260,10 +264,8 @@
     </div>
 </div>
 
-
 {{-- Toast --}}
 <div id="toast-container" class="fixed bottom-6 right-6 z-50 flex flex-col gap-2" style="pointer-events:none;"></div>
-
 
 {{-- ===================== SCRIPTS ===================== --}}
 <script>
@@ -272,7 +274,6 @@
     const CURRENT_AUTH_ID = {{ auth()->id() ?? 0 }};
     const CSRF = document.querySelector('meta[name=csrf-token]').content;
 
-    // ── Department data from server ──
     const ALL_DEPARTMENTS = {!! json_encode($departments ?? []) !!};
 
     const ROLE_GRADS = {
@@ -288,20 +289,17 @@
         student:     { bg:'#f0fdf4', color:'#059669', border:'#a7f3d0', label:'Student' },
     };
 
-    // ── State ──
     let allUsers = {!! json_encode($admins ?? []) !!};
     let activeTab = 'all';
     let selectedRole = 'admin';
     let isInitialRender = true;
 
-    // ── Clock ──
     function updateClock() {
         document.getElementById('live-clock').textContent =
             new Date().toLocaleTimeString('en-US', { hour12:false, hour:'2-digit', minute:'2-digit', second:'2-digit' });
     }
     updateClock(); setInterval(updateClock, 1000);
 
-    // ── Poll countdown (3s) ──
     let pollCount = 3;
     const pollEl = document.getElementById('poll-countdown');
     setInterval(() => {
@@ -310,7 +308,6 @@
         pollEl.textContent = pollCount;
     }, 1000);
 
-    // ── Metric cards ──
     function setMetric(id, value) {
         const el = document.getElementById(id);
         if (!el) return;
@@ -332,7 +329,6 @@
         document.getElementById('total-record-count').textContent = `(${allUsers.length} records)`;
     }
 
-    // ── Helpers ──
     function getInitials(name) {
         if (!name) return '??';
         return name.split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase();
@@ -356,17 +352,6 @@
         }
         return null;
     }
-
-    // ── Build department dropdown options HTML ──
-    function deptOptionsHtml(currentDeptId) {
-        let html = `<option value="">— None —</option>`;
-        ALL_DEPARTMENTS.forEach(d => {
-            const sel = (d.id == currentDeptId) ? 'selected' : '';
-            html += `<option value="${d.id}" ${sel}>${esc(d.name)}</option>`;
-        });
-        return html;
-    }
-
 
     // ============================================================
     //  RENDER TABLE
@@ -392,38 +377,23 @@
             const isSelf = u.user_id === CURRENT_AUTH_ID;
             const isActive = u.status === 'active';
             const deptName = getDeptName(u);
-            const needsDept = (u.role === 'admin' || u.role === 'teacher');
 
-            // ── Department cell ──
+            // Department cell dropdown
             let deptCellHtml;
-            if (!needsDept) {
-                // Students & super admins don't need department assignment shown
+            if (isSelf) {
                 deptCellHtml = `<span class="text-[11px] text-slate-300 font-medium">—</span>`;
-            } else if (deptName) {
-                // Has a department — show it with option to change
-                deptCellHtml = `
-                    <div class="flex items-center gap-2">
-                        <span class="text-[10px] font-bold uppercase tracking-wide px-2.5 py-1 rounded-lg border"
-                              style="background:#eff6ff;color:#1d4ed8;border-color:#bfdbfe;">
-                            <i class="fa-solid fa-building-columns mr-1" style="font-size:9px;"></i>${esc(deptName)}
-                        </span>
-                        ${isSelf ? '' : `<select onchange="updateUserDepartment(${u.user_id},this.value)"
-                            class="text-[10px] font-bold border border-slate-200 rounded-lg px-1.5 py-1 bg-slate-50 text-slate-500 cursor-pointer outline-none focus:border-blue-500"
-                            title="Change department">${deptOptionsHtml(u.department_id)}</select>`}
-                    </div>`;
+            } else if (!ALL_DEPARTMENTS || ALL_DEPARTMENTS.length === 0) {
+                deptCellHtml = `<span class="text-[10px] font-bold text-slate-400 bg-slate-100 px-2.5 py-1 rounded-lg">No Depts Created</span>`;
             } else {
-                // No department — show assign dropdown
-                deptCellHtml = isSelf
-                    ? `<span class="text-[11px] text-slate-300 font-medium">—</span>`
-                    : `<select onchange="updateUserDepartment(${u.user_id},this.value)"
-                            class="text-[11px] font-bold border border-amber-200 rounded-lg px-2 py-1.5 bg-amber-50 text-amber-700 cursor-pointer outline-none focus:border-blue-500"
-                            title="Assign department">
-                            <option value="">⚠ Not assigned</option>
-                            ${ALL_DEPARTMENTS.map(d => `<option value="${d.id}">${esc(d.name)}</option>`).join('')}
-                       </select>`;
+                deptCellHtml = `
+                    <select onchange="updateUserDepartment(${u.user_id},this.value)"
+                            class="text-[11px] font-bold border ${deptName ? 'border-slate-200 bg-slate-50 text-slate-600' : 'border-amber-200 bg-amber-50 text-amber-700'} rounded-lg px-2 py-1.5 cursor-pointer outline-none focus:border-blue-500 transition-all">
+                        <option value="" ${!u.department_id ? 'selected' : ''}>${deptName ? '— Unassign —' : '⚠ Not assigned'}</option>
+                        ${ALL_DEPARTMENTS.map(d => `<option value="${d.id}" ${u.department_id == d.id ? 'selected' : ''}>${esc(d.name)} (${esc(d.code || '')})</option>`).join('')}
+                    </select>`;
             }
 
-            // ── Actions cell ──
+            // Actions cell
             const actionCellHtml = isSelf
                 ? `<span class="text-[10px] font-bold px-2.5 py-1 rounded-lg bg-blue-50 text-blue-600 border border-blue-100 inline-block">
                     <i class="fa-solid fa-lock mr-1" style="font-size:9px;"></i>Self · Protected
@@ -484,7 +454,6 @@
             }
         });
 
-        // Remove rows that no longer belong to filtered set
         Array.from(tbody.children).forEach(tr => {
             if (tr.id && tr.id.startsWith('user-row-')) {
                 const uid = parseInt(tr.id.replace('user-row-', ''), 10);
@@ -497,10 +466,6 @@
         isInitialRender = false;
     };
 
-
-    // ============================================================
-    //  TAB FILTER
-    // ============================================================
     window.setTab = function(role, btn) {
         activeTab = role;
         document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
@@ -508,10 +473,6 @@
         renderTable(true);
     };
 
-
-    // ============================================================
-    //  FETCH LATEST USERS (silent poll)
-    // ============================================================
     function fetchLatestUsers() {
         fetch('{{ route("superadmin.admins.api") }}', {
             headers: { 'Accept': 'application/json', 'X-CSRF-TOKEN': CSRF, 'X-Requested-With': 'XMLHttpRequest' }
@@ -527,10 +488,6 @@
         .catch(err => console.error('User poll failed:', err));
     }
 
-
-    // ============================================================
-    //  UPDATE USER DEPARTMENT (inline dropdown change)
-    // ============================================================
     window.updateUserDepartment = function(userId, deptId) {
         const body = { department_id: deptId || null };
 
@@ -553,10 +510,6 @@
         .catch(() => { showToast('Network error.', 'error'); fetchLatestUsers(); });
     };
 
-
-    // ============================================================
-    //  TOGGLE USER STATUS
-    // ============================================================
     window.toggleUserStatus = function(userId) {
         fetch(`/super-admin/admins/${userId}/toggle-status`, {
             method: 'PATCH',
@@ -574,10 +527,6 @@
         .catch(() => showToast('Network error.', 'error'));
     };
 
-
-    // ============================================================
-    //  CHANGE ROLE
-    // ============================================================
     window.updateUserRole = function(userId, role) {
         fetch(`/super-admin/admins/${userId}/change-role`, {
             method: 'PATCH',
@@ -597,10 +546,6 @@
         .catch(() => { showToast('Network error.', 'error'); fetchLatestUsers(); });
     };
 
-
-    // ============================================================
-    //  MODAL — ADD ACCOUNT
-    // ============================================================
     window.openModal = function() {
         document.getElementById('create-modal').style.display = 'flex';
         document.getElementById('new-name').value = '';
@@ -638,38 +583,41 @@
         updateDeptField();
     };
 
-    // ── Show/hide department dropdown based on selected role ──
     function updateDeptField() {
         const field = document.getElementById('dept-field');
         const select = document.getElementById('new-department');
         const hint = document.getElementById('dept-hint');
 
-        // Show for admin and teacher roles
-        if (selectedRole === 'admin' || selectedRole === 'teacher') {
+        if (['admin', 'teacher', 'student'].includes(selectedRole)) {
             field.style.display = 'block';
 
-            // Populate dropdown with departments
+            if (!ALL_DEPARTMENTS || ALL_DEPARTMENTS.length === 0) {
+                select.innerHTML = `<option value="">⚠️ No departments created yet</option>`;
+                hint.innerHTML = `<span class="text-amber-600 font-semibold"><i class="fa-solid fa-triangle-exclamation mr-1"></i> Please create a department in the Department Directory first.</span>`;
+                return;
+            }
+
             let html = `<option value="">— No department (assign later) —</option>`;
             ALL_DEPARTMENTS.forEach(d => {
-                html += `<option value="${d.id}">${esc(d.name)} (${d.code || ''})</option>`;
+                html += `<option value="${d.id}">${esc(d.name)} (${esc(d.code || '')})</option>`;
             });
             select.innerHTML = html;
 
             if (selectedRole === 'admin') {
                 hint.innerHTML = `<i class="fa-solid fa-circle-info text-blue-400 mr-1"></i>
-                    The admin will only see and manage users, exams, and data inside this department.
-                    If left empty, you can assign them later from the <strong>Department Directory</strong>.`;
-            } else {
+                    The admin will manage users, exams, and data inside this department.`;
+            } else if (selectedRole === 'teacher') {
                 hint.innerHTML = `<i class="fa-solid fa-circle-info text-blue-400 mr-1"></i>
                     The teacher will be linked to this department's courses and exams.`;
+            } else {
+                hint.innerHTML = `<i class="fa-solid fa-circle-info text-blue-400 mr-1"></i>
+                    The student will be enrolled in this department.`;
             }
         } else {
             field.style.display = 'none';
         }
     }
 
-
-    // ── Toggle password visibility ──
     window.togglePw = function() {
         const pw = document.getElementById('new-password');
         const eye = document.getElementById('pw-eye');
@@ -677,10 +625,6 @@
         else { pw.type = 'password'; eye.className = 'fa-solid fa-eye text-xs'; }
     };
 
-
-    // ============================================================
-    //  SUBMIT CREATE ACCOUNT (with department)
-    // ============================================================
     window.submitCreateAccount = function() {
         const name = document.getElementById('new-name').value.trim();
         const email = document.getElementById('new-email').value.trim();
@@ -701,8 +645,7 @@
             role: selectedRole,
         };
 
-        // Include department_id if role is admin or teacher and a department was selected
-        if ((selectedRole === 'admin' || selectedRole === 'teacher') && deptId) {
+        if (deptId) {
             payload.department_id = parseInt(deptId, 10);
         }
 
@@ -731,10 +674,6 @@
         });
     };
 
-
-    // ============================================================
-    //  TOAST
-    // ============================================================
     function showToast(message, type) {
         const container = document.getElementById('toast-container');
         const toast = document.createElement('div');
@@ -749,8 +688,6 @@
         setTimeout(() => { toast.classList.remove('toast-visible'); setTimeout(() => toast.remove(), 300); }, 4000);
     }
 
-
-    // ── INIT ──
     updateCards();
     renderTable();
     renderRolePicker();

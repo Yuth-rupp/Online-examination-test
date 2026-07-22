@@ -67,7 +67,7 @@ Route::middleware(['guest'])->group(function () {
 
 Route::middleware(['auth'])->post('/auth/logout', [AuthController::class, 'logout'])->name('logout');
 
-// ── REAL-TIME EXAM RULES (readable by any signed-in role: student, teacher, admin) ──
+// Real-time exam rules
 Route::middleware(['auth'])->get('/exam-rules/live', [AdminController::class, 'getExamRulesApi'])->name('exam.rules.live');
 
 /* =========================================================================
@@ -83,10 +83,8 @@ Route::middleware(['auth', 'role:teacher'])->group(function () {
     Route::post('/teacher/settings',  [TeacherController::class, 'updateSettings'])->name('teacher.settings.update');
     Route::post('/teacher/settings/password', [TeacherController::class, 'updatePassword'])->name('teacher.settings.update.password');
     
-    // Asynchronous avatar upload handler
     Route::post('/teacher/settings/avatar', [TeacherController::class, 'uploadAvatar'])->name('teacher.settings.avatar');
 
-    // Real-time Teacher Notification Endpoints
     Route::get('/teacher/notifications', [NotificationController::class, 'index'])->name('teacher.notifications');
     Route::post('/teacher/notifications/clear', [NotificationController::class, 'clearAll'])->name('teacher.notifications.clear');
 
@@ -95,41 +93,15 @@ Route::middleware(['auth', 'role:teacher'])->group(function () {
     Route::delete('/teacher/courses/{id}',   [TeacherController::class, 'destroyCourse'])->name('teacher.courses.destroy');
     Route::get('/teacher/exams/{id}/preview',[TeacherController::class, 'previewExam'])->name('teacher.exams.preview');
 
-    // ── TEACHER MONITORING (for watching student webcam feeds) ─────────────
-    Route::get('/teacher/monitoring',
-        function () { return view('teacher.monitoring'); }
-    )->name('teacher.monitoring.show');
+    Route::get('/teacher/monitoring', function () { return view('teacher.monitoring'); })->name('teacher.monitoring.show');
 
-    // HTTP polling endpoint — returns pending proctor keys from cache.
-    Route::get('/teacher/monitoring/pending-keys',
-        [ProctorHandshakeController::class, 'getPendingKeys']
-    )->name('teacher.monitoring.pending-keys');
-
-    Route::post('/teacher/monitoring/approve-proctor-key',
-        [ProctorHandshakeController::class, 'approveKey']
-    )->name('teacher.monitoring.approveKey');
-
-    Route::get('/teacher/monitoring/end-confirmation',
-        [TeacherController::class, 'endExamConfirmation']
-    )->name('teacher.monitoring.endConfirmation');
-
-    Route::get('/teacher/monitoring/session-ended',
-        [TeacherController::class, 'examSessionEnded']
-    )->name('teacher.exam.endedOverview');
-
-    Route::post('/teacher/monitoring/end-exam',
-        [TeacherController::class, 'endExamSession']
-    )->name('teacher.monitoring.endExam');
-
-    Route::get('/teacher/monitoring/export-log',
-        [TeacherController::class, 'exportSessionLog']
-    )->name('teacher.monitoring.exportLog');
-
-    // Real-time cheat detection feed — polled by the Cheat Log panel
-    Route::get('/teacher/monitoring/cheat-alerts',
-        [TeacherController::class, 'getCheatAlerts']
-    )->name('teacher.monitoring.cheatAlerts');
-    // ── END TEACHER MONITORING ─────────────────────────────────────────────
+    Route::get('/teacher/monitoring/pending-keys', [ProctorHandshakeController::class, 'getPendingKeys'])->name('teacher.monitoring.pending-keys');
+    Route::post('/teacher/monitoring/approve-proctor-key', [ProctorHandshakeController::class, 'approveKey'])->name('teacher.monitoring.approveKey');
+    Route::get('/teacher/monitoring/end-confirmation', [TeacherController::class, 'endExamConfirmation'])->name('teacher.monitoring.endConfirmation');
+    Route::get('/teacher/monitoring/session-ended', [TeacherController::class, 'examSessionEnded'])->name('teacher.exam.endedOverview');
+    Route::post('/teacher/monitoring/end-exam', [TeacherController::class, 'endExamSession'])->name('teacher.monitoring.endExam');
+    Route::get('/teacher/monitoring/export-log', [TeacherController::class, 'exportSessionLog'])->name('teacher.monitoring.exportLog');
+    Route::get('/teacher/monitoring/cheat-alerts', [TeacherController::class, 'getCheatAlerts'])->name('teacher.monitoring.cheatAlerts');
 
     Route::get('/teacher/grading',                  [GradingController::class, 'queueIndex'])->name('teacher.grading.queue');
     Route::get('/teacher/grading/evaluate/{student_id}', [GradingController::class, 'show'])->name('teacher.grading.show');
@@ -173,17 +145,9 @@ Route::middleware(['auth', 'role:student'])->group(function () {
     Route::post('/student/history',               [StudentController::class, 'storeExamSubmission'])->name('student.submission.store');
     Route::post('/student/exams/log-violation',   [StudentController::class, 'logProctorViolation'])->name('student.exams.logViolation');
 
-    // ── STUDENT PROCTORING ──────────────────────────────────────────────────
-    Route::post('/student/exams/register-proctor-key',
-        [ProctorHandshakeController::class, 'registerKey']
-    )->name('student.exams.registerProctorKey');
+    Route::post('/student/exams/register-proctor-key', [ProctorHandshakeController::class, 'registerKey'])->name('student.exams.registerProctorKey');
+    Route::post('/student/exams/stream-frame', [ProctorHandshakeController::class, 'streamProctorFrame'])->name('student.exams.streamFrame');
 
-    Route::post('/student/exams/stream-frame',
-        [ProctorHandshakeController::class, 'streamProctorFrame']
-    )->name('student.exams.streamFrame');
-    // ── END STUDENT PROCTORING ──────────────────────────────────────────────
-
-    // ── REAL-TIME NOTIFICATIONS (used by dashboard, exams, history, settings) ──
     Route::get('/student/notifications',               [NotificationController::class, 'index'])->name('student.notifications');
     Route::get('/student/notifications/unread-count',  [NotificationController::class, 'unreadCount'])->name('student.notifications.unreadCount');
     Route::post('/student/notifications/{id}/read',    [NotificationController::class, 'markRead'])->name('student.notifications.markRead');
@@ -220,7 +184,6 @@ Route::middleware(['auth', 'role:super_admin'])->prefix('super-admin')->group(fu
     Route::get('/live-feed',            [SuperAdminController::class, 'getLiveActivityFeedApi'])->name('superadmin.live-feed');
     Route::get('/telemetry/live-feed',  [SuperAdminController::class, 'getLiveActivityFeedApi'])->name('superadmin.telemetry.livefeed');
 
-    // Super Admin Monitoring (watches teacher/system activity — NOT student webcams)
     Route::get('/monitoring',           [SuperAdminController::class, 'monitoring'])->name('superadmin.monitoring.index');
     Route::get('/monitoring/teachers',  [SuperAdminController::class, 'teachersMonitoringApi'])->name('superadmin.monitoring.teachers');
     Route::get('/monitoring/api',       [SuperAdminController::class, 'getMonitoringStatsApi'])->name('superadmin.monitoring.api');
@@ -235,15 +198,12 @@ Route::middleware(['auth', 'role:super_admin'])->prefix('super-admin')->group(fu
     Route::get('/reports/departments',  [SuperAdminController::class, 'getReportsDepartmentDataApi'])->name('superadmin.reports.departments');
     Route::get('/reports/live',         [SuperAdminController::class, 'getReportsLiveCountersApi'])->name('superadmin.reports.live');
 
-    // ── DATABASE & BACKUP (Real-Time via Laravel Reverb) ──────────────────
     Route::get('/backups',                          [SuperAdminController::class, 'backups'])->name('superadmin.backups.index');
     Route::get('/backups/api',                      [SuperAdminController::class, 'backupApi'])->name('superadmin.backup.api');
     Route::post('/backups/trigger',                 [SuperAdminController::class, 'triggerBackup'])->name('superadmin.backup.trigger');
     Route::post('/backups/{snapshotId}/restore',    [SuperAdminController::class, 'restoreBackup'])->name('superadmin.backup.restore');
     Route::delete('/backups/{snapshotId}',          [SuperAdminController::class, 'deleteBackup'])->name('superadmin.backup.delete');
-    // ── END DATABASE & BACKUP ─────────────────────────────────────────────
 
-    // Audit logs
     Route::get('/audit-logs',           [SuperAdminController::class, 'auditLogs'])->name('superadmin.audit-logs.index');
     Route::get('/audit-logs/api',       [SuperAdminController::class, 'auditLogsApi'])->name('superadmin.audit-logs.api');
     Route::get('/audit-logs/export',    [SuperAdminController::class, 'exportAuditLogsCsv'])->name('superadmin.audit-logs.export');
@@ -258,22 +218,20 @@ Route::middleware(['auth', 'role:super_admin'])->prefix('super-admin')->group(fu
     Route::post('/settings/flush-queue',       [SuperAdminController::class, 'flushProctoringQueue'])->name('superadmin.settings.flushQueue');
     Route::post('/settings/purge-audit-logs',  [SuperAdminController::class, 'purgeSystemAuditLogs'])->name('superadmin.settings.purgeAuditLogs');
 
-    Route::get('/admins',                      [SuperAdminController::class, 'adminIndex'])->name('superadmin.admins.index');
-    Route::get('/admins/api-stream',           [SuperAdminController::class, 'adminApiIndex'])->name('superadmin.admins.api');
-    Route::post('/admins/store',               [SuperAdminController::class, 'adminStore'])->name('superadmin.admins.store');
-    Route::patch('/admins/{id}/toggle-status', [SuperAdminController::class, 'adminToggleStatus'])->name('superadmin.admins.toggleStatus');
-    Route::patch('/admins/{id}/change-role',   [SuperAdminController::class, 'adminChangeRole'])->name('superadmin.admins.changeRole');
+    // USER MANAGEMENT & DEPARTMENT CHANGE
+    Route::get('/admins',                          [SuperAdminController::class, 'adminIndex'])->name('superadmin.admins.index');
+    Route::get('/admins/api-stream',               [SuperAdminController::class, 'adminApiIndex'])->name('superadmin.admins.api');
+    Route::post('/admins/store',                   [SuperAdminController::class, 'adminStore'])->name('superadmin.admins.store');
+    Route::patch('/admins/{id}/toggle-status',     [SuperAdminController::class, 'adminToggleStatus'])->name('superadmin.admins.toggleStatus');
+    Route::patch('/admins/{id}/change-role',       [SuperAdminController::class, 'adminChangeRole'])->name('superadmin.admins.changeRole');
     Route::patch('/admins/{id}/change-department', [SuperAdminController::class, 'adminChangeDepartment'])->name('superadmin.admins.changeDepartment');
 
-    // ── DEPARTMENT DIRECTORY (create departments, hand each one to an admin) ──
     Route::get('/departments',                        [DepartmentController::class, 'index'])->name('superadmin.departments.index');
     Route::post('/departments/store',                  [DepartmentController::class, 'store'])->name('superadmin.departments.store');
     Route::put('/departments/{department}/update',     [DepartmentController::class, 'update'])->name('superadmin.departments.update');
     Route::post('/departments/{department}/assign-admin',       [DepartmentController::class, 'assignAdmin'])->name('superadmin.departments.assignAdmin');
     Route::delete('/departments/{department}/admins/{userId}',  [DepartmentController::class, 'removeAdmin'])->name('superadmin.departments.removeAdmin');
 
-    // ── INSTITUTION DIRECTORY (onboard a university's email domain so its
-    //    students/teachers can self-register — see AuthController::register()) ──
     Route::get('/institutions',                        [InstitutionController::class, 'index'])->name('superadmin.institutions.index');
     Route::post('/institutions/store',                  [InstitutionController::class, 'store'])->name('superadmin.institutions.store');
     Route::put('/institutions/{institution}/update',     [InstitutionController::class, 'update'])->name('superadmin.institutions.update');
@@ -307,7 +265,6 @@ Route::middleware(['auth', 'role:admin,super_admin'])->group(function () {
     Route::put('/admin/users/{id}/force-password',[AdminController::class, 'forceResetPassword'])->name('admin.users.forcePassword');
     Route::patch('/admin/users/{id}/toggle-status',[AdminController::class, 'toggleUserStatus'])->name('admin.users.toggleStatus');
 
-    // ── DEPARTMENT TEACHING ROSTER (a teacher can be linked to several departments) ──
     Route::get('/admin/departments/{department}/teachers',              [DepartmentController::class, 'teachers'])->name('admin.departments.teachers');
     Route::get('/admin/departments/{department}/teachers/search',       [DepartmentController::class, 'searchTeachers'])->name('admin.departments.teachers.search');
     Route::post('/admin/departments/{department}/teachers/assign',      [DepartmentController::class, 'assignTeacher'])->name('admin.departments.teachers.assign');
