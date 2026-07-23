@@ -6,6 +6,7 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
 use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Storage;
 
 class User extends Authenticatable
 {
@@ -164,7 +165,7 @@ class User extends Authenticatable
         }
 
         if (Str::startsWith($path, 'profile_photos/') || Str::startsWith($path, 'avatars/')) {
-            return asset('storage/' . $path);
+            return Storage::disk('public')->url($path);
         }
 
         return asset($path);
