@@ -202,8 +202,13 @@ class SuperAdminController extends Controller
                 return (object) [
                     'id'            => $d->id,
                     'department'    => $d->name,
-                    'exam_count'    => DB::table('exams')->where('department_id', $d->id)->count(),
-                    'sessions'      => DB::table('exams')->where('department_id', $d->id)->where('status', 'active')->count(),
+                    'exam_count'    => DB::table('exams')
+                        ->join('courses', 'exams.course_id', '=', 'courses.id')
+                        ->where('courses.department_id', $d->id)->count(),
+                    'sessions'      => DB::table('exams')
+                        ->join('courses', 'exams.course_id', '=', 'courses.id')
+                        ->where('courses.department_id', $d->id)
+                        ->where('exams.status', 'active')->count(),
                     'avg_flag_rate' => 0,
                 ];
             });
@@ -369,30 +374,29 @@ class SuperAdminController extends Controller
 
         $stats = [];
         foreach ($departments as $dept) {
-            $examCount = DB::table('exams')->where('department_id', $dept->id)
-                ->where('created_at', '>=', now()->subDays($range))->count();
+            $examCount = DB::table('exams')
+                ->join('courses', 'exams.course_id', '=', 'courses.id')
+                ->where('courses.department_id', $dept->id)
+                ->where('exams.created_at', '>=', now()->subDays($range))->count();
 
             $flagRate = 0; $trend = 'stable';
             try {
-                $examIds = DB::table('exams')->where('department_id', $dept->id)->pluck('exam_id');
-                if ($examIds->isEmpty()) {
-                    $examIds = DB::table('exams')->where('department_id', $dept->id)->pluck('id');
-                }
+                $examIds = DB::table('exams')
+                    ->join('courses', 'exams.course_id', '=', 'courses.id')
+                    ->where('courses.department_id', $dept->id)
+                    ->pluck('exams.exam_id');
 
                 if ($examIds->isNotEmpty()) {
                     $total = DB::table('exam_sessions')->whereIn('exam_id', $examIds)->count();
                     $flagged = DB::table('exam_sessions')->whereIn('exam_id', $examIds)->where('is_flagged', true)->count();
                     $flagRate = $total > 0 ? round(($flagged / $total) * 100, 1) : 0;
 
-                    $prevIds = DB::table('exams')->where('department_id', $dept->id)
-                        ->where('created_at', '>=', now()->subDays($range * 2))
-                        ->where('created_at', '<', now()->subDays($range))->pluck('exam_id');
-
-                    if ($prevIds->isEmpty()) {
-                        $prevIds = DB::table('exams')->where('department_id', $dept->id)
-                            ->where('created_at', '>=', now()->subDays($range * 2))
-                            ->where('created_at', '<', now()->subDays($range))->pluck('id');
-                    }
+                    $prevIds = DB::table('exams')
+                        ->join('courses', 'exams.course_id', '=', 'courses.id')
+                        ->where('courses.department_id', $dept->id)
+                        ->where('exams.created_at', '>=', now()->subDays($range * 2))
+                        ->where('exams.created_at', '<', now()->subDays($range))
+                        ->pluck('exams.exam_id');
 
                     if ($prevIds->isNotEmpty()) {
                         $pT = DB::table('exam_sessions')->whereIn('exam_id', $prevIds)->count();

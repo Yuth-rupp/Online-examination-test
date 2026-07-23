@@ -204,6 +204,24 @@
                     </div>
                 </div>
 
+                {{-- Department(s) (read-only — assigned by an admin, not self-editable) --}}
+                @php
+                    $__settingsDepts = Auth::user()->departments()->pluck('name');
+                    if (Auth::user()->department_id && Auth::user()->department && !$__settingsDepts->contains(Auth::user()->department->name)) {
+                        $__settingsDepts->push(Auth::user()->department->name);
+                    }
+                @endphp
+                <div class="mb-6">
+                    <label class="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-1.5">
+                        Department(s) <span class="normal-case font-normal">(assigned by admin)</span>
+                    </label>
+                    <div class="relative">
+                        <i class="fa-solid fa-building absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-300 text-xs pointer-events-none"></i>
+                        <input type="text" class="fld pl-9 w-full sm:w-1/2"
+                               value="{{ $__settingsDepts->isNotEmpty() ? $__settingsDepts->implode(', ') : 'Not assigned yet' }}" disabled>
+                    </div>
+                </div>
+
                 {{-- Actions --}}
                 <div class="flex items-center justify-between pt-4" style="border-top:1.5px solid #F1F5F9">
                     <p class="text-[10px] text-slate-400 flex items-center gap-1.5">

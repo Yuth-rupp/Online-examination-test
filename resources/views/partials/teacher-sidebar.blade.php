@@ -37,6 +37,35 @@
         <span class="font-black text-[18px] text-[#0F172A] tracking-tight">ExamSystem</span>
     </a>
 
+    {{-- Department badge: shows every department this teacher is assigned to teach in
+         (home department_id + any extra department_teacher pivot rows), so it's just as
+         clear for a teacher as it already is for a department admin. --}}
+    @php
+        $__tUser = Auth::user();
+        $__tDepts = collect();
+        if ($__tUser) {
+            $__tDepts = $__tUser->departments()->pluck('name');
+            if ($__tUser->department_id && $__tUser->department && !$__tDepts->contains($__tUser->department->name)) {
+                $__tDepts->push($__tUser->department->name);
+            }
+        }
+    @endphp
+    <div class="px-5 pt-3 pb-1">
+        @if($__tDepts->isNotEmpty())
+            <span class="inline-flex items-center gap-1.5 text-[11px] font-bold px-2.5 py-1.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200"
+                  title="Teaching in: {{ $__tDepts->implode(', ') }}">
+                <i class="fa-solid fa-building text-[10px]"></i>
+                {{ $__tDepts->count() > 1 ? $__tDepts->first().' +'.($__tDepts->count() - 1) : $__tDepts->first() }}
+            </span>
+        @else
+            <span class="inline-flex items-center gap-1.5 text-[11px] font-bold px-2.5 py-1.5 rounded-full bg-slate-100 text-slate-500 border border-slate-200"
+                  title="No department has been assigned to you yet — ask your admin to add you">
+                <i class="fa-solid fa-circle-question text-[10px]"></i>
+                No Department
+            </span>
+        @endif
+    </div>
+
     <!-- Nav -->
     <nav class="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
         <p class="text-[10px] font-bold text-[#94A3B8] uppercase tracking-widest px-3 pt-1 pb-2">Main Menu</p>
