@@ -38,10 +38,21 @@
                 <h1 class="text-white font-bold text-lg">{{ $department->name }} — Teaching Roster</h1>
                 <p class="text-blue-100 text-xs mt-0.5">Add teachers who already exist elsewhere so they can also teach in this department.</p>
             </div>
-            <div class="text-right">
-                <h4 class="text-sm font-semibold text-white">{{ Auth::user()->full_name ?? 'Admin' }}</h4>
-                <span class="text-xs text-blue-200">{{ Auth::user()->role === 'super_admin' ? 'Super Administrator' : 'Department Admin' }}</span>
+            <div class="flex items-center gap-3">
+                <div class="text-right">
+                    <h4 class="text-sm font-semibold text-white">{{ Auth::user()->full_name ?? 'Admin' }}</h4>
+                    <span class="text-xs text-blue-200">{{ Auth::user()->role === 'super_admin' ? 'Super Administrator' : 'Department Admin' }}</span>
+                </div>
+                @if(Auth::user()->avatar_url)
+                    <img src="{{ Auth::user()->avatar_url }}" alt="{{ Auth::user()->full_name }}"
+                         class="w-9 h-9 rounded-xl object-cover ring-2 ring-white/40" style="box-shadow:0 3px 10px rgba(0,0,0,0.25)">
+                @else
+                    <div class="w-9 h-9 rounded-xl flex items-center justify-center text-blue-700 font-bold text-sm bg-white ring-2 ring-white/40" style="box-shadow:0 3px 10px rgba(0,0,0,0.25)">
+                        {{ Auth::user() ? strtoupper(substr(Auth::user()->full_name, 0, 2)) : 'AD' }}
+                    </div>
+                @endif
             </div>
+
         </header>
 
         <div class="p-7 max-w-3xl">

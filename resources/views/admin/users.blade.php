@@ -443,6 +443,19 @@
                             <!-- Actions -->
                             <td class="px-6 py-4">
                                 <div class="flex items-center justify-center gap-2">
+                                    <!-- Edit / assign department -->
+                                    <button
+                                        onclick='openEditModal({{ json_encode([
+                                            "id" => $u->user_id,
+                                            "full_name" => $u->full_name,
+                                            "email" => $u->email,
+                                            "department_id" => $u->department_id,
+                                        ]) }})'
+                                        class="btn-reset flex items-center gap-1.5 text-[11px] font-bold px-2.5 py-1.5 rounded-lg transition-all"
+                                        title="Edit / Assign Department">
+                                        <i class="fa-solid fa-pen text-[9px]"></i> Edit
+                                    </button>
+
                                     <!-- Reset password -->
                                     <button
                                         onclick="openPasswordModal('{{ $u->user_id }}', '{{ $u->full_name }}')"
@@ -693,9 +706,97 @@
 </div>
 
 <!-- ════════════════════════════
+     EDIT USER / ASSIGN DEPARTMENT MODAL
+════════════════════════════ -->
+<div id="edit-user-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-900/50 backdrop-blur-sm">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4">
+        <div class="flex items-center justify-between p-6 border-b border-slate-100">
+            <div class="flex items-center gap-3">
+                <div class="w-9 h-9 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center">
+                    <i class="fa-solid fa-pen text-sm"></i>
+                </div>
+                <div>
+                    <h3 class="font-bold text-sm text-slate-900">Edit User</h3>
+                    <p class="text-[11px] text-slate-400">Update details or assign a department</p>
+                </div>
+            </div>
+            <button type="button" onclick="document.getElementById('edit-user-modal').classList.add('hidden')"
+                class="w-7 h-7 rounded-lg hover:bg-slate-200 flex items-center justify-center text-slate-400 transition-all">
+                <i class="fa-solid fa-xmark text-sm"></i>
+            </button>
+        </div>
+
+        <div class="p-6 max-h-[75vh] overflow-y-auto">
+            <form id="edit-user-form" method="POST" class="space-y-4">
+                @csrf
+                @method('PUT')
+
+                <div>
+                    <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">
+                        <i class="fa-solid fa-id-card mr-1 text-slate-400"></i> Full Name
+                    </label>
+                    <input name="full_name" id="edit-full-name" required type="text"
+                        class="form-input w-full px-4 py-2.5 rounded-xl text-sm text-slate-800 placeholder-slate-400">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">
+                        <i class="fa-solid fa-envelope mr-1 text-slate-400"></i> Email Address
+                    </label>
+                    <input name="email" id="edit-email" required type="email"
+                        class="form-input w-full px-4 py-2.5 rounded-xl text-sm text-slate-800 placeholder-slate-400">
+                </div>
+
+                @if($isDepartmentAdmin)
+                    <p class="text-xs text-slate-400 -mt-2">
+                        <i class="fa-solid fa-circle-info mr-1"></i> This account stays in your department.
+                    </p>
+                @else
+                <div>
+                    <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">
+                        <i class="fa-solid fa-building-columns mr-1 text-slate-400"></i> Department
+                    </label>
+                    <select name="department_id" id="edit-department-id" class="form-input w-full px-4 py-2.5 rounded-xl text-sm text-slate-700 bg-white cursor-pointer">
+                        <option value="">No department</option>
+                        @foreach($departments as $dept)
+                            <option value="{{ $dept->id }}">{{ $dept->name }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                @endif
+
+                <div class="flex gap-3 pt-1">
+                    <button type="button"
+                        onclick="document.getElementById('edit-user-modal').classList.add('hidden')"
+                        class="flex-1 py-2.5 rounded-xl text-sm font-semibold text-slate-600 border border-slate-200 hover:bg-slate-50 transition-all">
+                        Cancel
+                    </button>
+                    <button type="submit"
+                        class="flex-1 btn-primary text-white py-2.5 rounded-xl text-sm font-bold transition-all">
+                        <i class="fa-solid fa-floppy-disk mr-1.5"></i> Save Changes
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- ════════════════════════════
      SCRIPTS
 ════════════════════════════ -->
 <script>
+    /* Edit user / assign department modal open */
+    function openEditModal(user) {
+        document.getElementById('edit-user-form').action = `/admin/users/${user.id}/update`;
+        document.getElementById('edit-full-name').value = user.full_name || '';
+        document.getElementById('edit-email').value = user.email || '';
+        const deptSelect = document.getElementById('edit-department-id');
+        if (deptSelect) {
+            deptSelect.value = user.department_id ?? '';
+        }
+        document.getElementById('edit-user-modal').classList.remove('hidden');
+    }
+
     /* Password modal open */
     function openPasswordModal(id, name) {
         document.getElementById('password-reset-form').action = `/admin/users/${id}/force-password`;

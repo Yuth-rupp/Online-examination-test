@@ -260,7 +260,13 @@
                 @php
                     $initials = collect(explode(' ', Auth::user()->full_name ?? 'Admin User'))->take(2)->map(fn($p) => strtoupper($p[0]))->join('');
                 @endphp
-                <div class="w-10 h-10 rounded-xl flex items-center justify-center text-blue-700 font-bold text-sm bg-white ring-2 ring-white/40" style="box-shadow:0 3px 10px rgba(0,0,0,0.25)" id="topbar-avatar">{{ $initials }}</div>
+                <div class="w-10 h-10 rounded-xl overflow-hidden flex items-center justify-center text-blue-700 font-bold text-sm bg-white ring-2 ring-white/40" style="box-shadow:0 3px 10px rgba(0,0,0,0.25)">
+                    @if(Auth::user()->avatar_url)
+                        <img src="{{ Auth::user()->avatar_url }}" alt="{{ Auth::user()->full_name }}" class="w-full h-full object-cover">
+                    @else
+                        <span id="topbar-avatar">{{ $initials }}</span>
+                    @endif
+                </div>
             </div>
         </div>
     </header>
@@ -641,11 +647,13 @@
         reader.readAsDataURL(input.files[0]);
     };
 
-    /* ── Update initials in topbar as name is typed ── */
+    /* ── Update initials in topbar as name is typed (no-op when a photo is showing) ── */
     window.updateInitials = function (name) {
+        const el = document.getElementById('topbar-avatar');
+        if (!el) return;
         const parts = name.trim().split(' ').filter(Boolean);
         const init  = parts.slice(0, 2).map(p => p[0].toUpperCase()).join('');
-        document.getElementById('topbar-avatar').textContent = init || '?';
+        el.textContent = init || '?';
     };
 
 })();

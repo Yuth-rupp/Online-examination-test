@@ -368,6 +368,59 @@ class AdminController extends Controller
     }
 
     /**
+     * Update an existing user's profile details and, critically, their
+     * department assignment. This is the endpoint that actually moves a
+     * teacher or student into the department an admin is responsible for
+     * (e.g. "Data Science" vs "ITE") after the account already exists.
+     *
+     *  - A department admin can only edit users already inside their own
+     *    department (enforced by inDepartments() below), and the
+     *    department itself stays pinned to their own — they can't move
+     *    a user OUT to a department they don't manage.
+     *  - A global/super-scoped admin (no department_id of their own) may
+     *    freely re-assign the user to any department, which is how a
+     *    student or teacher gets moved into "Data Science", "ITE", etc.
+     */
+    public function updateUser(Request $request, $id)
+    {
+        $actor = Auth::user();
+        $isDepartmentAdmin = $actor->isDepartmentAdmin();
+
+        $user = User::where('role', '!=', 'super_admin')
+            ->where('user_id', '!=', Auth::id())
+            ->inDepartments($this->scopedDepartmentIds())
+            ->findOrFail($id);
+
+        $validated = $request->validate([
+            'full_name'     => 'required|string|max:255',
+            'email'         => 'required|string|email|max:255|unique:users,email,' . $user->user_id . ',user_id',
+            'department_id' => 'nullable|exists:departments,id',
+        ]);
+
+        $user->full_name = $validated['full_name'];
+        $user->email = $validated['email'];
+
+        $oldDepartmentId = $user->department_id;
+        $newDepartmentId = $isDepartmentAdmin
+            ? $actor->department_id
+            : ($validated['department_id'] ?? null);
+
+        $user->department_id = $newDepartmentId;
+        $user->save();
+
+        // Keep the department_teacher roster pivot in sync so a teacher
+        // moved into "ITE" immediately shows up on ITE's teacher roster
+        // too, without wiping out any other departments they also teach in.
+        if ($user->role === 'teacher' && $newDepartmentId && $newDepartmentId != $oldDepartmentId) {
+            $user->departments()->syncWithoutDetaching([$newDepartmentId]);
+        }
+
+        $this->logSecurityEvent(Auth::id(), 'updated', 'User Directory', 'Updated profile/department assignment for ' . $user->full_name);
+
+        return redirect()->route('admin.users')->with('success', $user->full_name . ' updated successfully.');
+    }
+
+    /**
      * Override administrative entry passkey signoffs safely.
      */
     public function forceResetPassword(Request $request, $id)

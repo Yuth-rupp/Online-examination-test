@@ -163,9 +163,14 @@
                         <h4 class="text-sm font-semibold leading-tight text-white">{{ Auth::user()->full_name ?? 'Admin User' }}</h4>
                         <span class="text-xs text-blue-200">Administrator</span>
                     </div>
-                    <div class="w-9 h-9 rounded-xl flex items-center justify-center text-blue-700 font-bold text-sm bg-white ring-2 ring-white/40" style="box-shadow:0 3px 10px rgba(0,0,0,0.25)">
-                        {{ Auth::user()->initials ?? 'AD' }}
-                    </div>
+                    @if(Auth::user()->avatar_url)
+                        <img src="{{ Auth::user()->avatar_url }}" alt="{{ Auth::user()->full_name }}"
+                             class="w-9 h-9 rounded-xl object-cover ring-2 ring-white/40" style="box-shadow:0 3px 10px rgba(0,0,0,0.25)">
+                    @else
+                        <div class="w-9 h-9 rounded-xl flex items-center justify-center text-blue-700 font-bold text-sm bg-white ring-2 ring-white/40" style="box-shadow:0 3px 10px rgba(0,0,0,0.25)">
+                            {{ Auth::user() ? strtoupper(substr(Auth::user()->full_name, 0, 2)) : 'AD' }}
+                        </div>
+                    @endif
                 </div>
             </div>
         </header>

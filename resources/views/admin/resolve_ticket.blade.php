@@ -257,7 +257,12 @@
                 @php
                     $initials = collect(explode(' ', Auth::user()->full_name))->take(2)->map(fn($p) => strtoupper($p[0]))->join('');
                 @endphp
-                <div class="w-9 h-9 rounded-xl flex items-center justify-center text-white font-bold text-sm" style="background:linear-gradient(135deg,#2563eb,#1d4ed8);box-shadow:0 3px 10px rgba(37,99,235,0.3)">{{ $initials }}</div>
+                @if(Auth::user()->avatar_url)
+                    <img src="{{ Auth::user()->avatar_url }}" alt="{{ Auth::user()->full_name }}"
+                         class="w-9 h-9 rounded-xl object-cover" style="box-shadow:0 3px 10px rgba(37,99,235,0.3)">
+                @else
+                    <div class="w-9 h-9 rounded-xl flex items-center justify-center text-white font-bold text-sm" style="background:linear-gradient(135deg,#2563eb,#1d4ed8);box-shadow:0 3px 10px rgba(37,99,235,0.3)">{{ $initials }}</div>
+                @endif
             </div>
         </div>
     </header>
