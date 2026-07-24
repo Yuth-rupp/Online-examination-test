@@ -286,7 +286,7 @@
 
                 @if(!empty($question->media_url))
                   <div class="mt-4 max-w-xl">
-                    <img src="{{ asset($question->media_url) }}"
+                    <img src="{{ $question->media_full_url }}"
                          alt="Question image"
                          class="rounded-2xl border border-slate-100 shadow-sm max-h-80 object-contain">
                   </div>

@@ -357,12 +357,12 @@
                                             $isImage = in_array($ext, ['jpg','jpeg','png','gif','svg','webp']);
                                         @endphp
                                         @if($isImage)
-                                            <a href="{{ asset($question->media_url) }}" target="_blank" class="inline-block mb-1.5">
-                                                <img src="{{ asset($question->media_url) }}"
+                                            <a href="{{ $question->media_full_url }}" target="_blank" class="inline-block mb-1.5">
+                                                <img src="{{ $question->media_full_url }}"
                                                      class="h-14 w-auto rounded-lg border border-[#E2E8F0] object-cover shadow-sm hover:opacity-90 transition-opacity" alt="Media">
                                             </a>
                                         @else
-                                            <a href="{{ asset($question->media_url) }}" target="_blank" download
+                                            <a href="{{ $question->media_full_url }}" target="_blank" download
                                                class="inline-flex items-center gap-1.5 bg-[#F8FAFC] border border-[#E2E8F0] rounded-lg px-2.5 py-1 text-[11px] font-bold text-[#64748B] hover:text-[#2563EB] transition-colors mb-1.5">
                                                 <i class="fa-solid fa-paperclip text-[#2563EB]"></i>
                                                 Attachment ({{ strtoupper($ext) }})

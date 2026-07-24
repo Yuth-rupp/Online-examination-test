@@ -375,7 +375,7 @@
             <p class="text-[14px] font-bold text-slate-900 leading-relaxed mb-4">{{ $question->content }}</p>
 
             @if(!empty($question->media_url))
-            <img src="{{ asset($question->media_url) }}" class="mb-4 rounded-xl border border-slate-200 max-h-44 object-contain shadow-sm" alt="">
+            <img src="{{ $question->media_full_url }}" class="mb-4 rounded-xl border border-slate-200 max-h-44 object-contain shadow-sm" alt="">
             @endif
 
             {{-- ── MCQ ── --}}

@@ -46,4 +46,35 @@ class Question extends Model
     {
         return $this->belongsTo(QuestionBank::class, 'question_bank_id', 'id');
     }
+
+    /**
+     * A working URL for the attached image, regardless of how it was stored.
+     * Legacy rows have media_url like 'uploads/questions/xxx.jpg', saved
+     * directly under public/ — those are served with asset(). Newer rows
+     * are relative paths on the 'public' Storage disk (e.g.
+     * 'question_media/xxx.jpg'), which resolves to local storage or
+     * Cloudflare R2 depending on the FILESYSTEM_PUBLIC_DRIVER env var.
+     */
+    public function getMediaFullUrlAttribute(): ?string
+    {
+        return $this->resolveFileUrl($this->media_url);
+    }
+
+    public function getCsvFullUrlAttribute(): ?string
+    {
+        return $this->resolveFileUrl($this->csv_url);
+    }
+
+    private function resolveFileUrl(?string $path): ?string
+    {
+        if (empty($path)) {
+            return null;
+        }
+
+        if (str_starts_with($path, 'uploads/')) {
+            return asset($path);
+        }
+
+        return \Illuminate\Support\Facades\Storage::disk('public')->url($path);
+    }
 }

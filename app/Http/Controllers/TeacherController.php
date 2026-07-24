@@ -548,7 +548,15 @@ class TeacherController extends Controller
         // exposed via the storage:link symlink) so it works the same way as
         // the student/admin uploads and survives across environments that
         // don't share the plain public/ folder.
-        $path = $request->file('avatar')->store('profile_photos', 'public');
+        try {
+            $path = $request->file('avatar')->store('profile_photos', 'public');
+        } catch (\Throwable $e) {
+            Log::error('Teacher avatar upload failed', ['error' => $e->getMessage(), 'user_id' => $user->user_id]);
+            return response()->json([
+                'success' => false,
+                'message' => 'Upload failed: ' . $e->getMessage(),
+            ], 500);
+        }
 
         $profile->avatar_url = $path;
         $profile->save();
@@ -566,6 +574,29 @@ class TeacherController extends Controller
      */
     private function deleteStoredAvatar(string $storedPath): void
     {
+        if (Storage::disk('public')->exists($storedPath)) {
+            Storage::disk('public')->delete($storedPath);
+            return;
+        }
+
+        if (file_exists(public_path($storedPath))) {
+            @unlink(public_path($storedPath));
+        }
+    }
+
+    /**
+     * Delete a question's stored image/CSV, wherever it actually lives.
+     * New uploads go through Storage::disk('public') (local, or Cloudflare R2
+     * in production once FILESYSTEM_PUBLIC_DRIVER=s3 is set). Older rows may
+     * still point at the legacy public_path('uploads/questions/...') location
+     * from before that switch — handle both so nothing is left orphaned.
+     */
+    private function deleteQuestionFile(?string $storedPath): void
+    {
+        if (empty($storedPath)) {
+            return;
+        }
+
         if (Storage::disk('public')->exists($storedPath)) {
             Storage::disk('public')->delete($storedPath);
             return;
@@ -648,20 +679,20 @@ class TeacherController extends Controller
 
         $question = new Question();
         
-        if ($request->hasFile('attachment_media')) {
-            $imageFile = $request->file('attachment_media');
-            $imgName = time() . '_img_' . uniqid() . '.' . $imageFile->getClientOriginalExtension();
-            $imageFile->move(public_path('uploads/questions'), $imgName);
-            $question->media_url = 'uploads/questions/' . $imgName;
-        }
+        try {
+            if ($request->hasFile('attachment_media')) {
+                $question->media_url = $request->file('attachment_media')
+                    ->store('question_attachments', 'public');
+            }
 
-        if ($request->hasFile('questions_csv')) {
-            $csvFile = $request->file('questions_csv');
-            $question->original_filename = $csvFile->getClientOriginalName();
-            
-            $csvName = time() . '_data_' . uniqid() . '.' . $csvFile->getClientOriginalExtension();
-            $csvFile->move(public_path('uploads/questions'), $csvName);
-            $question->csv_url = 'uploads/questions/' . $csvName;
+            if ($request->hasFile('questions_csv')) {
+                $csvFile = $request->file('questions_csv');
+                $question->original_filename = $csvFile->getClientOriginalName();
+                $question->csv_url = $csvFile->store('question_attachments', 'public');
+            }
+        } catch (\Throwable $e) {
+            Log::error('Question attachment upload failed', ['error' => $e->getMessage()]);
+            return redirect()->back()->withInput()->with('error', 'File upload failed: ' . $e->getMessage());
         }
 
         $question->exam_id = $request->input('exam_id');
@@ -722,40 +753,31 @@ class TeacherController extends Controller
         ]);
 
         if ($request->input('remove_image') === '1') {
-            if (!empty($question->media_url) && file_exists(public_path($question->media_url))) {
-                @unlink(public_path($question->media_url));
-            }
+            $this->deleteQuestionFile($question->media_url);
             $question->media_url = null;
         }
 
         if ($request->input('remove_csv') === '1') {
-            if (!empty($question->csv_url) && file_exists(public_path($question->csv_url))) {
-                @unlink(public_path($question->csv_url));
-            }
+            $this->deleteQuestionFile($question->csv_url);
             $question->csv_url = null;
             $question->original_filename = null;
         }
 
-        if ($request->hasFile('question_image')) {
-            if (!empty($question->media_url) && file_exists(public_path($question->media_url))) {
-                @unlink(public_path($question->media_url));
+        try {
+            if ($request->hasFile('question_image')) {
+                $this->deleteQuestionFile($question->media_url);
+                $question->media_url = $request->file('question_image')->store('question_attachments', 'public');
             }
-            $imageFile = $request->file('question_image');
-            $imgName = time() . '_img_' . uniqid() . '.' . $imageFile->getClientOriginalExtension();
-            $imageFile->move(public_path('uploads/questions'), $imgName);
-            $question->media_url = 'uploads/questions/' . $imgName;
-        }
 
-        if ($request->hasFile('question_csv')) {
-            if (!empty($question->csv_url) && file_exists(public_path($question->csv_url))) {
-                @unlink(public_path($question->csv_url));
+            if ($request->hasFile('question_csv')) {
+                $this->deleteQuestionFile($question->csv_url);
+                $csvFile = $request->file('question_csv');
+                $question->original_filename = $csvFile->getClientOriginalName();
+                $question->csv_url = $csvFile->store('question_attachments', 'public');
             }
-            $csvFile = $request->file('question_csv');
-            $question->original_filename = $csvFile->getClientOriginalName();
-            
-            $csvName = time() . '_data_' . uniqid() . '.' . $csvFile->getClientOriginalExtension();
-            $csvFile->move(public_path('uploads/questions'), $csvName);
-            $question->csv_url = 'uploads/questions/' . $csvName;
+        } catch (\Throwable $e) {
+            Log::error('Question attachment update failed', ['error' => $e->getMessage(), 'question_id' => $question->id]);
+            return redirect()->back()->withInput()->with('error', 'File upload failed: ' . $e->getMessage());
         }
 
         // ✅ FIX: exam_id is intentionally NOT taken from the request here.
@@ -821,12 +843,8 @@ class TeacherController extends Controller
                 ->with('error', 'This question already has student answers on record and cannot be deleted. Remove it from the exam instead if you no longer want it used.');
         }
 
-        if (!empty($question->media_url) && file_exists(public_path($question->media_url))) {
-            @unlink(public_path($question->media_url));
-        }
-        if (!empty($question->csv_url) && file_exists(public_path($question->csv_url))) {
-            @unlink(public_path($question->csv_url));
-        }
+        $this->deleteQuestionFile($question->media_url);
+        $this->deleteQuestionFile($question->csv_url);
         $question->delete();
 
         return redirect()->route('teacher.question-bank')->with('success', 'Question record deleted.');

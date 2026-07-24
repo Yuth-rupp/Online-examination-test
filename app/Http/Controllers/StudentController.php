@@ -154,8 +154,24 @@ class StudentController extends Controller
                 Storage::disk('public')->delete($user->profile_image);
             }
 
-            $path = $request->file('profile_photo')->store('profile_photos', 'public');
-            
+            try {
+                $path = $request->file('profile_photo')->store('profile_photos', 'public');
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::error('Student profile photo upload failed', [
+                    'error' => $e->getMessage(),
+                    'user_id' => $user->user_id,
+                ]);
+
+                if ($request->wantsJson()) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Upload failed: ' . $e->getMessage(),
+                    ], 500);
+                }
+
+                return redirect()->back()->with('error', 'Photo upload failed: ' . $e->getMessage());
+            }
+
             $user->update([
                 'profile_image' => $path
             ]);
@@ -170,7 +186,7 @@ class StudentController extends Controller
             if ($request->wantsJson()) {
                 return response()->json([
                     'success' => true,
-                    'photo_url' => Storage::url($path),
+                    'photo_url' => Storage::disk('public')->url($path),
                     'message' => 'Profile avatar packet written safely to disk architecture.'
                 ]);
             }

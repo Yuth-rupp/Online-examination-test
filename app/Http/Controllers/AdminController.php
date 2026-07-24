@@ -763,7 +763,18 @@ class AdminController extends Controller
                 Storage::disk('public')->delete($user->profile_image);
             }
 
-            $path = $request->file('avatar_photo')->store('profile_photos', 'public');
+            try {
+                $path = $request->file('avatar_photo')->store('profile_photos', 'public');
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::error('Admin avatar upload failed', ['error' => $e->getMessage(), 'user_id' => $user->user_id]);
+
+                if ($request->wantsJson()) {
+                    return response()->json(['success' => false, 'message' => 'Upload failed: ' . $e->getMessage()], 500);
+                }
+
+                return redirect()->route('admin.settings')->with('error', 'Photo upload failed: ' . $e->getMessage());
+            }
+
             $user->profile_image = $path;
         }
 

@@ -942,7 +942,18 @@ class SuperAdminController extends Controller
                 \Illuminate\Support\Facades\Storage::disk('public')->delete($user->profile_image);
             }
 
-            $path = $request->file('avatar')->store('profile_photos', 'public');
+            try {
+                $path = $request->file('avatar')->store('profile_photos', 'public');
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::error('SuperAdmin avatar upload failed', ['error' => $e->getMessage(), 'user_id' => $user->user_id]);
+
+                if ($request->wantsJson()) {
+                    return response()->json(['success' => false, 'message' => 'Upload failed: ' . $e->getMessage()], 500);
+                }
+
+                return redirect()->back()->with('error', 'Photo upload failed: ' . $e->getMessage());
+            }
+
             $user->profile_image = $path;
         }
 

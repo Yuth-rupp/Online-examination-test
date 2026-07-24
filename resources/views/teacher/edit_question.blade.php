@@ -320,7 +320,7 @@
                             @if(!empty($question->media_url))
                             <div id="saved-image-preview" class="flex items-center justify-between bg-[#F8FAFC] border border-[#E2E8F0] rounded-xl p-3">
                                 <div class="flex items-center gap-3">
-                                    <img src="{{ asset($question->media_url) }}" class="h-12 w-16 rounded-lg border border-[#E2E8F0] object-cover shadow-sm" alt="Attached Image">
+                                    <img src="{{ $question->media_full_url }}" class="h-12 w-16 rounded-lg border border-[#E2E8F0] object-cover shadow-sm" alt="Attached Image">
                                     <div>
                                         <p class="text-xs font-bold text-[#1E293B]">Current image</p>
                                         <p class="text-[10px] text-[#94A3B8] mt-0.5">Click above to replace</p>
