@@ -142,10 +142,9 @@
                 </span><span>Global Settings</span>
             </a>
             <div class="flex items-center gap-3 px-3 py-2.5 rounded-xl bg-slate-50 mt-1">
-                <div class="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
-                     style="background:linear-gradient(135deg,#3b82f6,#6366f1);">
-                    <i class="fa-solid fa-user-astronaut text-white text-xs"></i>
-                </div>
+                <img class="w-8 h-8 rounded-lg object-cover flex-shrink-0"
+                     src="{{ Auth::user()->avatar_url ?? 'https://ui-avatars.com/api/?name=' . urlencode(Auth::user()->full_name ?? 'Super Admin') . '&background=3b82f6&color=fff&size=64' }}"
+                     alt="{{ Auth::user()->full_name ?? 'Super Admin' }}">
                 <div class="flex-1 min-w-0">
                     <p class="text-xs font-bold text-slate-900 truncate">{{ Auth::user()->name ?? 'Super Admin' }}</p>
                     <p class="text-[10px] text-slate-400 font-medium">Super Admin · Root</p>
