@@ -428,7 +428,6 @@
                                   action="{{ route('admin.support.resolve', $ticket->ticket_id) }}"
                                   id="resolution-form" novalidate>
                                 @csrf
-                                @method('PUT')
 
                                 <!-- Status -->
                                 <div style="margin-bottom:18px">
