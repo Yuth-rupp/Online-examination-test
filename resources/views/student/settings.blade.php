@@ -234,9 +234,31 @@
                   <i data-lucide="camera" class="w-5 h-5 text-white"></i>
                   <span class="text-[10px] font-bold text-white">Change</span>
                 </div>
-                <input type="file" id="img-uploader" name="profile_photo" class="hidden" onchange="document.getElementById('avatar-form').submit()">
+                <input type="file" id="img-uploader" name="profile_photo" accept="image/jpeg,image/png,image/jpg,image/gif,image/webp" class="hidden" onchange="handleStudentAvatarChange(this)">
               </div>
             </form>
+            <script>
+              function handleStudentAvatarChange(input) {
+                const file = input.files && input.files[0];
+                if (!file) return;
+
+                const allowedTypes = ['image/jpeg', 'image/png', 'image/jpg', 'image/gif', 'image/webp'];
+                if (!allowedTypes.includes(file.type)) {
+                  alert('Please select an image file (JPG, PNG, GIF, or WEBP). Other file types like PDF or CSV are not allowed.');
+                  input.value = '';
+                  return;
+                }
+
+                const maxSizeBytes = 2 * 1024 * 1024; // matches server-side max:2048 (KB)
+                if (file.size > maxSizeBytes) {
+                  alert('Image must be under 2MB.');
+                  input.value = '';
+                  return;
+                }
+
+                document.getElementById('avatar-form').submit();
+              }
+            </script>
 
             <!-- Name + email -->
             <div class="flex-1 min-w-0 pt-14 sm:pt-0 sm:pb-1">
