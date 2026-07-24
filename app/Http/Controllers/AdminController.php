@@ -776,6 +776,14 @@ class AdminController extends Controller
             }
 
             $user->profile_image = $path;
+
+            // Keep user_profiles.avatar_url in sync too — the avatar_url accessor
+            // checks profile()->avatar_url FIRST and falls back to profile_image,
+            // so a stale value left in user_profiles would silently override this upload.
+            if ($user->profile) {
+                $user->profile->avatar_url = $path;
+                $user->profile->save();
+            }
         }
 
         $user->save();
