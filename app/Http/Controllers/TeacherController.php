@@ -405,9 +405,14 @@ class TeacherController extends Controller
             : 0;
 
         // Calculate live Global Passing Rate Ratio Percentage
+        // NOTE: pass_mark on `exams` is stored as a 0-100 percentage threshold,
+        // so it must be compared against the submission's `percentage` column
+        // (or the stored is_passed flag), never against a raw marks column
+        // such as total_score/marks/points, whose scale depends on the exam's
+        // total possible points and isn't necessarily out of 100.
         if ($totalSubmissionsCount > 0) {
             $passedCount = Submission::whereIn('exam_id', $teacherExamIds)
-                ->whereRaw("{$scoreColumn} >= (select pass_mark from exams where exams.exam_id = submissions.exam_id)")
+                ->where('is_passed', true)
                 ->count();
             $examPassRatePercentage = round(($passedCount / $totalSubmissionsCount) * 100);
         } else {
@@ -427,7 +432,10 @@ class TeacherController extends Controller
                 'courses.name as course_name',
                 'exams.exam_id as exam_id',
                 'exams.title as exam_title',
-                "submissions.{$scoreColumn} as student_score",
+                // student_score is intentionally the normalized percentage, not the
+                // raw {$scoreColumn} marks — the frontend compares it directly against
+                // passing_mark, which is itself a 0-100 percentage threshold.
+                'submissions.percentage as student_score',
                 'exams.pass_mark as passing_mark',
                 'submissions.created_at'
             ])
@@ -721,11 +729,20 @@ class TeacherController extends Controller
             $question->csv_url = 'uploads/questions/' . $csvName;
         }
 
+        // ✅ FIX: exam_id is intentionally NOT taken from the request here.
+        // It used to be `$question->exam_id = $request->input('exam_id')`,
+        // driven by a plain editable text box on the edit form — a stray
+        // clear/paste while editing points or content would silently
+        // unlink the question from its exam. Since submission_answers has
+        // no foreign key back to questions, that break was invisible until
+        // a teacher opened grading and saw "No questions found" for an
+        // exam students had already answered. Reassigning a question to a
+        // different exam is intentionally not supported from this form —
+        // the question keeps whatever exam it already belongs to.
         $question->type = $request->input('question_type');
         $question->content = $request->input('question_text');
         $question->difficulty = $request->input('difficulty');
         $question->points = $request->input('points');
-        $question->exam_id = $request->input('exam_id');
         $question->explanation = "Difficulty: " . $request->input('difficulty');
 
         if ($question->type === 'MCQ') {
@@ -763,6 +780,18 @@ class TeacherController extends Controller
     public function destroyQuestion($id)
     {
         $question = Question::findOrFail($id);
+
+        // ✅ FIX: submission_answers.question_id has no foreign key, so
+        // deleting a question a student has already answered used to
+        // silently orphan their answer — the grading screen would then
+        // show "No questions found" for that submission with no warning
+        // of why. Block the delete instead and tell the teacher why.
+        $hasAnswers = DB::table('submission_answers')->where('question_id', $id)->exists();
+        if ($hasAnswers) {
+            return redirect()->route('teacher.question-bank')
+                ->with('error', 'This question already has student answers on record and cannot be deleted. Remove it from the exam instead if you no longer want it used.');
+        }
+
         if (!empty($question->media_url) && file_exists(public_path($question->media_url))) {
             @unlink(public_path($question->media_url));
         }

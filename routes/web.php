@@ -225,6 +225,7 @@ Route::middleware(['auth', 'role:super_admin'])->prefix('super-admin')->group(fu
     Route::patch('/admins/{id}/toggle-status',     [SuperAdminController::class, 'adminToggleStatus'])->name('superadmin.admins.toggleStatus');
     Route::patch('/admins/{id}/change-role',       [SuperAdminController::class, 'adminChangeRole'])->name('superadmin.admins.changeRole');
     Route::patch('/admins/{id}/change-department', [SuperAdminController::class, 'adminChangeDepartment'])->name('superadmin.admins.changeDepartment');
+    Route::post('/admins/{id}/reset-password',     [SuperAdminController::class, 'adminResetPassword'])->name('superadmin.admins.resetPassword');
 
     Route::get('/departments',                        [DepartmentController::class, 'index'])->name('superadmin.departments.index');
     Route::post('/departments/store',                  [DepartmentController::class, 'store'])->name('superadmin.departments.store');

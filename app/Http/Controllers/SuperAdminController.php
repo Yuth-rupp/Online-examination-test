@@ -10,6 +10,7 @@ use App\Models\AuditLog;
 use App\Models\Department;
 use App\Models\Exam;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Mail;
 use Carbon\Carbon;
 use App\Jobs\CreateBackupJob;
@@ -1117,6 +1118,36 @@ class SuperAdminController extends Controller
         });
 
         return response()->json(['status' => 'success']);
+    }
+
+    /**
+     * Reset a user's (admin/teacher/etc.) password.
+     * Generates a new random temporary password, saves it, logs the action,
+     * and returns the plaintext password once so the Super Admin can hand it
+     * to the account owner. It is never stored or logged in plaintext.
+     */
+    public function adminResetPassword($id)
+    {
+        if (auth()->id() == $id) {
+            return response()->json(['message' => 'Use your own profile settings to change your password.'], 403);
+        }
+
+        $iid = auth()->user()->institution_id;
+        $u = User::when($iid, fn($q) => $q->where('institution_id', $iid))->findOrFail($id);
+
+        $newPassword = Str::password(12);
+
+        DB::transaction(function () use ($u, $newPassword) {
+            $u->password_hash = Hash::make($newPassword);
+            $u->save();
+            $this->logAction('admin.account.password_reset', 'USER_MANAGEMENT', $u->user_id);
+        });
+
+        return response()->json([
+            'status'       => 'success',
+            'message'      => 'Password reset successfully.',
+            'new_password' => $newPassword,
+        ]);
     }
 
     /* ================================================================

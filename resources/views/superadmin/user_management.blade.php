@@ -414,6 +414,11 @@
                         <option value="admin" ${u.role==='admin'?'selected':''}>Admin</option>
                         <option value="super_admin" ${u.role==='super_admin'?'selected':''}>Super Admin</option>
                     </select>
+                    <button onclick="resetUserPassword(${u.user_id}, '${esc(u.full_name || '').replace(/'/g, "\\'")}')"
+                            class="text-[11px] font-bold px-3 py-1.5 rounded-lg border cursor-pointer transition-all"
+                            style="border-color:#bfdbfe;background:#eff6ff;color:#2563eb;">
+                        <i class="fa-solid fa-key mr-1"></i>Reset Password
+                    </button>
                     <button onclick="toggleUserStatus(${u.user_id})"
                             class="text-[11px] font-bold px-3 py-1.5 rounded-lg border cursor-pointer transition-all"
                             style="border-color:${isActive?'#fecdd3':'#a7f3d0'};background:${isActive?'#fff1f2':'#ecfdf5'};color:${isActive?'#e11d48':'#059669'};">
@@ -533,6 +538,54 @@
             }
         })
         .catch(() => showToast('Network error.', 'error'));
+    };
+
+    window.resetUserPassword = function(userId, name) {
+        if (!confirm(`Reset password for ${name || 'this user'}? Their current password will stop working immediately.`)) return;
+
+        fetch(`/super-admin/admins/${userId}/reset-password`, {
+            method: 'POST',
+            headers: { 'Accept': 'application/json', 'Content-Type': 'application/json', 'X-CSRF-TOKEN': CSRF, 'X-Requested-With': 'XMLHttpRequest' }
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.status === 'success') {
+                showResetPasswordModal(name, data.new_password);
+            } else {
+                showToast(data.message || 'Failed to reset password.', 'error');
+            }
+        })
+        .catch(() => showToast('Network error.', 'error'));
+    };
+
+    window.showResetPasswordModal = function(name, newPassword) {
+        let modal = document.getElementById('reset-password-modal');
+        if (!modal) {
+            modal = document.createElement('div');
+            modal.id = 'reset-password-modal';
+            modal.style.cssText = 'display:none;position:fixed;inset:0;background:rgba(15,23,42,.45);z-index:9999;align-items:center;justify-content:center;';
+            modal.innerHTML = `
+                <div style="background:#fff;border-radius:16px;padding:24px;width:360px;max-width:90vw;box-shadow:0 20px 60px rgba(0,0,0,.2);">
+                    <h3 style="font-size:14px;font-weight:800;color:#0f172a;margin-bottom:4px;">Password Reset</h3>
+                    <p id="reset-pw-subtitle" style="font-size:11px;color:#64748b;margin-bottom:14px;">Share this temporary password with the user. It will not be shown again.</p>
+                    <div style="display:flex;align-items:center;gap:8px;">
+                        <input id="reset-pw-value" readonly style="flex:1;font-family:monospace;font-size:13px;font-weight:700;border:1px solid #e2e8f0;background:#f8fafc;border-radius:10px;padding:10px 12px;color:#0f172a;">
+                        <button onclick="copyResetPassword()" style="border:1px solid #e2e8f0;background:#f8fafc;border-radius:10px;padding:10px 12px;cursor:pointer;color:#334155;"><i class="fa-solid fa-copy"></i></button>
+                    </div>
+                    <button onclick="document.getElementById('reset-password-modal').style.display='none'" style="margin-top:16px;width:100%;padding:10px;border-radius:10px;border:none;background:#2563eb;color:#fff;font-size:12px;font-weight:700;cursor:pointer;">Done</button>
+                </div>`;
+            document.body.appendChild(modal);
+        }
+        document.getElementById('reset-pw-subtitle').textContent = `New temporary password for ${name || 'this user'}. Share it securely — it won't be shown again.`;
+        document.getElementById('reset-pw-value').value = newPassword;
+        modal.style.display = 'flex';
+    };
+
+    window.copyResetPassword = function() {
+        const input = document.getElementById('reset-pw-value');
+        input.select();
+        navigator.clipboard?.writeText(input.value);
+        showToast('Password copied to clipboard.', 'success');
     };
 
     window.updateUserRole = function(userId, role) {

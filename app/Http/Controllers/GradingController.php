@@ -57,6 +57,33 @@ class GradingController extends Controller
         //  $submissionAnswers is now a Collection like:
         //  { "5": "A", "6": "TRUE", "7": "Some essay text..." }
 
+        // ✅ FIX: submission_answers.question_id has no FK constraint, and a
+        // question can be edited/reassigned to a different exam (or deleted)
+        // in the Question Bank *after* a student has already answered it.
+        // When that happens, $submission->exam->questions() no longer
+        // includes it and the grading screen showed "No questions found"
+        // even though the student's answers were still on record. Recover
+        // any answered questions that have since fallen out of the exam's
+        // live question list, so grading always reflects what the student
+        // actually answered, not just the bank's current state.
+        $answeredQuestionIds = $submissionAnswers->keys()->map(fn ($id) => (int) $id);
+        $examQuestionIds = $submission->exam->questions->pluck('id');
+        $missingQuestionIds = $answeredQuestionIds->diff($examQuestionIds);
+
+        if ($missingQuestionIds->isNotEmpty()) {
+            $recoveredQuestions = \App\Models\Question::whereIn('id', $missingQuestionIds)->get();
+
+            if ($recoveredQuestions->isNotEmpty()) {
+                $submission->exam->setRelation(
+                    'questions',
+                    $submission->exam->questions
+                        ->concat($recoveredQuestions)
+                        ->sortBy('order')
+                        ->values()
+                );
+            }
+        }
+
         // FIX: scope prev/next to this teacher's own exams — the old query
         // walked every submission id in the whole database, which could
         // land on another teacher's paper (or fail the ->whereIn() guard

@@ -204,14 +204,19 @@
                 <div class="bg-white border border-[#E2E8F0] rounded-2xl p-5 shadow-sm fu">
                     <div class="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
 
-                        <!-- Exam ID -->
+                        <!-- Exam ID (read-only — reassigning a question to a different
+                             exam here used to be a plain editable text box; a stray edit
+                             or paste would silently unlink it from its exam, which is what
+                             caused graded submissions to later show "No questions found"
+                             even though students had already answered them.) -->
                         <div class="md:col-span-5 space-y-1.5">
                             <label class="text-[10px] font-bold uppercase tracking-widest text-[#94A3B8] flex items-center gap-1.5">
                                 <i class="fa-solid fa-link text-[#2563EB] text-xs"></i> Exam Assignment ID
                             </label>
-                            <input type="text" name="exam_id"
-                                   value="{{ old('exam_id', $question->exam_id) }}"
-                                   class="fi w-full bg-[#F8FAFC] border border-[#E2E8F0] rounded-xl px-4 py-2.5 text-sm font-semibold text-[#1E293B] font-mono">
+                            <input type="text" value="{{ $question->exam_id ?? 'Not assigned to an exam' }}"
+                                   readonly disabled
+                                   class="fi w-full bg-[#F1F5F9] border border-[#E2E8F0] rounded-xl px-4 py-2.5 text-sm font-semibold text-[#64748B] font-mono cursor-not-allowed">
+                            <input type="hidden" name="exam_id" value="{{ $question->exam_id }}">
                         </div>
 
                         <!-- Type -->
