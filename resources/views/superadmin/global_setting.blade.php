@@ -196,6 +196,61 @@
         {{-- CONTENT --}}
         <div class="p-8 flex-1">
 
+            {{-- ========== METRIC CARDS ========== --}}
+            <div class="grid grid-cols-2 xl:grid-cols-4 gap-4 mb-6">
+                @php
+                    $metricCards = [
+                        [
+                            'label' => 'Configuration Keys',
+                            'value' => $configCount ?? 0,
+                            'icon' => 'fa-sliders',
+                            'gradient' => '#eff6ff,#dbeafe',
+                            'iconColor' => 'text-blue-500',
+                            'valueColor' => 'text-slate-900',
+                        ],
+                        [
+                            'label' => 'SMTP Gateway',
+                            'value' => ($smtpConfigured ?? false) ? 'Configured' : 'Incomplete',
+                            'icon' => 'fa-envelope-circle-check',
+                            'gradient' => ($smtpConfigured ?? false) ? '#f0fdf4,#dcfce7' : '#fff1f2,#ffe4e6',
+                            'iconColor' => ($smtpConfigured ?? false) ? 'text-emerald-500' : 'text-rose-500',
+                            'valueColor' => ($smtpConfigured ?? false) ? 'text-emerald-600' : 'text-rose-600',
+                        ],
+                        [
+                            'label' => 'Proctoring Floor',
+                            'value' => ($lockdownEnforced ?? true) ? 'Enforced' : 'Optional',
+                            'icon' => 'fa-shield-halved',
+                            'gradient' => '#f5f3ff,#ede9fe',
+                            'iconColor' => 'text-violet-500',
+                            'valueColor' => 'text-violet-600',
+                        ],
+                        [
+                            'label' => 'Audit Retention',
+                            'value' => ($auditRetentionDays ?? '90') === '0' ? 'Forever' : ($auditRetentionDays ?? '90') . ' days',
+                            'icon' => 'fa-clock-rotate-left',
+                            'gradient' => '#fffbeb,#fef3c7',
+                            'iconColor' => 'text-amber-500',
+                            'valueColor' => 'text-amber-600',
+                        ],
+                    ];
+                @endphp
+                @foreach($metricCards as $card)
+                <div class="bg-white rounded-2xl border border-slate-100 p-5 flex items-center gap-4 cursor-default transition-all duration-300"
+                     style="box-shadow:0 1px 4px rgba(148,163,184,0.06);"
+                     onmouseenter="this.style.boxShadow='0 8px 24px rgba(148,163,184,0.16)';this.style.transform='translateY(-2px)'"
+                     onmouseleave="this.style.boxShadow='0 1px 4px rgba(148,163,184,0.06)';this.style.transform='none'">
+                    <div class="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0"
+                         style="background:linear-gradient(135deg,{{ $card['gradient'] }});">
+                        <i class="fa-solid {{ $card['icon'] }} {{ $card['iconColor'] }} text-sm"></i>
+                    </div>
+                    <div class="min-w-0">
+                        <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">{{ $card['label'] }}</p>
+                        <p class="text-2xl font-black {{ $card['valueColor'] }} leading-none tabular-nums truncate">{{ $card['value'] }}</p>
+                    </div>
+                </div>
+                @endforeach
+            </div>
+
             {{-- SCOPE NOTICE --}}
             <div class="flex items-start gap-3 bg-violet-50 border border-violet-100 rounded-2xl px-5 py-4 mb-6"
                  style="box-shadow:0 1px 4px rgba(124,58,237,0.07);">
@@ -538,7 +593,7 @@
             </div>{{-- end main card --}}
 
             <p id="last-saved-time" class="text-center text-[10px] text-slate-400 font-mono tracking-wide mt-4">
-                Last evaluated: {{ now()->format('Y-m-d H:i:s T') }}
+                Last updated: {{ $lastUpdated ? \Carbon\Carbon::parse($lastUpdated)->format('Y-m-d H:i:s') . ' ' . now()->format('T') : 'Never' }}
             </p>
         </div>
     </main>

@@ -801,8 +801,22 @@ class SuperAdminController extends Controller
     public function settings()
     {
         $settings = collect();
-        try { $settings = DB::table('system_settings')->pluck('value', 'key'); } catch (\Exception $e) {}
-        return view('superadmin.global_setting', compact('settings'));
+        $configCount = 0;
+        $lastUpdated = null;
+
+        try {
+            $settings = DB::table('system_settings')->pluck('value', 'key');
+            $configCount = $settings->count();
+            $lastUpdated = DB::table('system_settings')->max('updated_at');
+        } catch (\Exception $e) {}
+
+        $smtpConfigured = !empty($settings['mail_host']) && !empty($settings['mail_password']);
+        $lockdownEnforced = ($settings['proctor_lockdown'] ?? '1') === '1';
+        $auditRetentionDays = $settings['audit_retention_days'] ?? '90';
+
+        return view('superadmin.global_setting', compact(
+            'settings', 'configCount', 'lastUpdated', 'smtpConfigured', 'lockdownEnforced', 'auditRetentionDays'
+        ));
     }
 
     public function updateSettings(Request $request)
