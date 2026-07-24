@@ -128,7 +128,7 @@
         <div class="relative flex-shrink-0">
           <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-amber-400 to-orange-400 flex items-center justify-center overflow-hidden shadow-sm">
             @if($user->profile_image)
-              <img src="{{ Storage::url($user->profile_image) }}" class="w-full h-full object-cover">
+              <img src="{{ $user->avatar_url }}" class="w-full h-full object-cover">
             @else
               <span class="text-xs font-black text-amber-900 uppercase">{{ strtoupper(substr($user->full_name,0,2)) }}</span>
             @endif
@@ -179,7 +179,7 @@
         <div class="flex items-center gap-2.5 pl-1">
           <div class="w-8 h-8 rounded-xl overflow-hidden bg-gradient-to-br from-amber-400 to-orange-400 flex items-center justify-center text-[11px] font-black text-amber-900 shadow-sm">
             @if($user->profile_image)
-              <img src="{{ Storage::url($user->profile_image) }}" class="w-full h-full object-cover">
+              <img src="{{ $user->avatar_url }}" class="w-full h-full object-cover">
             @else
               {{ strtoupper(substr($user->full_name,0,2)) }}
             @endif
@@ -224,7 +224,7 @@
                    :class="darkMode?'border-slate-900':'border-white'"
                    onclick="document.getElementById('img-uploader').click()">
                 @if($user->profile_image)
-                  <img src="{{ Storage::url($user->profile_image) }}" class="w-full h-full object-cover">
+                  <img src="{{ $user->avatar_url }}" class="w-full h-full object-cover">
                 @else
                   <div class="w-full h-full bg-gradient-to-br from-amber-400 to-orange-400 flex items-center justify-center">
                     <span class="text-2xl font-black text-amber-900 uppercase">{{ strtoupper(substr($user->full_name,0,2)) }}</span>
