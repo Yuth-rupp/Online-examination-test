@@ -623,16 +623,23 @@
     /* ── Save exam rules spinner ── */
     window.onSaveExam = function (e) {
         const btn = document.getElementById('save-exam-btn');
-        btn.disabled = true;
-        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving…';
+        setTimeout(() => {
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving…';
+        }, 0);
         setTimeout(() => { btn.disabled = false; btn.innerHTML = '<i class="fas fa-floppy-disk"></i> Save Exam Rules'; }, 6000);
     };
 
     /* ── Save profile spinner ── */
     window.onSaveProfile = function (e) {
         const btn = document.getElementById('save-profile-btn');
-        btn.disabled = true;
-        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving…';
+        // Defer disabling to the next tick — disabling a submit button
+        // synchronously inside its own click handler can cancel the
+        // form submission entirely in some browsers.
+        setTimeout(() => {
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving…';
+        }, 0);
         setTimeout(() => { btn.disabled = false; btn.innerHTML = '<i class="fas fa-floppy-disk"></i> Save Profile'; }, 6000);
     };
 
