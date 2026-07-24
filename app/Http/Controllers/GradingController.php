@@ -66,23 +66,7 @@ class GradingController extends Controller
         // any answered questions that have since fallen out of the exam's
         // live question list, so grading always reflects what the student
         // actually answered, not just the bank's current state.
-        $answeredQuestionIds = $submissionAnswers->keys()->map(fn ($id) => (int) $id);
-        $examQuestionIds = $submission->exam->questions->pluck('id');
-        $missingQuestionIds = $answeredQuestionIds->diff($examQuestionIds);
-
-        if ($missingQuestionIds->isNotEmpty()) {
-            $recoveredQuestions = \App\Models\Question::whereIn('id', $missingQuestionIds)->get();
-
-            if ($recoveredQuestions->isNotEmpty()) {
-                $submission->exam->setRelation(
-                    'questions',
-                    $submission->exam->questions
-                        ->concat($recoveredQuestions)
-                        ->sortBy('order')
-                        ->values()
-                );
-            }
-        }
+        $this->recoverDetachedQuestions($submission, $submissionAnswers);
 
         // FIX: scope prev/next to this teacher's own exams — the old query
         // walked every submission id in the whole database, which could
@@ -98,11 +82,52 @@ class GradingController extends Controller
     }
 
     /**
+     * Recover any answered questions that have fallen out of the exam's
+     * live `questions` relation (edited to a different exam, or otherwise
+     * detached) and re-attach them to $submission->exam->questions in
+     * memory. Shared by show() (what the teacher sees) and store() (what
+     * actually gets saved) so the two can never disagree on the total.
+     */
+    private function recoverDetachedQuestions(Submission $submission, $submissionAnswers): void
+    {
+        $answeredQuestionIds = $submissionAnswers->keys()->map(fn ($id) => (int) $id);
+        $examQuestionIds = $submission->exam->questions->pluck('id');
+        $missingQuestionIds = $answeredQuestionIds->diff($examQuestionIds);
+
+        if ($missingQuestionIds->isEmpty()) {
+            return;
+        }
+
+        $recoveredQuestions = \App\Models\Question::whereIn('id', $missingQuestionIds)->get();
+
+        if ($recoveredQuestions->isNotEmpty()) {
+            $submission->exam->setRelation(
+                'questions',
+                $submission->exam->questions
+                    ->concat($recoveredQuestions)
+                    ->sortBy('order')
+                    ->values()
+            );
+        }
+    }
+
+    /**
      * Save the evaluated grade scores back to database storage tables.
      */
     public function store(Request $request, $submission_id)
     {
         $submission = Submission::with('exam.questions')->findOrFail($submission_id);
+
+        // ✅ FIX: without this, store() recalculated totals from a fresh,
+        // possibly-detached question list while the teacher was looking at
+        // the recovered list on screen (see show()/recoverDetachedQuestions).
+        // That mismatch meant Save could silently persist a different
+        // score/percentage than what was just displayed. Apply the same
+        // recovery here so what's saved always matches what was shown.
+        $submissionAnswersForRecovery = DB::table('submission_answers')
+            ->where('submission_id', $submission->id)
+            ->pluck('answer_text', 'question_id');
+        $this->recoverDetachedQuestions($submission, $submissionAnswersForRecovery);
 
         // ── Dynamic rubric max ──────────────────────────────────────────
         // FIX: the rubric used to always validate against a hardcoded
@@ -139,6 +164,17 @@ class GradingController extends Controller
         $totalPts  = $questions->sum('points') ?: ($questions->count() * 5) ?: 40;
         $percentage = min(100, round(($finalScore / $totalPts) * 100, 2));
 
+        // ✅ FIX: is_passed was never set anywhere in the app — it stayed at
+        // its DB default of `false` for every graded submission forever.
+        // That's why the Dashboard's "Pass Rate" card (and, since it now
+        // also reads is_passed, the Analytics pass rate too) always showed
+        // close to 0% no matter how students actually scored. Compute it
+        // here, against the exam's real configured pass_mark — not a
+        // hardcoded 50% — the same threshold now used for the on-screen
+        // PASS/FAIL badge in evaluate.blade.php.
+        $passMarkPercent = $submission->exam->pass_mark ?? 50;
+        $isPassed = $percentage >= $passMarkPercent;
+
         // Synchronize rubric metrics and save notes directly to feedback column
         $submission->update([
             'accuracy_score'   => $validated['accuracy'],
@@ -146,6 +182,7 @@ class GradingController extends Controller
             'clarity_score'    => $validated['clarity'],
             'total_score'      => $finalScore,
             'percentage'       => $percentage,
+            'is_passed'        => $isPassed,
             'status'           => 'graded',
             'teacher_feedback' => $validated['feedback'] ?? null, // Fixed mapping to look up model parameter label configuration exactly
             'graded_by'        => Auth::id(),

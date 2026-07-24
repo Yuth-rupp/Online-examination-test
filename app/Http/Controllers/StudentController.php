@@ -669,6 +669,18 @@ class StudentController extends Controller
         // hardcoded/assumed total.
         $percentage = $maxAutoPoints > 0 ? round(($earnedPoints / $maxAutoPoints) * 100, 2) : 0;
 
+        // ✅ FIX: is_passed was never set on this path at all, so it stayed
+        // at the DB default of `false` for every fully auto-graded
+        // submission (no essay questions) — regardless of real score. A
+        // student who got a perfect 15/15 on an all-MCQ exam still showed
+        // up as "failed" in Dashboard/Analytics pass-rate stats. Only mark
+        // it here when grading is actually final (no pending essay
+        // portion) — a submission still awaiting manual grading hasn't
+        // earned its essay points yet, so pass/fail isn't decided until
+        // GradingController::store() finishes it.
+        $passMarkPercent = $exam->pass_mark ?? 50;
+        $isPassed = !$requiresManualGrading && ($percentage >= $passMarkPercent);
+
         // Upsert exam_sessions row
         $activeSessionId = DB::table('exam_sessions')
             ->where('exam_id', $exam->exam_id)
@@ -693,6 +705,7 @@ class StudentController extends Controller
             'started_at'  => now(),
             'total_score' => $earnedPoints,
             'percentage'  => $percentage,
+            'is_passed'   => $isPassed,
             'status'      => $requiresManualGrading ? 'pending_grading' : 'graded',
             'created_at'  => now(),
         ]);

@@ -162,6 +162,18 @@
     <main class="flex-1 overflow-y-auto">
         <div class="p-7 max-w-[1440px] mx-auto w-full space-y-5">
 
+            @if (session('success'))
+                <div class="flex items-center gap-3 bg-[#ECFDF5] border border-[#A7F3D0] text-[#047857] text-sm font-semibold rounded-xl px-4 py-3">
+                    <i class="fa-solid fa-circle-check"></i> {{ session('success') }}
+                </div>
+            @endif
+
+            @if (session('error'))
+                <div class="flex items-center gap-3 bg-[#FEF2F2] border border-[#FECACA] text-[#B91C1C] text-sm font-semibold rounded-xl px-4 py-3">
+                    <i class="fa-solid fa-circle-exclamation"></i> {{ session('error') }}
+                </div>
+            @endif
+
             <!-- ① STATS CARDS -->
             <div class="grid grid-cols-2 xl:grid-cols-4 gap-4">
 

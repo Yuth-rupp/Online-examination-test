@@ -443,14 +443,43 @@ class TeacherController extends Controller
             ->get();
 
         // 3. Identify Hardest Question components missed by students dynamically
+        //
+        // ✅ FIX: fail_rate used to be rand() — a random number reseeded on
+        // every page load, completely disconnected from how students
+        // actually answered. Compute it for real from submission_answers,
+        // comparing each stored answer against the question's correct_option
+        // (same comparison GradingController/StudentController use
+        // elsewhere), and only rank auto-gradable questions (MCQ/True-False)
+        // since essay questions don't have a single correct_option to
+        // compare against.
         $hardestQuestions = Question::whereIn('exam_id', $teacherExamIds)
-            ->select('id', 'content', 'type', 'difficulty', 'points')
-            ->take(3)
+            ->whereIn('type', ['MCQ', 'TRUE/FALSE'])
+            ->select('id', 'content', 'type', 'difficulty', 'points', 'correct_option')
             ->get()
-            ->map(function($q) {
-                $q->fail_rate = ($q->difficulty === 'Hard') ? rand(65, 88) : (($q->difficulty === 'Medium') ? rand(35, 60) : rand(10, 30));
+            ->map(function ($q) {
+                $answers = DB::table('submission_answers')
+                    ->where('question_id', $q->id)
+                    ->pluck('answer_text');
+
+                $attempts = $answers->count();
+                $correctAnswer = strtolower(trim((string) $q->correct_option));
+                $correctCount = $answers->filter(
+                    fn ($a) => strtolower(trim((string) $a)) === $correctAnswer
+                )->count();
+
+                $q->attempts  = $attempts;
+                $q->fail_rate = $attempts > 0
+                    ? round((($attempts - $correctCount) / $attempts) * 100)
+                    : 0;
+
                 return $q;
-            })->sortByDesc('fail_rate');
+            })
+            // Only rank questions that have actually been attempted —
+            // an unanswered question isn't "hard", it's just unused.
+            ->filter(fn ($q) => $q->attempts > 0)
+            ->sortByDesc('fail_rate')
+            ->take(3)
+            ->values();
 
         // 4. Real system notifications for this teacher (empty for a fresh account —
         //    no more fake "New exam submission..." placeholders).

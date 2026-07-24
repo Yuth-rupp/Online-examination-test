@@ -72,7 +72,13 @@
     $essayQs     = $questions->filter(fn($q) =>  in_array(strtolower($q->type ?? ''), ['essay','text','essay/text']));
     $autoQs      = $questions->filter(fn($q) => !in_array(strtolower($q->type ?? ''), ['essay','text','essay/text']));
 
-    $totalPts    = $questions->sum('points') ?: ($questions->count() * 5);
+    // ✅ FIX: totalPts used to have no final fallback, so a genuinely
+    // question-less exam (or a submission still missing recovered
+    // questions) divided by zero in the JS below and showed "NaN%".
+    // GradingController::store() already falls back to 40 in that case —
+    // mirror it here so the live preview and the saved value can never
+    // disagree.
+    $totalPts    = $questions->sum('points') ?: ($questions->count() * 5) ?: 40;
     $autoPts     = $autoQs->sum('points')   ?: ($autoQs->count()  * 5);
     $essayMaxPts = $essayQs->sum('points')  ?: ($hasEssay ? 25 : 0);
 
@@ -146,7 +152,11 @@
         }
     }
 
-    $passThresh = round($totalPts * 0.5);
+    // ✅ FIX: this used to be a hardcoded round($totalPts * 0.5) — every
+    // exam showed PASS/FAIL against a flat 50% no matter what the teacher
+    // actually configured as the pass mark on the exam itself.
+    $passMarkPercent = $submission->exam->pass_mark ?? 50;
+    $passThresh = round($totalPts * ($passMarkPercent / 100));
 @endphp
 
 <body class="bg-slate-100 text-slate-800 min-h-screen overflow-x-hidden"
