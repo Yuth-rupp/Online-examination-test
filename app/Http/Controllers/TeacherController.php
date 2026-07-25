@@ -323,7 +323,20 @@ class TeacherController extends Controller
      */
     public function questionBank(Request $request)
     {
-        $query = Question::with('questionBank')->orderBy('created_at', 'desc');
+        $teacherId = Auth::user()->user_id;
+
+        // Every question is scoped to the exam that owns it, and every exam is
+        // scoped to the teacher who created it. Filtering through that
+        // relationship (rather than querying Question globally) ensures each
+        // teacher only ever sees questions belonging to their own exams —
+        // a newly registered teacher will correctly see an empty bank.
+        $scopeToOwnExams = function ($q) use ($teacherId) {
+            $q->where('created_by', $teacherId);
+        };
+
+        $query = Question::with('questionBank')
+            ->whereHas('exam', $scopeToOwnExams)
+            ->orderBy('created_at', 'desc');
 
         if ($request->has('course_id') && !empty($request->course_id)) {
             $query->where('exam_id', $request->course_id);
@@ -331,11 +344,13 @@ class TeacherController extends Controller
 
         $questions = $query->paginate(5)->appends($request->query());
 
-        $totalCount = Question::count();
-        $mcqCount   = Question::where('type', 'MCQ')->count();
-        $essayCount = Question::where('type', 'Essay')->count();
+        $totalCount = Question::whereHas('exam', $scopeToOwnExams)->count();
+        $mcqCount   = Question::whereHas('exam', $scopeToOwnExams)->where('type', 'MCQ')->count();
+        $essayCount = Question::whereHas('exam', $scopeToOwnExams)->where('type', 'Essay')->count();
 
-        $unusedPercentage = $totalCount > 0 ? round((Question::whereNull('exam_id')->count() / $totalCount) * 100) : 0;
+        $unusedPercentage = $totalCount > 0
+            ? round((Question::whereHas('exam', $scopeToOwnExams)->whereNull('exam_id')->count() / $totalCount) * 100)
+            : 0;
 
         return view('teacher.question-bank', compact('questions', 'mcqCount', 'essayCount', 'unusedPercentage'));
     }
@@ -731,7 +746,10 @@ class TeacherController extends Controller
             abort(500, 'The Question Model entity is missing inside app/Models/.');
         }
 
-        $question = Question::findOrFail($id);
+        $question = Question::whereHas('exam', function ($q) {
+            $q->where('created_by', Auth::user()->user_id);
+        })->findOrFail($id);
+
         return view('teacher.edit_question', compact('question'));
     }
 
@@ -740,7 +758,9 @@ class TeacherController extends Controller
      */
     public function updateQuestion(Request $request, $id)
     {
-        $question = Question::findOrFail($id);
+        $question = Question::whereHas('exam', function ($q) {
+            $q->where('created_by', Auth::user()->user_id);
+        })->findOrFail($id);
 
         $request->validate([
             'question_type'   => 'required|in:MCQ,TRUE/FALSE,ESSAY',
@@ -830,7 +850,9 @@ class TeacherController extends Controller
      */
     public function destroyQuestion($id)
     {
-        $question = Question::findOrFail($id);
+        $question = Question::whereHas('exam', function ($q) {
+            $q->where('created_by', Auth::user()->user_id);
+        })->findOrFail($id);
 
         // ✅ FIX: submission_answers.question_id has no foreign key, so
         // deleting a question a student has already answered used to

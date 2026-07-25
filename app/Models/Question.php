@@ -48,6 +48,15 @@ class Question extends Model
     }
 
     /**
+     * Get the exam this question belongs to (used to trace the owning teacher,
+     * since questions don't store created_by directly).
+     */
+    public function exam()
+    {
+        return $this->belongsTo(Exam::class, 'exam_id', 'exam_id');
+    }
+
+    /**
      * A working URL for the attached image, regardless of how it was stored.
      * Legacy rows have media_url like 'uploads/questions/xxx.jpg', saved
      * directly under public/ — those are served with asset(). Newer rows
