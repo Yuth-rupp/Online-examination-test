@@ -12,6 +12,7 @@ use App\Models\Exam;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Mail;
+use App\Mail\AdminPasswordReset;
 use Carbon\Carbon;
 use App\Jobs\CreateBackupJob;
 use App\Jobs\RestoreDatabaseJob;
@@ -1176,9 +1177,16 @@ class SuperAdminController extends Controller
             $this->logAction('admin.account.password_reset', 'USER_MANAGEMENT', $u->user_id);
         });
 
+        try {
+            Mail::to($u->email)->send(new AdminPasswordReset($u->full_name, $newPassword));
+        } catch (\Throwable $e) {
+            // Password was still reset successfully even if the email fails to send;
+            // the Super Admin can still copy/share it manually from the modal.
+        }
+
         return response()->json([
             'status'       => 'success',
-            'message'      => 'Password reset successfully.',
+            'message'      => 'Password reset successfully and emailed to the admin.',
             'new_password' => $newPassword,
         ]);
     }
@@ -1218,9 +1226,16 @@ class SuperAdminController extends Controller
             $this->logAction('admin.account.password_reset', 'USER_MANAGEMENT', $requestRow->user->user_id);
         });
 
+        try {
+            Mail::to($requestRow->user->email)->send(new AdminPasswordReset($requestRow->user->full_name, $newPassword));
+        } catch (\Throwable $e) {
+            // Password was still reset successfully even if the email fails to send;
+            // the Super Admin can still copy/share it manually from the modal.
+        }
+
         return response()->json([
             'status'       => 'success',
-            'message'      => 'Password reset successfully.',
+            'message'      => 'Password reset successfully and emailed to the admin.',
             'new_password' => $newPassword,
             'admin_name'   => $requestRow->user->full_name,
             'admin_email'  => $requestRow->user->email,
