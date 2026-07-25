@@ -82,7 +82,7 @@
                         <select id="department-select"
                                 class="w-full appearance-none pl-4 pr-10 py-3.5 bg-white border border-gray-200 rounded-xl text-gray-900 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all">
                             <option value="" selected disabled>Select your department…</option>
-                            @forelse ($departments as $department)
+                            @forelse (($departments ?? collect()) as $department)
                                 <option value="{{ $department['id'] }}">
                                     {{ $department['name'] }}{{ $department['institution_name'] ? ' — ' . $department['institution_name'] : '' }}
                                 </option>
@@ -163,7 +163,7 @@
         // Department → admin contact map, rendered server-side so it stays
         // accurate without any extra network request when the user picks
         // their department.
-        const departmentContacts = @json($departments->keyBy('id'));
+        const departmentContacts = @json(($departments ?? collect())->keyBy('id'));
 
         const departmentSelect = document.getElementById('department-select');
         const contactCard      = document.getElementById('admin-contact-card');
