@@ -15,7 +15,7 @@
     <div class="flex h-full w-full">
 
         <div class="hidden lg:flex lg:w-1/2 bg-[#1e4ea1] text-white p-12 flex-col justify-between relative overflow-hidden">
-            
+
             <div class="flex items-center space-x-3 z-10">
                 <i class="fa-solid fa-graduation-cap text-2xl"></i>
                 <span class="text-xl font-bold tracking-wide">Online Exam</span>
@@ -28,7 +28,7 @@
                 <p class="text-blue-100 text-lg leading-relaxed font-light">
                     Access your secure scholarly sanctuary with enterprise-grade protection for every examination.
                 </p>
-                
+
                 <div class="grid grid-cols-2 gap-6 mt-12">
                     <div class="bg-white/10 backdrop-blur-md rounded-xl p-5 border border-white/10">
                         <div class="mb-3 text-xl">
@@ -60,70 +60,71 @@
         </div>
 
         <div class="w-full lg:w-1/2 bg-white flex flex-col items-center justify-center relative p-8 sm:p-12 md:p-20">
-            
+
             <div class="w-full max-w-md mx-auto text-center">
-                
-                <div class="inline-flex items-center justify-center w-14 h-10 bg-blue-100 rounded-full text-[#1e4ea1] mb-6">
-                    <i class="fa-solid fa-key text-md transform -rotate-45"></i>
+
+                <div class="inline-flex items-center justify-center w-16 h-16 bg-blue-100 rounded-full text-[#1e4ea1] mb-6">
+                    <i class="fa-solid fa-user-shield text-2xl"></i>
                 </div>
 
-                <h2 class="text-3xl font-bold text-slate-900 mb-3 tracking-tight">Forgot Password?</h2>
-                <p class="text-gray-500 text-sm leading-relaxed mb-8 px-4">
-                    No problem. Enter the email associated with your account and we'll send you a reset link.
+                <h2 class="text-3xl font-bold text-slate-900 mb-3 tracking-tight">Password Reset Restricted</h2>
+                <p class="text-gray-500 text-sm leading-relaxed mb-8 px-2">
+                    For security reasons, students and teachers cannot reset their password directly.
+                    Please contact your system administrator and they will reset it for you.
                 </p>
 
-                @if (session('status'))
-                    <div class="mb-6 p-4 bg-green-50 border border-green-200 text-green-700 rounded-lg text-sm text-left">
-                        {{ session('status') }}
-                    </div>
-                @endif
+                <div class="bg-slate-50 border border-slate-200 rounded-xl p-5 text-left mb-6">
+                    <h3 class="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-3">
+                        How to request a reset
+                    </h3>
+                    <ol class="space-y-2 text-sm text-slate-700">
+                        <li class="flex gap-2">
+                            <span class="flex-shrink-0 w-5 h-5 rounded-full bg-[#1e4ea1] text-white text-[11px] font-bold flex items-center justify-center">1</span>
+                            <span>Contact the admin using one of the options below.</span>
+                        </li>
+                        <li class="flex gap-2">
+                            <span class="flex-shrink-0 w-5 h-5 rounded-full bg-[#1e4ea1] text-white text-[11px] font-bold flex items-center justify-center">2</span>
+                            <span>Provide your full name and the email registered on your account.</span>
+                        </li>
+                        <li class="flex gap-2">
+                            <span class="flex-shrink-0 w-5 h-5 rounded-full bg-[#1e4ea1] text-white text-[11px] font-bold flex items-center justify-center">3</span>
+                            <span>The admin will verify your identity and reset your password.</span>
+                        </li>
+                    </ol>
+                </div>
 
-                @if ($errors->any())
-                    <div class="mb-6 p-4 bg-red-50 border border-red-200 text-red-700 rounded-lg text-sm text-left">
-                        <ul class="list-disc pl-5 space-y-1">
-                            @foreach ($errors->all() as $error)
-                                <li>{{ $error }}</li>
-                            @endforeach
-                        </ul>
-                    </div>
-                @endif
+                <a
+                    href="https://t.me/your_admin_username"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    class="w-full flex items-center justify-center space-x-2 py-3.5 px-4 bg-[#229ED9] hover:bg-[#1c8bc0] text-white text-sm font-medium rounded-xl shadow-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#229ED9] transition-all group mb-3"
+                >
+                    <i class="fa-brands fa-telegram text-base"></i>
+                    <span>Contact Admin on Telegram</span>
+                    <i class="fa-solid fa-arrow-up-right-from-square text-xs opacity-80 transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform"></i>
+                </a>
 
-                <form action="{{ route('password.email') }}" method="POST" class="text-left">
-                    @csrf
+                <div class="flex items-center gap-3 my-4">
+                    <div class="h-px bg-gray-200 flex-1"></div>
+                    <span class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Or</span>
+                    <div class="h-px bg-gray-200 flex-1"></div>
+                </div>
 
-                    <div class="mb-6">
-                        <label for="email" class="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-2">
-                            Institutional Email
-                        </label>
-                        <div class="relative rounded-lg shadow-sm">
-                            <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-gray-400">
-                                <i class="fa-regular fa-envelope"></i>
-                            </div>
-                            <input 
-                                type="email" 
-                                name="email" 
-                                id="email" 
-                                value="{{ old('email') }}"
-                                required 
-                                placeholder="name@university.edu" 
-                                class="block w-full pl-11 pr-4 py-3.5 bg-white border border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all text-sm"
-                            >
-                        </div>
-                    </div>
-
-                    <button 
-                        type="submit" 
-                        class="w-full flex items-center justify-center space-x-2 py-3.5 px-4 bg-[#11357c] hover:bg-[#1a4494] text-white text-sm font-medium rounded-xl shadow-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all group"
-                    >
-                        <span>Send Reset Link</span>
-                        <i class="fa-solid fa-arrow-right text-xs transform group-hover:translate-x-1 transition-transform"></i>
-                    </button>
-                </form>
+                <div class="space-y-2 text-left">
+                    <a href="mailto:admin@yourexam.com" class="flex items-center gap-3 py-3 px-4 bg-white border border-gray-200 rounded-xl text-sm text-slate-700 hover:border-blue-300 hover:bg-blue-50/50 transition-all">
+                        <i class="fa-regular fa-envelope text-[#1e4ea1] w-4 text-center"></i>
+                        <span>admin@yourexam.com</span>
+                    </a>
+                    <a href="tel:+855000000000" class="flex items-center gap-3 py-3 px-4 bg-white border border-gray-200 rounded-xl text-sm text-slate-700 hover:border-blue-300 hover:bg-blue-50/50 transition-all">
+                        <i class="fa-solid fa-phone text-[#1e4ea1] w-4 text-center"></i>
+                        <span>+855 00 000 000</span>
+                    </a>
+                </div>
 
                 <div class="mt-8">
                     <a href="{{ route('login.page') }}" class="inline-flex items-center space-x-2 text-xs font-semibold text-slate-500 hover:text-slate-900 transition-colors">
                         <i class="fa-solid fa-arrow-left"></i>
-                        <span>I remember my password</span>
+                        <span>Back to login</span>
                     </a>
                 </div>
             </div>
