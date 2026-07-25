@@ -102,6 +102,124 @@ class TeacherController extends Controller
     }
 
     /**
+     * Real-time "Recent Activity" feed for the teacher dashboard.
+     * Pulls actual events from the database — exam starts, submissions,
+     * and cheating flags — scoped to exams THIS teacher created. No
+     * fabricated names or randomly-injected rows; if nothing has
+     * happened yet, this returns an empty list and the UI shows an
+     * empty state instead of fake activity.
+     *
+     * Route: GET /teacher/dashboard/recent-activity
+     */
+    public function recentActivity(Request $request)
+    {
+        $user = $request->user() ?? Auth::user();
+
+        $teacherExamIds = Exam::where('created_by', $user->user_id)->pluck('exam_id');
+
+        if ($teacherExamIds->isEmpty()) {
+            return response()->json(['activities' => []]);
+        }
+
+        $events = collect();
+
+        // 1) Students who started an exam (joined an exam session)
+        $starts = DB::table('exam_sessions')
+            ->join('exams', 'exams.exam_id', '=', 'exam_sessions.exam_id')
+            ->join('users', 'users.user_id', '=', 'exam_sessions.user_id')
+            ->whereIn('exam_sessions.exam_id', $teacherExamIds)
+            ->orderBy('exam_sessions.joined_at', 'desc')
+            ->limit(15)
+            ->get([
+                'exam_sessions.joined_at as event_time',
+                'users.full_name as student_name',
+                'exams.title as exam_title',
+            ]);
+
+        foreach ($starts as $row) {
+            $events->push([
+                'type'    => 'started',
+                'time'    => $row->event_time,
+                'name'    => $row->student_name ?? 'A student',
+                'action'  => 'started ' . $row->exam_title,
+                'badge'   => null,
+                'badgeType' => null,
+            ]);
+        }
+
+        // 2) Submissions (graded automatically or awaiting manual grading)
+        $submissions = Submission::with(['exam:exam_id,title'])
+            ->whereIn('exam_id', $teacherExamIds)
+            ->orderBy('created_at', 'desc')
+            ->limit(15)
+            ->get();
+
+        $studentNames = User::whereIn('user_id', $submissions->pluck('user_id'))
+            ->pluck('full_name', 'user_id');
+
+        foreach ($submissions as $sub) {
+            $examTitle = optional($sub->exam)->title ?? 'an exam';
+            $studentName = $studentNames[$sub->user_id] ?? 'A student';
+
+            if ($sub->status === 'pending_grading') {
+                $events->push([
+                    'type'      => 'submitted_pending',
+                    'time'      => $sub->submitted_at ?? $sub->created_at,
+                    'name'      => $studentName,
+                    'action'    => 'submitted ' . $examTitle . ' — awaiting grading',
+                    'badge'     => null,
+                    'badgeType' => 'pending',
+                ]);
+            } else {
+                $events->push([
+                    'type'      => 'submitted_graded',
+                    'time'      => $sub->submitted_at ?? $sub->created_at,
+                    'name'      => $studentName,
+                    'action'    => 'submitted ' . $examTitle,
+                    'badge'     => $sub->percentage !== null ? round($sub->percentage) . '%' : null,
+                    'badgeType' => $sub->is_passed ? 'pass' : 'fail',
+                ]);
+            }
+        }
+
+        // 3) Cheating / proctoring flags (tab-switch violations)
+        $violations = DB::table('audit_logs')
+            ->leftJoin('users', 'users.user_id', '=', 'audit_logs.user_id')
+            ->where('audit_logs.action', 'tab_switch_violation')
+            ->whereIn('audit_logs.model_id', $teacherExamIds)
+            ->orderBy('audit_logs.created_at', 'desc')
+            ->limit(15)
+            ->get(['audit_logs.created_at as event_time', 'audit_logs.payload', 'users.full_name as student_name']);
+
+        foreach ($violations as $row) {
+            $payload = json_decode($row->payload, true) ?? [];
+            $strikeCount = $payload['strike_count'] ?? null;
+
+            $events->push([
+                'type'      => 'flagged',
+                'time'      => $row->event_time,
+                'name'      => $row->student_name ?? 'A student',
+                'action'    => 'flagged for tab switching',
+                'badge'     => $strikeCount ? '×' . $strikeCount . ' attempts' : null,
+                'badgeType' => 'flag',
+            ]);
+        }
+
+        // Merge, sort newest first, cap to the 15 most recent overall
+        $activities = $events
+            ->filter(fn ($e) => !empty($e['time']))
+            ->sortByDesc(fn ($e) => strtotime($e['time']))
+            ->take(15)
+            ->values()
+            ->map(function ($e) {
+                $e['time_human'] = \Carbon\Carbon::parse($e['time'])->diffForHumans();
+                return $e;
+            });
+
+        return response()->json(['activities' => $activities]);
+    }
+
+    /**
      * Display a listing of courses taught by the authenticated teacher.
      */
     public function myCourses(Request $request)

@@ -77,6 +77,7 @@ Route::middleware(['auth'])->get('/exam-rules/live', [AdminController::class, 'g
 Route::middleware(['auth', 'role:teacher'])->group(function () {
 
     Route::get('/teacher/dashboard',  [TeacherController::class, 'index'])->name('teacher.dashboard');
+    Route::get('/teacher/dashboard/recent-activity', [TeacherController::class, 'recentActivity'])->name('teacher.dashboard.recentActivity');
     Route::get('/teacher/analytics',  [TeacherController::class, 'analytics'])->name('teacher.analytics');
     Route::get('/teacher/analytics/live-data', [TeacherController::class, 'analyticsLiveData'])->name('teacher.analytics.liveData');
     Route::get('/teacher/settings',   function () { return view('teacher.settings'); })->name('teacher.settings');
@@ -147,6 +148,7 @@ Route::middleware(['auth', 'role:student'])->group(function () {
     Route::post('/student/exams/log-violation',   [StudentController::class, 'logProctorViolation'])->name('student.exams.logViolation');
 
     Route::post('/student/exams/register-proctor-key', [ProctorHandshakeController::class, 'registerKey'])->name('student.exams.registerProctorKey');
+    Route::get('/student/exams/proctor-key-status', [ProctorHandshakeController::class, 'getKeyStatus'])->name('student.exams.proctorKeyStatus');
     Route::post('/student/exams/stream-frame', [ProctorHandshakeController::class, 'streamProctorFrame'])->name('student.exams.streamFrame');
 
     Route::get('/student/notifications',               [NotificationController::class, 'index'])->name('student.notifications');

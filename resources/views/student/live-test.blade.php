@@ -592,11 +592,50 @@
         })
       }).then(r => r.json()).then(() => {
         document.getElementById('proctorLabel').textContent = 'Pending Instructor Admission…';
+        startApprovalPolling();
       }).catch(() => {});
+    }
+
+    // ✅ FIX: Poll for approval over plain HTTP every 3s as a fallback.
+    // The WebSocket listener above (.ProctorKeyApproved) only fires if
+    // Pusher is actually configured — by default BROADCAST_CONNECTION=log
+    // and the Pusher keys are empty, so that event never reaches the
+    // browser. Without this fallback the student stays stuck on "Pending
+    // Instructor Admission…" forever, even after the teacher clicks Admit,
+    // and no frames ever get sent to the teacher's monitoring grid.
+    let approvalPollLoop = null;
+    function startApprovalPolling() {
+      if (approvalPollLoop) return;
+      approvalPollLoop = setInterval(() => {
+        if (isProctorApproved) { clearInterval(approvalPollLoop); approvalPollLoop = null; return; }
+        fetch('/student/exams/proctor-key-status?proctor_key=' + encodeURIComponent(proctorAuthKey))
+          .then(r => r.json())
+          .then(data => {
+            if (data.status === 'approved' && !isProctorApproved) {
+              isProctorApproved = true;
+              clearInterval(approvalPollLoop);
+              approvalPollLoop = null;
+
+              const keyCard = document.getElementById('proctorKeyCard');
+              if (keyCard) {
+                keyCard.className = 'p-3.5 bg-emerald-50 border border-emerald-200 rounded-2xl text-center';
+                keyCard.innerHTML = `<p class="text-[10px] font-black text-emerald-600 flex items-center justify-center gap-1"><i data-lucide="check-circle-2" class="w-3.5 h-3.5"></i> Instructor Admitted</p>`;
+                lucide.createIcons();
+              }
+              document.getElementById('proctorDot').className = 'w-2 h-2 rounded-full bg-emerald-500 live-dot flex-shrink-0';
+              document.getElementById('proctorLabel').textContent = 'Examiner Active';
+              document.getElementById('recBadge').classList.replace('hidden', 'flex');
+              document.getElementById('camOffPlaceholder').style.display = 'none';
+              startStreamBroadcaster(document.getElementById('proctorWebcam'));
+            }
+          })
+          .catch(() => {});
+      }, 3000);
     }
 
     function stopSecureProctorCam() {
       if (fallbackBroadcastLoop) { clearInterval(fallbackBroadcastLoop); fallbackBroadcastLoop = null; }
+      if (approvalPollLoop) { clearInterval(approvalPollLoop); approvalPollLoop = null; }
       if (activeStream) { activeStream.getTracks().forEach(t => t.stop()); activeStream = null; }
       document.getElementById('proctorWebcam').srcObject = null;
       document.getElementById('camOffPlaceholder').style.display = 'flex';

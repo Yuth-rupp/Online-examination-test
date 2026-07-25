@@ -590,45 +590,9 @@
                     </div>
 
                     <div class="flex-1 overflow-y-auto max-h-72" id="activity-feed">
-                        <!-- Activity items injected here[cite: 3] -->
-                        <div class="placeholder-activity-node px-5 py-3.5 flex gap-3 border-b border-[#F1F5F9] act-item" id="act-item-calculus">
-                            <div class="w-8 h-8 rounded-full bg-[#ECFDF5] flex items-center justify-center text-[#10B981] flex-shrink-0 mt-0.5">
-                                <i class="fa-solid fa-circle-check text-sm"></i>
-                            </div>
-                            <div class="flex-1 min-w-0">
-                                <p class="text-xs font-semibold text-[#1E293B]"><span class="font-bold">Sarah Jenkins</span> submitted Calculus Midterm</p>
-                                <p class="text-[10px] text-[#94A3B8] mt-0.5">2 min ago</p>
-                                <span class="inline-block text-[10px] font-bold text-[#10B981] bg-[#ECFDF5] px-2 py-0.5 rounded-full mt-1">87/100</span>
-                            </div>
-                        </div>
-                        <div class="placeholder-activity-node px-5 py-3.5 flex gap-3 border-b border-[#F1F5F9] act-item" id="act-item-database">
-                            <div class="w-8 h-8 rounded-full bg-[#FEF2F2] flex items-center justify-center text-[#EF4444] flex-shrink-0 mt-0.5">
-                                <i class="fa-solid fa-triangle-exclamation text-sm"></i>
-                            </div>
-                            <div class="flex-1 min-w-0">
-                                <p class="text-xs font-semibold text-[#1E293B]"><span class="font-bold">Marcus Reid</span> flagged for tab switching</p>
-                                <p class="text-[10px] text-[#94A3B8] mt-0.5">5 min ago</p>
-                                <span class="inline-block text-[10px] font-bold text-[#EF4444] bg-[#FEF2F2] px-2 py-0.5 rounded-full mt-1">×3 attempts</span>
-                            </div>
-                        </div>
-                        <div class="placeholder-activity-node px-5 py-3.5 flex gap-3 border-b border-[#F1F5F9] act-item" id="act-item-physics">
-                            <div class="w-8 h-8 rounded-full bg-[#ECFDF5] flex items-center justify-center text-[#10B981] flex-shrink-0 mt-0.5">
-                                <i class="fa-solid fa-circle-check text-sm"></i>
-                            </div>
-                            <div class="flex-1 min-w-0">
-                                <p class="text-xs font-semibold text-[#1E293B]"><span class="font-bold">Anya Patel</span> submitted Physics Final</p>
-                                <p class="text-[10px] text-[#94A3B8] mt-0.5">8 min ago</p>
-                                <span class="inline-block text-[10px] font-bold text-[#10B981] bg-[#ECFDF5] px-2 py-0.5 rounded-full mt-1">92/100</span>
-                            </div>
-                        </div>
-                        <div class="px-5 py-3.5 flex gap-3 border-b border-[#F1F5F9] act-item" id="general-exam-feed-item">
-                            <div class="w-8 h-8 rounded-full bg-[#EFF6FF] flex items-center justify-center text-[#2563EB] flex-shrink-0 mt-0.5">
-                                <i class="fa-solid fa-circle-play text-sm"></i>
-                            </div>
-                            <div class="flex-1 min-w-0">
-                                <p class="text-xs font-semibold text-[#1E293B]"><span class="font-bold">David Miller</span> started General Exam Track</p>
-                                <p class="text-[10px] text-[#94A3B8] mt-0.5">15 min ago</p>
-                            </div>
+                        <!-- Real activity is loaded via AJAX from /teacher/dashboard/recent-activity -->
+                        <div class="px-5 py-6 text-center text-xs text-[#94A3B8]" id="activity-feed-loading">
+                            <i class="fa-solid fa-spinner fa-spin"></i> Loading recent activity…
                         </div>
                     </div>
 
@@ -787,43 +751,75 @@ function showToast(msg, type = 'info') {
     }, 3000);
 }
 
-// ── LIVE STUDENT COUNTER PULSE ────────────
-setInterval(() => {
-    const el = document.getElementById('stat-online');
-    if (el && el.textContent !== '0') {
-        const v = parseInt(el.textContent);
-        el.textContent = Math.max(55, v + Math.floor(Math.random() * 5 - 2));
-    }
-}, 6000);
+// ── REAL RECENT ACTIVITY FEED ─────────────
+// Pulls actual events (exam starts, submissions, cheating flags) from
+// /teacher/dashboard/recent-activity — no fabricated names, no random
+// injection. Loads once immediately, then refreshes every 30s to match
+// the "Auto-refreshes every 30s" label already shown in the UI.
+const ACTIVITY_ICONS = {
+    started:            { icon: 'fa-circle-play',        bg: '#EFF6FF', color: '#2563EB' },
+    submitted_pending:  { icon: 'fa-hourglass-half',      bg: '#FFFBEB', color: '#D97706' },
+    submitted_graded:   { icon: 'fa-circle-check',        bg: '#ECFDF5', color: '#10B981' },
+    flagged:            { icon: 'fa-triangle-exclamation',bg: '#FEF2F2', color: '#EF4444' },
+};
+const BADGE_STYLES = {
+    pass:    { color: '#10B981', bg: '#ECFDF5' },
+    fail:    { color: '#EF4444', bg: '#FEF2F2' },
+    pending: { color: '#D97706', bg: '#FFFBEB' },
+    flag:    { color: '#EF4444', bg: '#FEF2F2' },
+};
 
-// ── LIVE ACTIVITY INJECT ──────────────────
-const newActivities = [
-    { icon: 'fa-circle-check', bg: '#ECFDF5', color: '#10B981', name: 'Emma Thompson', action: 'submitted Physics Final', time: 'just now', badge: '88/100', badgeCls: '#10B981', badgeBg: '#ECFDF5' },
-    { icon: 'fa-triangle-exclamation', bg: '#FEF2F2', color: '#EF4444', name: 'Ray Kim', action: 'copy-paste attempt detected', time: 'just now', badge: '×2', badgeCls: '#EF4444', badgeBg: '#FEF2F2' },
-    { icon: 'fa-circle-play', bg: '#EFF6FF', color: '#2563EB', name: 'Nadia J.', action: 'started Database Midterm', time: 'just now', badge: null },
-];
-let actIdx = 0;
-setInterval(() => {
+function renderActivityFeed(activities) {
     const feed = document.getElementById('activity-feed');
-    const currentActiveCount = document.getElementById('stat-active').textContent;
-    if (!feed || currentActiveCount === '0') return;
-    
-    const a = newActivities[actIdx++ % newActivities.length];
-    const item = document.createElement('div');
-    item.className = 'px-5 py-3.5 flex gap-3 border-b border-[#F1F5F9] act-item';
-    item.innerHTML = `
-        <div class="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5" style="background:${a.bg};color:${a.color};">
-            <i class="fa-solid ${a.icon} text-sm"></i>
-        </div>
-        <div class="flex-1 min-w-0">
-            <p class="text-xs font-semibold text-[#1E293B]"><span class="font-bold">${a.name}</span> ${a.action}</p>
-            <p class="text-[10px] text-[#94A3B8] mt-0.5">${a.time}</p>
-            ${a.badge ? `<span class="inline-block text-[10px] font-bold px-2 py-0.5 rounded-full mt-1" style="color:${a.badgeCls};background:${a.badgeBg};">${a.badge}</span>` : ''}
-        </div>`;
-    feed.insertBefore(item, feed.firstChild);
-    const items = feed.querySelectorAll('.act-item');
-    if (items.length > 8) items[items.length - 1].remove();
-}, 12000);
+    if (!feed) return;
+
+    if (!activities.length) {
+        feed.innerHTML = `<div class="px-5 py-6 text-center text-xs text-[#94A3B8]">No student activity yet.</div>`;
+        return;
+    }
+
+    feed.innerHTML = activities.map(a => {
+        const style = ACTIVITY_ICONS[a.type] || ACTIVITY_ICONS.started;
+        const badgeStyle = a.badgeType ? (BADGE_STYLES[a.badgeType] || BADGE_STYLES.pending) : null;
+        const badgeHtml = a.badge
+            ? `<span class="inline-block text-[10px] font-bold px-2 py-0.5 rounded-full mt-1" style="color:${badgeStyle.color};background:${badgeStyle.bg};">${a.badge}</span>`
+            : '';
+        return `
+            <div class="px-5 py-3.5 flex gap-3 border-b border-[#F1F5F9] act-item">
+                <div class="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5" style="background:${style.bg};color:${style.color};">
+                    <i class="fa-solid ${style.icon} text-sm"></i>
+                </div>
+                <div class="flex-1 min-w-0">
+                    <p class="text-xs font-semibold text-[#1E293B]"><span class="font-bold">${escapeHtml(a.name)}</span> ${escapeHtml(a.action)}</p>
+                    <p class="text-[10px] text-[#94A3B8] mt-0.5">${escapeHtml(a.time_human)}</p>
+                    ${badgeHtml}
+                </div>
+            </div>`;
+    }).join('');
+}
+
+function escapeHtml(str) {
+    const div = document.createElement('div');
+    div.textContent = str ?? '';
+    return div.innerHTML;
+}
+
+function loadRecentActivity() {
+    fetch('{{ route("teacher.dashboard.recentActivity") }}')
+        .then(r => r.json())
+        .then(data => {
+            renderActivityFeed(data.activities || []);
+            const lastUpdated = document.getElementById('last-updated');
+            if (lastUpdated) lastUpdated.textContent = 'just now';
+        })
+        .catch(() => {
+            const feed = document.getElementById('activity-feed');
+            if (feed) feed.innerHTML = `<div class="px-5 py-6 text-center text-xs text-[#94A3B8]">Couldn't load activity.</div>`;
+        });
+}
+
+loadRecentActivity();
+setInterval(loadRecentActivity, 30000);
 
 // ── COUNTDOWN TIMERS ──────────────────────
 function tickCountdowns() {

@@ -78,6 +78,27 @@ class ProctorHandshakeController extends Controller
     }
 
     // =========================================================================
+    // ✅ NEW METHOD — STUDENT: HTTP polling fallback for approval status.
+    // Called by the student's exam page every few seconds while waiting to
+    // be admitted. Mirrors the teacher-side polling fallbacks above — if
+    // Pusher/WebSocket broadcasting isn't configured (e.g. BROADCAST_CONNECTION
+    // is "log" with no Pusher keys set, which is the default), the student
+    // would otherwise never learn they were approved and would never start
+    // streaming frames, even though the teacher already admitted them.
+    // Route: GET /student/exams/proctor-key-status
+    // =========================================================================
+    public function getKeyStatus(Request $request)
+    {
+        $validated = $request->validate([
+            'proctor_key' => 'required|string',
+        ]);
+
+        $status = Cache::get('proctor-status-' . $validated['proctor_key'], 'pending');
+
+        return response()->json(['status' => $status]);
+    }
+
+    // =========================================================================
     // TEACHER: approves a student key when they click "Admit Student"
     // Route: POST /teacher/monitoring/approve-proctor-key
     // =========================================================================
