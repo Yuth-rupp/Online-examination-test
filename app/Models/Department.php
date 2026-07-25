@@ -50,6 +50,18 @@ class Department extends Model
     }
 
     /**
+     * The admin students/teachers in this department should contact for a
+     * password reset. Prefers an admin who has actually set a Telegram
+     * handle; falls back to any department admin if none has one yet.
+     */
+    public function contactAdmin()
+    {
+        $admins = $this->admins()->get();
+
+        return $admins->firstWhere('telegram_username', '!=', null) ?: $admins->first();
+    }
+
+    /**
      * All teachers linked to this department through the pivot table.
      */
     public function teachers()

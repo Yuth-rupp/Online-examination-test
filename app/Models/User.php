@@ -35,6 +35,7 @@ class User extends Authenticatable
         'institutional_id',
         'department_id',
         'profile_image',
+        'telegram_username',
     ];
 
     /**

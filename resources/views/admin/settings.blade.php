@@ -551,6 +551,22 @@
                                 <div class="f-hint">Contact Super Admin to change your email address</div>
                             </div>
 
+                            <!-- Telegram -->
+                            <div class="f-group">
+                                <label class="f-label" for="telegram-username">
+                                    <i class="fa-brands fa-telegram" style="font-size:11px;margin-right:3px;color:#229ED9"></i>
+                                    Telegram Username
+                                </label>
+                                <div style="position:relative">
+                                    <span style="position:absolute;left:13px;top:50%;transform:translateY(-50%);color:var(--text-muted);font-size:13.5px">@</span>
+                                    <input type="text" name="telegram_username" id="telegram-username" class="f-input"
+                                           style="padding-left:26px"
+                                           value="{{ old('telegram_username', Auth::user()->telegram_username ?? '') }}"
+                                           placeholder="your_telegram_handle">
+                                </div>
+                                <div class="f-hint">Shown to students/teachers in your department on the "Forgot Password" page, so they can reach you directly to reset their password.</div>
+                            </div>
+
                             <!-- Password link -->
                             <div style="display:flex;align-items:flex-start;gap:9px;background:#f0f9ff;border:1px solid #bae6fd;border-radius:9px;padding:11px 14px;margin-bottom:20px;font-size:12.5px;color:#0369a1;line-height:1.55">
                                 <i class="fas fa-lock" style="font-size:12px;flex-shrink:0;margin-top:1px"></i>

@@ -204,6 +204,36 @@ class AuthController extends Controller
     }
 
     /**
+     * Students, teachers, and department admins cannot self-service reset
+     * their password — they must contact the admin assigned to their own
+     * department. This loads every active department together with the
+     * best contact (Telegram-enabled admin preferred) so the view can let
+     * the visitor pick their department and immediately see who to message.
+     */
+    public function showForgotPassword()
+    {
+        $departments = \App\Models\Department::with(['institution:id,name', 'admins:user_id,full_name,telegram_username,department_id'])
+            ->where('is_active', true)
+            ->orderBy('name')
+            ->get()
+            ->map(function ($department) {
+                $admin = $department->admins->firstWhere('telegram_username', '!=', null)
+                    ?? $department->admins->first();
+
+                return [
+                    'id'               => $department->id,
+                    'name'             => $department->name,
+                    'institution_name' => $department->institution->name ?? null,
+                    'admin_name'       => $admin->full_name ?? null,
+                    'telegram_username'=> $admin->telegram_username ?? null,
+                ];
+            })
+            ->values();
+
+        return view('auth.forgot-password', ['departments' => $departments]);
+    }
+
+    /**
      * Handle incoming browser request password reset link generation.
      */
     public function sendResetLink(Request $request)

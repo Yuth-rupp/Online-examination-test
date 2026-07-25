@@ -747,8 +747,11 @@ class AdminController extends Controller
         $user = $request->user() ?? Auth::user();
 
         $request->validate([
-            'full_name'    => 'required|string|max:255',
-            'avatar_photo' => 'nullable|image|mimes:jpeg,png,jpg,webp|max:2048',
+            'full_name'          => 'required|string|max:255',
+            'avatar_photo'       => 'nullable|image|mimes:jpeg,png,jpg,webp|max:2048',
+            'telegram_username'  => 'nullable|string|max:255|regex:/^@?[a-zA-Z0-9_]{5,32}$/',
+        ], [
+            'telegram_username.regex' => 'Enter a valid Telegram username (5-32 letters, numbers, or underscores).',
         ]);
 
         if (!$user) {
@@ -756,6 +759,10 @@ class AdminController extends Controller
         }
 
         $user->full_name = $request->input('full_name');
+
+        // Normalize "@handle" or "handle" down to a bare handle before saving.
+        $telegram = $request->input('telegram_username');
+        $user->telegram_username = $telegram ? ltrim(trim($telegram), '@') : null;
 
         if ($request->hasFile('avatar_photo')) {
             // Clean up the old file so avatars don't pile up in storage.

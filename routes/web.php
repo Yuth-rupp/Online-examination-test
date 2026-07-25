@@ -44,7 +44,7 @@ Route::middleware(['guest'])->group(function () {
         if (!session()->has('registered_email')) { return redirect()->route('register.page'); }
         return view('auth.register_success');
     })->name('register.success');
-    Route::get('/forgot-password', function () { return view('auth.forgot-password'); })->name('password.request');
+    Route::get('/forgot-password', [AuthController::class, 'showForgotPassword'])->name('password.request');
     Route::post('/forgot-password', [AuthController::class, 'sendResetLink'])->name('password.email');
     Route::get('/forgot-password/success', function () {
         if (!session()->has('reset_email')) { return redirect()->route('password.request'); }
