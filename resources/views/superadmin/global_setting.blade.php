@@ -164,13 +164,13 @@
     <main class="flex-1 ml-64 min-h-screen flex flex-col">
 
         {{-- TOP BAR --}}
-        <header class="sticky top-0 z-10 border-b border-slate-100 h-16 flex items-center px-8 gap-4"
-                style="background:rgba(248,250,252,0.88);backdrop-filter:blur(12px);box-shadow:0 1px 8px rgba(148,163,184,0.10);">
+        <header class="sticky top-0 z-10 border-b border-slate-100 h-16 grid items-center px-8 gap-4"
+                style="background:rgba(248,250,252,0.88);backdrop-filter:blur(12px);box-shadow:0 1px 8px rgba(148,163,184,0.10);grid-template-columns:1fr auto 1fr;">
             <div>
                 <h2 class="text-sm font-extrabold text-slate-900 leading-none">Global Settings</h2>
                 <p class="text-[11px] text-slate-400 font-medium mt-0.5">Platform-wide configuration — every department, every exam, every user</p>
             </div>
-            <div class="flex items-center gap-3 ml-auto flex-wrap">
+            <div class="flex items-center gap-3 justify-self-center flex-wrap justify-center">
                 {{-- Live System Status --}}
                 <div id="system-status-badge" class="flex items-center gap-2 text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-100 px-3 py-1.5 rounded-lg">
                     <span class="relative flex" style="width:8px;height:8px;">
@@ -186,11 +186,8 @@
                 <div class="flex items-center gap-2 text-xs font-bold bg-violet-50 text-violet-700 border border-violet-100 px-3 py-1.5 rounded-lg">
                     <i class="fa-solid fa-lock text-violet-400 text-xs"></i> Super Admin Only
                 </div>
-                <div class="hidden xl:flex items-center gap-2 text-xs font-mono text-slate-400 bg-white border border-slate-200 px-3 py-1.5 rounded-lg">
-                    <i class="fa-solid fa-server text-slate-300 text-xs"></i>
-                    <span class="font-bold text-blue-600">{{ request()->getHost() }}:{{ request()->getPort() }}</span>
-                </div>
             </div>
+            <div></div>
         </header>
 
         {{-- CONTENT --}}
