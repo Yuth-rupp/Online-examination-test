@@ -550,6 +550,47 @@ async function loadPendingKeys(manual = false) {
 setInterval(() => loadPendingKeys(false), 5000);
 
 // ═══════════════════════════════════════════════════════════════
+// HTTP POLLING FALLBACK FOR WEBCAM FRAMES
+// Same idea as loadPendingKeys — if the WebSocket connection to
+// Pusher is down or misconfigured, the video grid still updates
+// every 3 seconds from the server-side frame cache instead of
+// staying blank forever.
+// ═══════════════════════════════════════════════════════════════
+async function loadLatestFrames() {
+    try {
+        const csrf = document.querySelector('meta[name="csrf-token"]')?.content || '';
+        const res  = await fetch('{{ route("teacher.monitoring.latest-frames") }}', {
+            headers: {
+                'Accept':           'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-CSRF-TOKEN':     csrf,
+            },
+            credentials: 'same-origin',
+        });
+
+        if (!res.ok) return;
+
+        const list = await res.json();
+        if (!Array.isArray(list)) return;
+
+        list.forEach(item => {
+            if (!onlineUsers[item.student_id]) {
+                const user = { id: item.student_id, name: item.student_name || 'Unknown', key: item.proctor_key || '—' };
+                onlineUsers[item.student_id] = user;
+                createCard(user);
+                updateCounters();
+            }
+            updateFrame(item.student_id, item.image_frame);
+        });
+    } catch (e) {
+        console.debug('[Monitoring] loadLatestFrames failed:', e);
+    }
+}
+
+// Auto-poll every 3 seconds, matching the student's capture interval
+setInterval(loadLatestFrames, 3000);
+
+// ═══════════════════════════════════════════════════════════════
 // LIVE EXAM RULES (read-only, admin-controlled, real-time)
 // ═══════════════════════════════════════════════════════════════
 let rulesPollMs = 10000;
@@ -860,20 +901,17 @@ function confirmEnd() {
 }
 
 // ═══════════════════════════════════════════════════════════════
-// WEBSOCKET INIT (Laravel Reverb via Pusher protocol)
+// WEBSOCKET INIT (Pusher)
 // ═══════════════════════════════════════════════════════════════
 function initWS() {
     setWSStatus('connecting');
     window.Pusher = Pusher;
     window.Echo   = new Echo({
         broadcaster: 'pusher',
-        key:         '{{ config("broadcasting.connections.reverb.key", "examsystemkeyabc123") }}',
-        wsHost:      '{{ config("broadcasting.connections.reverb.options.host", "127.0.0.1") }}',
-        wsPort:       {{ config('broadcasting.connections.reverb.options.port', 8080) }},
-        wssPort:      {{ config('broadcasting.connections.reverb.options.port', 8080) }},
-        cluster:     'mt1',
-        forceTLS:    false,
-        encrypted:   false,
+        key:         '{{ config("broadcasting.connections.pusher.key") }}',
+        cluster:     '{{ config("broadcasting.connections.pusher.options.cluster") }}',
+        forceTLS:    true,
+        encrypted:   true,
         disableStats: true,
         enabledTransports: ['ws', 'wss'],
     });

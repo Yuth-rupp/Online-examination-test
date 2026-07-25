@@ -126,13 +126,48 @@ class ProctorHandshakeController extends Controller
             return response()->json(['error' => 'Stream unauthorized — key not yet approved.'], 403);
         }
 
-        StudentFrameSubmitted::dispatch([
-            'exam_id'     => $validated['exam_id'],
-            'image_frame' => $validated['image_frame'],
-            'proctor_key' => $validated['proctor_key'],
+        // 1. ✅ FIX: Always cache the latest frame per student first, regardless
+        //    of whether the WebSocket broadcast succeeds. This is what the
+        //    teacher's polling fallback below reads from, so video keeps
+        //    working even if Pusher is misconfigured or the socket drops.
+        $latestFrames = Cache::get('proctor-latest-frames', []);
+        $latestFrames[$validated['student_id']] = [
             'student_id'  => $validated['student_id'],
-        ]);
+            'proctor_key' => $validated['proctor_key'],
+            'image_frame' => $validated['image_frame'],
+            'updated_at'  => now()->toIso8601String(),
+        ];
+        Cache::put('proctor-latest-frames', $latestFrames, 60);
+
+        // 2. ✅ FIX: Broadcast is now wrapped so a Pusher failure (bad/missing
+        //    credentials, network hiccup) can't stall or 500 this request —
+        //    the student's frame POST always returns fast, and the frame is
+        //    still available to the teacher via polling either way.
+        try {
+            StudentFrameSubmitted::dispatch([
+                'exam_id'     => $validated['exam_id'],
+                'image_frame' => $validated['image_frame'],
+                'proctor_key' => $validated['proctor_key'],
+                'student_id'  => $validated['student_id'],
+            ]);
+        } catch (\Throwable $e) {
+            report($e);
+        }
 
         return response()->json(['status' => 'frame_synced']);
+    }
+
+    // =========================================================================
+    // ✅ NEW METHOD — TEACHER: HTTP polling fallback for webcam frames.
+    // Called by the teacher monitoring page every 2-3 seconds, same pattern
+    // as getPendingKeys(). Returns the latest cached frame per student so
+    // video keeps updating even if the WebSocket connection is down.
+    // Route: GET /teacher/monitoring/latest-frames
+    // =========================================================================
+    public function getLatestFrames(Request $request)
+    {
+        $latestFrames = Cache::get('proctor-latest-frames', []);
+
+        return response()->json(array_values($latestFrames));
     }
 }

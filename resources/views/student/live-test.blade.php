@@ -541,14 +541,10 @@
       window.Pusher = Pusher;
       window.Echo = new Echo({
         broadcaster: 'pusher',
-        key: 'examsystemkeyabc123',
-        wsHost: '{{ config("broadcasting.connections.reverb.options.host", "127.0.0.1") }}',
-        wsPort: 8080,
-        cluster: 'mt1',
-        forceTLS: false,
-        encrypted: false,
+        key: '{{ config('broadcasting.connections.pusher.key') }}',
+        cluster: '{{ config('broadcasting.connections.pusher.options.cluster', 'mt1') }}',
+        forceTLS: true,
         disableStats: true,
-        enabledTransports: ['ws', 'wss'],
       });
 
       window.Echo.channel('exam-room-handshake')

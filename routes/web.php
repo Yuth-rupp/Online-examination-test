@@ -96,6 +96,7 @@ Route::middleware(['auth', 'role:teacher'])->group(function () {
     Route::get('/teacher/monitoring', function () { return view('teacher.monitoring'); })->name('teacher.monitoring.show');
 
     Route::get('/teacher/monitoring/pending-keys', [ProctorHandshakeController::class, 'getPendingKeys'])->name('teacher.monitoring.pending-keys');
+    Route::get('/teacher/monitoring/latest-frames', [ProctorHandshakeController::class, 'getLatestFrames'])->name('teacher.monitoring.latest-frames');
     Route::post('/teacher/monitoring/approve-proctor-key', [ProctorHandshakeController::class, 'approveKey'])->name('teacher.monitoring.approveKey');
     Route::get('/teacher/monitoring/end-confirmation', [TeacherController::class, 'endExamConfirmation'])->name('teacher.monitoring.endConfirmation');
     Route::get('/teacher/monitoring/session-ended', [TeacherController::class, 'examSessionEnded'])->name('teacher.exam.endedOverview');
