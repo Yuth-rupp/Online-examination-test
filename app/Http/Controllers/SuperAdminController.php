@@ -12,6 +12,7 @@ use App\Models\Exam;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Log;
 use App\Mail\AdminPasswordReset;
 use Carbon\Carbon;
 use App\Jobs\CreateBackupJob;
@@ -1182,6 +1183,7 @@ class SuperAdminController extends Controller
         } catch (\Throwable $e) {
             // Password was still reset successfully even if the email fails to send;
             // the Super Admin can still copy/share it manually from the modal.
+            Log::error('AdminPasswordReset mail failed', ['user_id' => $u->user_id, 'email' => $u->email, 'error' => $e->getMessage()]);
         }
 
         return response()->json([
@@ -1231,6 +1233,7 @@ class SuperAdminController extends Controller
         } catch (\Throwable $e) {
             // Password was still reset successfully even if the email fails to send;
             // the Super Admin can still copy/share it manually from the modal.
+            Log::error('AdminPasswordReset mail failed', ['user_id' => $requestRow->user->user_id, 'email' => $requestRow->user->email, 'error' => $e->getMessage()]);
         }
 
         return response()->json([
