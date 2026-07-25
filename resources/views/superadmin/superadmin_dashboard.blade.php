@@ -62,6 +62,7 @@
         }
         .pulse-border { animation: pulse-border 2s ease-in-out infinite; }
     </style>
+    @include('partials.notification-styles')
 </head>
 <body class="bg-slate-50 text-slate-800 font-sans antialiased" style="font-family: 'Inter', sans-serif;">
 <div class="flex min-h-screen">
@@ -190,12 +191,7 @@
                     </span>
                     All Systems Operational
                 </div>
-                <button class="relative w-9 h-9 flex items-center justify-center rounded-xl bg-white border border-slate-200 hover:bg-slate-50 text-slate-500 transition-all">
-                    <i class="fa-regular fa-bell text-sm"></i>
-                    @if($totalUsers > 0)
-                    <span class="absolute bg-rose-500 rounded-full ring-2 ring-white" style="width:8px;height:8px;top:6px;right:6px;"></span>
-                    @endif
-                </button>
+                @include('partials.superadmin-notification-bell')
             </div>
         </header>
         {{-- ---- PAGE BODY ---- --}}
@@ -829,5 +825,6 @@
     // The first API poll will happen after REFRESH_INTERVAL seconds.
 })();
 </script>
+@include('partials.superadmin-notification-realtime')
 </body>
 </html>

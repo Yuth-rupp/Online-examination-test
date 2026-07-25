@@ -187,6 +187,14 @@ Route::middleware(['auth', 'role:super_admin'])->prefix('super-admin')->group(fu
     Route::get('/live-feed',            [SuperAdminController::class, 'getLiveActivityFeedApi'])->name('superadmin.live-feed');
     Route::get('/telemetry/live-feed',  [SuperAdminController::class, 'getLiveActivityFeedApi'])->name('superadmin.telemetry.livefeed');
 
+    // Real-time notification bell — same shared NotificationController used
+    // by student/teacher/admin, just scoped under the super-admin prefix.
+    Route::get('/notifications',              [NotificationController::class, 'index'])->name('superadmin.notifications');
+    Route::get('/notifications/unread-count',  [NotificationController::class, 'unreadCount'])->name('superadmin.notifications.unreadCount');
+    Route::post('/notifications/{id}/read',    [NotificationController::class, 'markRead'])->name('superadmin.notifications.markRead');
+    Route::post('/notifications/read-all',     [NotificationController::class, 'markAllRead'])->name('superadmin.notifications.markAllRead');
+    Route::post('/notifications/clear',        [NotificationController::class, 'clearAll'])->name('superadmin.notifications.clear');
+
     Route::get('/monitoring',           [SuperAdminController::class, 'monitoring'])->name('superadmin.monitoring.index');
     Route::get('/monitoring/teachers',  [SuperAdminController::class, 'teachersMonitoringApi'])->name('superadmin.monitoring.teachers');
     Route::get('/monitoring/api',       [SuperAdminController::class, 'getMonitoringStatsApi'])->name('superadmin.monitoring.api');
