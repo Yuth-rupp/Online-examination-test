@@ -29,6 +29,7 @@ class User extends Authenticatable
         'full_name',
         'email',
         'password_hash',
+        'must_change_password',
         'role',
         'status',
         'institution_id',
@@ -36,6 +37,13 @@ class User extends Authenticatable
         'department_id',
         'profile_image',
         'telegram_username',
+    ];
+
+    /**
+     * The attributes that should be cast.
+     */
+    protected $casts = [
+        'must_change_password' => 'boolean',
     ];
 
     /**

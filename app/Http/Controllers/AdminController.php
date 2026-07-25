@@ -809,6 +809,54 @@ class AdminController extends Controller
         return redirect()->route('admin.settings')->with('success', 'Profile updated successfully.');
     }
 
+    /**
+     * Shows the change-password page. Reached two ways:
+     *  1) Voluntarily, via the "Change Password" link on the settings page.
+     *  2) Forcibly, via ForcePasswordChange middleware, right after a Super
+     *     Admin has issued a new temporary password — the account is locked
+     *     out of every other admin page until this form is submitted.
+     */
+    public function passwordWorkspace()
+    {
+        $user = Auth::user();
+
+        return view('admin.change-password', [
+            'forced' => (bool) $user->must_change_password,
+        ]);
+    }
+
+    /**
+     * Handles the actual password change. Always requires the current
+     * password (whether that's their own old password, or the temporary
+     * one a Super Admin just emailed them) so a hijacked/left-open session
+     * can't be used to silently lock the real owner out.
+     */
+    public function updatePassword(Request $request)
+    {
+        $user = Auth::user();
+
+        $request->validate([
+            'current_password'          => 'required|string',
+            'new_password'              => 'required|string|min:8|confirmed',
+        ], [
+            'new_password.confirmed' => 'New password and confirmation do not match.',
+        ]);
+
+        if (!Hash::check($request->input('current_password'), $user->password_hash)) {
+            return back()
+                ->withErrors(['current_password' => 'Your current password is incorrect.'])
+                ->withInput($request->except(['current_password', 'new_password', 'new_password_confirmation']));
+        }
+
+        $user->password_hash = Hash::make($request->input('new_password'));
+        $user->must_change_password = false;
+        $user->save();
+
+        $this->logSecurityEvent(Auth::id(), 'comments', 'Account Security', 'Changed their own password.');
+
+        return redirect()->route('admin.dashboard')->with('success', 'Password updated. Use your new password next time you log in.');
+    }
+
     public function clearDatabaseCache() {
         \Illuminate\Support\Facades\Artisan::call('cache:clear');
         \Illuminate\Support\Facades\Artisan::call('view:clear');

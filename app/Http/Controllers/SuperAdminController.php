@@ -1174,6 +1174,7 @@ class SuperAdminController extends Controller
 
         DB::transaction(function () use ($u, $newPassword) {
             $u->password_hash = Hash::make($newPassword);
+            $u->must_change_password = true;
             $u->save();
             $this->logAction('admin.account.password_reset', 'USER_MANAGEMENT', $u->user_id);
         });
@@ -1223,6 +1224,7 @@ class SuperAdminController extends Controller
 
         DB::transaction(function () use ($requestRow, $newPassword) {
             $requestRow->user->password_hash = Hash::make($newPassword);
+            $requestRow->user->must_change_password = true;
             $requestRow->user->save();
 
             $requestRow->status      = 'resolved';

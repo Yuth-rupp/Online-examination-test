@@ -260,7 +260,7 @@ Route::middleware(['auth', 'role:super_admin', 'audit.capture'])->prefix('super-
  | ADMIN ROUTES
  | =========================================================================
 */
-Route::middleware(['auth', 'role:admin,super_admin'])->group(function () {
+Route::middleware(['auth', 'role:admin,super_admin', 'force.password.change'])->group(function () {
 
     Route::get('/admin/dashboard',              [AdminController::class, 'index'])->name('admin.dashboard');
     Route::get('/admin/dashboard/telemetry-api',[AdminController::class, 'getTelemetryApi'])->name('admin.dashboard.api');
@@ -300,6 +300,7 @@ Route::middleware(['auth', 'role:admin,super_admin'])->group(function () {
     Route::post('/admin/settings/update-rules', [AdminController::class, 'updateSystemRules'])->name('admin.settings.rules');
     Route::post('/admin/settings/update-profile',[AdminController::class, 'updateAdminProfile'])->name('admin.settings.profile');
     Route::get('/admin/settings/password',      [AdminController::class, 'passwordWorkspace'])->name('admin.settings.password');
+    Route::post('/admin/settings/password',     [AdminController::class, 'updatePassword'])->name('admin.settings.password.update');
     Route::post('/admin/settings/clear-cache',  [AdminController::class, 'clearDatabaseCache'])->name('admin.settings.clearCache');
     Route::post('/admin/settings/optimize-db',  [AdminController::class, 'optimizeDatabase'])->name('admin.settings.optimizeDb');
     Route::post('/admin/settings/clear-logs',   [AdminController::class, 'clearLogs'])->name('admin.settings.clearLogs');
