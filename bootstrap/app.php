@@ -26,7 +26,8 @@ return Application::configure(basePath: dirname(__DIR__))
 
         // Register your custom RoleMiddleware with the 'role' alias
         $middleware->alias([
-            'role' => \App\Http\Middleware\RoleMiddleware::class,
+            'role'          => \App\Http\Middleware\RoleMiddleware::class,
+            'audit.capture' => \App\Http\Middleware\CaptureSuperAdminActivity::class,
         ]);
 
         // Exclude the live proctoring frame stream route from CSRF protection

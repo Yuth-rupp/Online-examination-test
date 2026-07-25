@@ -83,15 +83,7 @@ class DepartmentController extends Controller
         ]);
 
         try {
-            DB::table('audit_logs')->insert([
-                'user_id'        => Auth::id(),
-                'institution_id' => $validated['institution_id'],
-                'action'         => 'department.create',
-                'model_type'     => 'DEPARTMENT',
-                'model_id'       => $department->id,
-                'ip_address'     => $request->ip() ?? '127.0.0.1',
-                'created_at'     => now(),
-            ]);
+            \App\Services\AuditLogger::record('department.create', 'DEPARTMENT', $department->id, null, $validated['institution_id']);
         } catch (\Exception $e) {}
 
         return redirect()->route('superadmin.departments.index')->with('success', 'Department "' . $department->name . '" created.');
@@ -114,15 +106,7 @@ class DepartmentController extends Controller
         $department->update($validated);
 
         try {
-            DB::table('audit_logs')->insert([
-                'user_id'        => Auth::id(),
-                'institution_id' => $department->institution_id,
-                'action'         => 'department.update',
-                'model_type'     => 'DEPARTMENT',
-                'model_id'       => $department->id,
-                'ip_address'     => $request->ip() ?? '127.0.0.1',
-                'created_at'     => now(),
-            ]);
+            \App\Services\AuditLogger::record('department.update', 'DEPARTMENT', $department->id, null, $department->institution_id);
         } catch (\Exception $e) {}
 
         return redirect()->route('superadmin.departments.index')->with('success', 'Department updated.');
@@ -142,15 +126,7 @@ class DepartmentController extends Controller
         $admin->save();
 
         try {
-            DB::table('audit_logs')->insert([
-                'user_id'        => Auth::id(),
-                'institution_id' => $department->institution_id,
-                'action'         => 'department.admin.assign',
-                'model_type'     => 'DEPARTMENT',
-                'model_id'       => $department->id,
-                'ip_address'     => $request->ip() ?? '127.0.0.1',
-                'created_at'     => now(),
-            ]);
+            \App\Services\AuditLogger::record('department.admin.assign', 'DEPARTMENT', $department->id, null, $department->institution_id);
         } catch (\Exception $e) {}
 
         return redirect()->route('superadmin.departments.index')->with('success', $admin->full_name . ' put in charge of ' . $department->name . '.');
@@ -169,15 +145,7 @@ class DepartmentController extends Controller
         }
 
         try {
-            DB::table('audit_logs')->insert([
-                'user_id'        => Auth::id(),
-                'institution_id' => $department->institution_id,
-                'action'         => 'department.admin.remove',
-                'model_type'     => 'DEPARTMENT',
-                'model_id'       => $department->id,
-                'ip_address'     => request()->ip() ?? '127.0.0.1',
-                'created_at'     => now(),
-            ]);
+            \App\Services\AuditLogger::record('department.admin.remove', 'DEPARTMENT', $department->id, null, $department->institution_id);
         } catch (\Exception $e) {}
 
         return redirect()->route('superadmin.departments.index')->with('success', 'Department admin removed.');
@@ -237,15 +205,7 @@ class DepartmentController extends Controller
         $department->teachers()->syncWithoutDetaching([$teacher->user_id]);
 
         try {
-            DB::table('audit_logs')->insert([
-                'user_id'        => Auth::id(),
-                'institution_id' => $department->institution_id,
-                'action'         => 'department.teacher.assign',
-                'model_type'     => 'DEPARTMENT',
-                'model_id'       => $department->id,
-                'ip_address'     => $request->ip() ?? '127.0.0.1',
-                'created_at'     => now(),
-            ]);
+            \App\Services\AuditLogger::record('department.teacher.assign', 'DEPARTMENT', $department->id, null, $department->institution_id);
         } catch (\Exception $e) {}
 
         return redirect()->route('admin.departments.teachers', $department)->with('success', 'Teacher added to this department.');

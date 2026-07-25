@@ -50,15 +50,9 @@ class InstitutionController extends Controller
 
         $institution = Institution::create($validated);
 
-        DB::table('audit_logs')->insert([
-            'user_id'    => Auth::id(),
-            'action'     => 'created',
-            'payload'    => json_encode([
-                'target_title' => 'Institution Directory',
-                'summary'      => "Onboarded new university: {$institution->name} ({$institution->domain})",
-            ]),
-            'ip_address' => $request->ip() ?? '127.0.0.1',
-            'created_at' => now(),
+        \App\Services\AuditLogger::record('institution.create', 'INSTITUTION', $institution->id, [
+            'target_title' => 'Institution Directory',
+            'summary'      => "Onboarded new university: {$institution->name} ({$institution->domain})",
         ]);
 
         return redirect()->route('superadmin.institutions.index')
@@ -79,6 +73,11 @@ class InstitutionController extends Controller
 
         $institution->update($validated);
 
+        \App\Services\AuditLogger::record('institution.update', 'INSTITUTION', $institution->id, [
+            'target_title' => 'Institution Directory',
+            'summary'      => "Updated {$institution->name} ({$institution->domain})",
+        ]);
+
         return redirect()->route('superadmin.institutions.index')->with('success', 'Institution updated.');
     }
 
@@ -92,15 +91,9 @@ class InstitutionController extends Controller
         $institution->is_active = !$institution->is_active;
         $institution->save();
 
-        DB::table('audit_logs')->insert([
-            'user_id'    => Auth::id(),
-            'action'     => $institution->is_active ? 'activated' : 'deactivated',
-            'payload'    => json_encode([
-                'target_title' => 'Institution Directory',
-                'summary'      => ($institution->is_active ? 'Reactivated' : 'Deactivated') . " {$institution->name} ({$institution->domain})",
-            ]),
-            'ip_address' => request()->ip() ?? '127.0.0.1',
-            'created_at' => now(),
+        \App\Services\AuditLogger::record($institution->is_active ? 'institution.activated' : 'institution.deactivated', 'INSTITUTION', $institution->id, [
+            'target_title' => 'Institution Directory',
+            'summary'      => ($institution->is_active ? 'Reactivated' : 'Deactivated') . " {$institution->name} ({$institution->domain})",
         ]);
 
         return redirect()->route('superadmin.institutions.index')

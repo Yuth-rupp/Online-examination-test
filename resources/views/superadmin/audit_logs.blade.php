@@ -112,12 +112,13 @@
                 <div class="flex items-center gap-2 text-xs font-semibold bg-slate-100 text-slate-500 border border-slate-200 px-3 py-1.5 rounded-lg">
                     <i class="fa-solid fa-lock text-slate-400 text-xs"></i> Read-Only · Immutable
                 </div>
-                <div class="flex items-center gap-2 text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-100 px-3 py-1.5 rounded-lg">
+                <div id="ws-status-badge" class="flex items-center gap-2 text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-100 px-3 py-1.5 rounded-lg">
                     <span class="relative flex" style="width:8px;height:8px;">
-                        <span class="ping-slow absolute inline-flex rounded-full bg-blue-400 opacity-75" style="width:100%;height:100%;"></span>
-                        <span class="relative inline-flex rounded-full bg-blue-500" style="width:8px;height:8px;"></span>
+                        <span id="ws-status-ping" class="ping-slow absolute inline-flex rounded-full bg-blue-400 opacity-75" style="width:100%;height:100%;"></span>
+                        <span id="ws-status-dot" class="relative inline-flex rounded-full bg-blue-500" style="width:8px;height:8px;"></span>
                     </span>
-                    Polling in <span id="poll-countdown" class="font-mono font-black ml-1 mr-0.5 text-blue-900 w-3 text-center">4</span>s
+                    <span id="ws-status-text">Connecting…</span>
+                    <span id="poll-countdown-wrap" class="hidden">Polling in <span id="poll-countdown" class="font-mono font-black ml-1 mr-0.5 text-blue-900 w-3 text-center">4</span>s</span>
                 </div>
             </div>
         </header>
@@ -213,6 +214,10 @@
         </div>
     </main>
 </div>
+{{-- Real-time transport for the live audit feed (Pusher-compatible;
+     same CDN builds already used by the notification bell partials) --}}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pusher/8.3.0/pusher.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/laravel-echo@1.16.0/dist/echo.iife.js"></script>
 <script>
 (function() {
     'use strict';
@@ -242,14 +247,69 @@
             new Date().toLocaleTimeString('en-US', { hour12:false, hour:'2-digit', minute:'2-digit', second:'2-digit' });
     }
     updateClock(); setInterval(updateClock, 1000);
-    // ── Poll countdown (4s) ──
+    // ── Poll countdown (4s) — fallback only, runs while the websocket is down ──
     let pollCount = 4;
+    let wsConnected = false;
     const pollEl = document.getElementById('poll-countdown');
     setInterval(() => {
+        if (wsConnected) return; // live channel is doing the work — no need to poll
         pollCount--;
         if (pollCount <= 0) { pollCount = 4; pollAuditLogs(); }
         pollEl.textContent = pollCount;
     }, 1000);
+    function setWsStatus(state) {
+        const badge = document.getElementById('ws-status-badge');
+        const dot   = document.getElementById('ws-status-dot');
+        const ping  = document.getElementById('ws-status-ping');
+        const text  = document.getElementById('ws-status-text');
+        const pollWrap = document.getElementById('poll-countdown-wrap');
+        if (state === 'connected') {
+            wsConnected = true;
+            badge.style.background = '#ecfdf5'; badge.style.borderColor = '#a7f3d0'; badge.style.color = '#047857';
+            dot.style.background = '#10b981'; ping.style.background = '#34d399';
+            text.textContent = 'LIVE — real-time feed connected';
+            pollWrap.classList.add('hidden');
+        } else {
+            wsConnected = false;
+            badge.style.background = '#eff6ff'; badge.style.borderColor = '#bfdbfe'; badge.style.color = '#1d4ed8';
+            dot.style.background = '#3b82f6'; ping.style.background = '#60a5fa';
+            text.textContent = state === 'failed' ? 'Live feed unavailable — polling' : 'Connecting…';
+            pollWrap.classList.remove('hidden');
+        }
+    }
+    // ── Real-time feed (Pusher/Echo — same pattern used for notifications,
+    //    exam monitoring, etc.). Falls back to the 4s poll above if the
+    //    socket never connects or drops. ──
+    function initAuditEcho() {
+        if (!window.Pusher) window.Pusher = Pusher;
+        if (!window.Echo) {
+            window.Echo = new Echo({
+                broadcaster: 'pusher',
+                key: '{{ config('broadcasting.connections.pusher.key') ?: 'examsystemkeyabc123' }}',
+                cluster: '{{ config('broadcasting.connections.pusher.options.cluster') ?: 'mt1' }}',
+                forceTLS: true,
+                authEndpoint: '{{ url('/broadcasting/auth') }}',
+                auth: { headers: { 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content, 'Accept': 'application/json' } }
+            });
+        }
+        window.Echo.private('audit-logs.superadmin')
+            .listen('.AuditLogRecorded', (payload) => {
+                // Server already sent the full formatted row — push it
+                // straight to the top of the ledger, no refetch needed.
+                allLogs = [payload, ...allLogs.filter(l => l.id !== payload.id)];
+                updateCards();
+                renderLogs();
+                flashLatestRow();
+            });
+        window.Echo.connector.pusher.connection.bind('connected', () => setWsStatus('connected'));
+        window.Echo.connector.pusher.connection.bind('unavailable', () => setWsStatus('failed'));
+        window.Echo.connector.pusher.connection.bind('failed', () => setWsStatus('failed'));
+        window.Echo.connector.pusher.connection.bind('disconnected', () => setWsStatus('connecting'));
+    }
+    function flashLatestRow() {
+        const firstRow = document.querySelector('#log-table-body tr');
+        if (firstRow) { firstRow.classList.add('new-pulse'); setTimeout(() => firstRow.classList.remove('new-pulse'), 2000); }
+    }
     // ── State ──
     let allLogs   = @json($logs);
     let cachedNew = [];
@@ -386,6 +446,7 @@
     // ── INIT ──
     updateCards();
     renderLogs();
+    initAuditEcho();
 })();
 </script>
 </body>

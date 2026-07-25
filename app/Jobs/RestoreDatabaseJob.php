@@ -11,6 +11,7 @@ use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\DB;
+use App\Models\AuditLog;
 
 class RestoreDatabaseJob implements ShouldQueue
 {
@@ -200,7 +201,7 @@ class RestoreDatabaseJob implements ShouldQueue
     private function logAction(string $action, string $modelType, string $modelId): void
     {
         try {
-            DB::table('audit_logs')->insert([
+            AuditLog::create([
                 'user_id'        => null,
                 'institution_id' => null,
                 'action'         => $action,

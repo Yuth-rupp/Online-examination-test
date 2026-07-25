@@ -181,7 +181,7 @@ Route::middleware(['auth', 'role:student'])->group(function () {
  | SUPER ADMIN ROUTES
  | =========================================================================
 */
-Route::middleware(['auth', 'role:super_admin'])->prefix('super-admin')->group(function () {
+Route::middleware(['auth', 'role:super_admin', 'audit.capture'])->prefix('super-admin')->group(function () {
 
     Route::get('/dashboard',            [SuperAdminController::class, 'dashboard'])->name('superadmin.dashboard');
     Route::get('/live-feed',            [SuperAdminController::class, 'getLiveActivityFeedApi'])->name('superadmin.live-feed');

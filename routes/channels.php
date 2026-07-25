@@ -110,3 +110,18 @@ Broadcast::channel('exam-monitoring', function () {
 Broadcast::channel('backups.superadmin', function ($user) {
     return $user->role === 'super_admin';
 });
+
+/**
+ * =========================================================================
+ * 🔒 8. Real-Time Forensic Audit Trail Channel (Super Admin Only)
+ * =========================================================================
+ *
+ * Private channel for the "Forensic Audit Trails" page. Every row written
+ * to audit_logs — no matter which controller or middleware wrote it —
+ * is pushed here the instant it's created (see App\Observers\AuditLogObserver
+ * and App\Events\AuditLogRecorded). Only super_admin can subscribe; anyone
+ * else gets a 403 on the auth endpoint.
+ */
+Broadcast::channel('audit-logs.superadmin', function ($user) {
+    return $user->role === 'super_admin';
+});

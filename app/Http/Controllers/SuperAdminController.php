@@ -1331,16 +1331,6 @@ class SuperAdminController extends Controller
 
     private function logAction($action, $modelType, $modelId)
     {
-        try {
-            DB::table('audit_logs')->insert([
-                'user_id'        => auth()->id() ?? null,
-                'institution_id' => auth()->user()->institution_id ?? null,
-                'action'         => $action,
-                'model_type'     => $modelType,
-                'model_id'       => $modelId,
-                'ip_address'     => request()->ip(),
-                'created_at'     => now(),
-            ]);
-        } catch (\Exception $e) {}
+        \App\Services\AuditLogger::record($action, $modelType, $modelId);
     }
 }

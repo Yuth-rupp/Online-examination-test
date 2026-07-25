@@ -13,6 +13,7 @@ use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Carbon\Carbon;
+use App\Models\AuditLog;
 
 class CreateBackupJob implements ShouldQueue
 {
@@ -243,7 +244,7 @@ class CreateBackupJob implements ShouldQueue
     private function logAction(string $action, string $modelType, string $modelId): void
     {
         try {
-            DB::table('audit_logs')->insert([
+            AuditLog::create([
                 'user_id'        => null, // Job context — no auth user
                 'institution_id' => null,
                 'action'         => $action,
