@@ -1188,10 +1188,7 @@ class SuperAdminController extends Controller
      * ================================================================ */
     public function passwordRequests()
     {
-        $iid = auth()->user()->institution_id;
-
         $requests = \App\Models\AdminPasswordResetRequest::with('user:user_id,full_name,email,department_id')
-            ->when($iid, fn ($q) => $q->whereHas('user', fn ($u) => $u->where('institution_id', $iid)))
             ->orderByRaw("status = 'pending' desc")
             ->orderBy('created_at', 'desc')
             ->get();
