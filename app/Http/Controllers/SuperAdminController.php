@@ -14,6 +14,7 @@ use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Log;
 use App\Mail\AdminPasswordReset;
+use App\Services\BrevoMailer;
 use Carbon\Carbon;
 use App\Jobs\CreateBackupJob;
 use App\Jobs\RestoreDatabaseJob;
@@ -1169,7 +1170,7 @@ class SuperAdminController extends Controller
         $iid = auth()->user()->institution_id;
         $u = User::when($iid, fn($q) => $q->where('institution_id', $iid))->findOrFail($id);
 
-        $newPassword = Str::password(12);
+        $newPassword = Str::password(12, symbols: false);
 
         DB::transaction(function () use ($u, $newPassword) {
             $u->password_hash = Hash::make($newPassword);
@@ -1177,13 +1178,16 @@ class SuperAdminController extends Controller
             $this->logAction('admin.account.password_reset', 'USER_MANAGEMENT', $u->user_id);
         });
 
-        try {
-            Mail::to($u->email)->send(new AdminPasswordReset($u->full_name, $newPassword));
-        } catch (\Throwable $e) {
-            // Password was still reset successfully even if the email fails to send;
-            // the Super Admin can still copy/share it manually from the modal.
-            Log::error('AdminPasswordReset mail failed', ['user_id' => $u->user_id, 'email' => $u->email, 'error' => $e->getMessage()]);
-        }
+        BrevoMailer::send(
+            $u->email,
+            $u->full_name,
+            'Your ExamSystem Password Has Been Reset',
+            '<p>Hi ' . e($u->full_name) . ',</p>' .
+            '<p>A Super Admin has reset your password. Your new temporary password is:</p>' .
+            '<p style="font-size:18px;font-weight:700;letter-spacing:1px;">' . e($newPassword) . '</p>' .
+            '<p>Please log in with this password and change it as soon as possible.</p>' .
+            '<p>If you did not request this, contact your Super Admin immediately.</p>'
+        );
 
         return response()->json([
             'status'       => 'success',
@@ -1213,7 +1217,7 @@ class SuperAdminController extends Controller
             return response()->json(['message' => 'That admin account no longer exists.'], 404);
         }
 
-        $newPassword = Str::password(12);
+        $newPassword = Str::password(12, symbols: false);
 
         DB::transaction(function () use ($requestRow, $newPassword) {
             $requestRow->user->password_hash = Hash::make($newPassword);
@@ -1227,13 +1231,16 @@ class SuperAdminController extends Controller
             $this->logAction('admin.account.password_reset', 'USER_MANAGEMENT', $requestRow->user->user_id);
         });
 
-        try {
-            Mail::to($requestRow->user->email)->send(new AdminPasswordReset($requestRow->user->full_name, $newPassword));
-        } catch (\Throwable $e) {
-            // Password was still reset successfully even if the email fails to send;
-            // the Super Admin can still copy/share it manually from the modal.
-            Log::error('AdminPasswordReset mail failed', ['user_id' => $requestRow->user->user_id, 'email' => $requestRow->user->email, 'error' => $e->getMessage()]);
-        }
+        BrevoMailer::send(
+            $requestRow->user->email,
+            $requestRow->user->full_name,
+            'Your ExamSystem Password Has Been Reset',
+            '<p>Hi ' . e($requestRow->user->full_name) . ',</p>' .
+            '<p>A Super Admin has reset your password. Your new temporary password is:</p>' .
+            '<p style="font-size:18px;font-weight:700;letter-spacing:1px;">' . e($newPassword) . '</p>' .
+            '<p>Please log in with this password and change it as soon as possible.</p>' .
+            '<p>If you did not request this, contact your Super Admin immediately.</p>'
+        );
 
         return response()->json([
             'status'       => 'success',
