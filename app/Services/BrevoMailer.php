@@ -12,11 +12,18 @@ class BrevoMailer
      * We use the API directly (not SMTP) because Railway's free/hobby
      * plan blocks outbound SMTP connections but allows HTTPS.
      *
+     * IMPORTANT: credentials are read via config('services.brevo.*'),
+     * NOT env() directly. Once `php artisan config:cache` runs (which
+     * happens on every Railway deploy), calling env() outside of a
+     * config/*.php file silently returns null — even if the variable
+     * is genuinely set in the environment. Routing through
+     * config/services.php avoids that trap.
+     *
      * @return bool true on success, false on failure (never throws)
      */
     public static function send(string $toEmail, string $toName, string $subject, string $htmlContent): bool
     {
-        $apiKey = env('BREVO_API_KEY');
+        $apiKey = config('services.brevo.api_key');
 
         if (!$apiKey) {
             Log::error('BrevoMailer: BREVO_API_KEY is not set.');
@@ -30,8 +37,8 @@ class BrevoMailer
                 'content-type' => 'application/json',
             ])->post('https://api.brevo.com/v3/smtp/email', [
                 'sender' => [
-                    'name'  => env('BREVO_SENDER_NAME', env('MAIL_FROM_NAME', 'ExamSystem')),
-                    'email' => env('BREVO_SENDER_EMAIL', env('MAIL_FROM_ADDRESS')),
+                    'name'  => config('services.brevo.sender_name'),
+                    'email' => config('services.brevo.sender_email'),
                 ],
                 'to' => [
                     ['email' => $toEmail, 'name' => $toName],

@@ -1178,7 +1178,7 @@ class SuperAdminController extends Controller
             $this->logAction('admin.account.password_reset', 'USER_MANAGEMENT', $u->user_id);
         });
 
-        BrevoMailer::send(
+        $mailSent = BrevoMailer::send(
             $u->email,
             $u->full_name,
             'Your ExamSystem Password Has Been Reset',
@@ -1190,8 +1190,10 @@ class SuperAdminController extends Controller
         );
 
         return response()->json([
-            'status'       => 'success',
-            'message'      => 'Password reset successfully and emailed to the admin.',
+            'status'       => $mailSent ? 'success' : 'partial',
+            'message'      => $mailSent
+                ? 'Password reset successfully and emailed to the admin.'
+                : 'Password was reset, but the notification email failed to send. Share the password below with the admin directly.',
             'new_password' => $newPassword,
         ]);
     }
@@ -1231,7 +1233,7 @@ class SuperAdminController extends Controller
             $this->logAction('admin.account.password_reset', 'USER_MANAGEMENT', $requestRow->user->user_id);
         });
 
-        BrevoMailer::send(
+        $mailSent = BrevoMailer::send(
             $requestRow->user->email,
             $requestRow->user->full_name,
             'Your ExamSystem Password Has Been Reset',
@@ -1243,8 +1245,10 @@ class SuperAdminController extends Controller
         );
 
         return response()->json([
-            'status'       => 'success',
-            'message'      => 'Password reset successfully and emailed to the admin.',
+            'status'       => $mailSent ? 'success' : 'partial',
+            'message'      => $mailSent
+                ? 'Password reset successfully and emailed to the admin.'
+                : 'Password was reset, but the notification email failed to send. Share the password below with the admin directly.',
             'new_password' => $newPassword,
             'admin_name'   => $requestRow->user->full_name,
             'admin_email'  => $requestRow->user->email,
