@@ -67,6 +67,21 @@
                     <i class="fa-solid fa-user-shield text-2xl"></i>
                 </div>
 
+                @if (session('admin_request_sent'))
+                    <div class="mb-5 p-4 bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-xl text-sm text-left flex items-start gap-2">
+                        <i class="fa-solid fa-circle-check mt-0.5"></i>
+                        <span>Your request has been sent to the Super Admin. They'll reset your password and reach out to you shortly.</span>
+                    </div>
+                @endif
+
+                @if ($errors->has('admin_email'))
+                    <div class="mb-5 p-4 bg-red-50 border border-red-200 text-red-700 rounded-xl text-sm text-left flex items-start gap-2">
+                        <i class="fa-solid fa-circle-exclamation mt-0.5"></i>
+                        <span>{{ $errors->first('admin_email') }}</span>
+                    </div>
+                @endif
+
+                <div id="student-teacher-panel">
                 <h2 class="text-3xl font-bold text-slate-900 mb-3 tracking-tight">Password Reset Restricted</h2>
                 <p class="text-gray-500 text-sm leading-relaxed mb-6 px-2">
                     For security reasons, students and teachers cannot reset their password directly.
@@ -143,8 +158,78 @@
                     </a>
                 </div>
 
-                <div class="mt-6">
-                    <a href="{{ route('login.page') }}" class="inline-flex items-center space-x-2 text-xs font-semibold text-slate-500 hover:text-slate-900 transition-colors">
+                <div class="mt-6 pt-4 border-t border-gray-100">
+                    <button type="button" onclick="showAdminPanel()" class="text-xs font-semibold text-slate-500 hover:text-slate-900 transition-colors">
+                        <i class="fa-solid fa-user-tie mr-1"></i>
+                        Are you an Admin? <span class="text-[#1e4ea1] underline">Request a reset from the Super Admin</span>
+                    </button>
+                </div>
+                </div><!-- /student-teacher-panel -->
+
+                <!-- Admin request panel, hidden until toggled -->
+                <div id="admin-panel" class="hidden text-left">
+                    <div class="text-center">
+                        <h2 class="text-3xl font-bold text-slate-900 mb-3 tracking-tight">Admin Password Reset</h2>
+                        <p class="text-gray-500 text-sm leading-relaxed mb-6 px-2">
+                            Only the Super Admin can reset an admin's password. Submit a request below and they'll be notified immediately.
+                        </p>
+                    </div>
+
+                    <form action="{{ route('password.admin.request') }}" method="POST">
+                        @csrf
+
+                        <div class="mb-4">
+                            <label for="admin-email" class="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-2">
+                                Your Admin Email
+                            </label>
+                            <div class="relative rounded-lg shadow-sm">
+                                <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-gray-400">
+                                    <i class="fa-regular fa-envelope"></i>
+                                </div>
+                                <input
+                                    type="email"
+                                    name="email"
+                                    id="admin-email"
+                                    value="{{ old('email') }}"
+                                    required
+                                    placeholder="you@yourexam.com"
+                                    class="block w-full pl-11 pr-4 py-3.5 bg-white border border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all text-sm"
+                                >
+                            </div>
+                        </div>
+
+                        <div class="mb-6">
+                            <label for="admin-message" class="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-2">
+                                Message <span class="normal-case font-medium text-gray-400">(optional)</span>
+                            </label>
+                            <textarea
+                                name="message"
+                                id="admin-message"
+                                rows="3"
+                                placeholder="Anything the Super Admin should know…"
+                                class="block w-full px-4 py-3 bg-white border border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all text-sm resize-none"
+                            >{{ old('message') }}</textarea>
+                        </div>
+
+                        <button
+                            type="submit"
+                            class="w-full flex items-center justify-center space-x-2 py-3.5 px-4 bg-[#11357c] hover:bg-[#1a4494] text-white text-sm font-medium rounded-xl shadow-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all group"
+                        >
+                            <span>Send Request to Super Admin</span>
+                            <i class="fa-solid fa-paper-plane text-xs transform group-hover:translate-x-1 transition-transform"></i>
+                        </button>
+                    </form>
+
+                    <div class="mt-6 text-center">
+                        <button type="button" onclick="showStudentPanel()" class="inline-flex items-center space-x-2 text-xs font-semibold text-slate-500 hover:text-slate-900 transition-colors">
+                            <i class="fa-solid fa-arrow-left"></i>
+                            <span>I'm a student or teacher instead</span>
+                        </button>
+                    </div>
+                </div><!-- /admin-panel -->
+
+                <div class="mt-6 text-center">
+                    <a href="{{ route('login.page') }}" class="inline-flex items-center space-x-2 text-xs font-semibold text-slate-400 hover:text-slate-900 transition-colors">
                         <i class="fa-solid fa-arrow-left"></i>
                         <span>Back to login</span>
                     </a>
@@ -160,6 +245,25 @@
     </div>
 
     <script>
+        // Toggle between the Student/Teacher department flow and the Admin
+        // "request a reset from the Super Admin" flow.
+        const studentPanel = document.getElementById('student-teacher-panel');
+        const adminPanel   = document.getElementById('admin-panel');
+
+        window.showAdminPanel = function () {
+            studentPanel.classList.add('hidden');
+            adminPanel.classList.remove('hidden');
+        };
+
+        window.showStudentPanel = function () {
+            adminPanel.classList.add('hidden');
+            studentPanel.classList.remove('hidden');
+        };
+
+        @if (session('admin_request_sent') || $errors->has('admin_email'))
+            showAdminPanel();
+        @endif
+
         // Department → admin contact map, rendered server-side so it stays
         // accurate without any extra network request when the user picks
         // their department.

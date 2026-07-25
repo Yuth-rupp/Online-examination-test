@@ -45,6 +45,7 @@ Route::middleware(['guest'])->group(function () {
         return view('auth.register_success');
     })->name('register.success');
     Route::get('/forgot-password', [AuthController::class, 'showForgotPassword'])->name('password.request');
+    Route::post('/forgot-password/admin-request', [AuthController::class, 'submitAdminPasswordResetRequest'])->name('password.admin.request');
     Route::post('/forgot-password', [AuthController::class, 'sendResetLink'])->name('password.email');
     Route::get('/forgot-password/success', function () {
         if (!session()->has('reset_email')) { return redirect()->route('password.request'); }
@@ -237,6 +238,11 @@ Route::middleware(['auth', 'role:super_admin', 'audit.capture'])->prefix('super-
     Route::patch('/admins/{id}/change-role',       [SuperAdminController::class, 'adminChangeRole'])->name('superadmin.admins.changeRole');
     Route::patch('/admins/{id}/change-department', [SuperAdminController::class, 'adminChangeDepartment'])->name('superadmin.admins.changeDepartment');
     Route::post('/admins/{id}/reset-password',     [SuperAdminController::class, 'adminResetPassword'])->name('superadmin.admins.resetPassword');
+
+    // ADMIN PASSWORD RESET REQUESTS (submitted from the public Forgot Password page)
+    Route::get('/password-requests',                   [SuperAdminController::class, 'passwordRequests'])->name('superadmin.passwordRequests.index');
+    Route::post('/password-requests/{id}/resolve',      [SuperAdminController::class, 'resolvePasswordRequest'])->name('superadmin.passwordRequests.resolve');
+    Route::post('/password-requests/{id}/dismiss',      [SuperAdminController::class, 'dismissPasswordRequest'])->name('superadmin.passwordRequests.dismiss');
 
     Route::get('/departments',                        [DepartmentController::class, 'index'])->name('superadmin.departments.index');
     Route::post('/departments/store',                  [DepartmentController::class, 'store'])->name('superadmin.departments.store');

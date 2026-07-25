@@ -1184,6 +1184,65 @@ class SuperAdminController extends Controller
     }
 
     /* ================================================================
+     *  ADMIN PASSWORD RESET REQUESTS
+     * ================================================================ */
+    public function passwordRequests()
+    {
+        $iid = auth()->user()->institution_id;
+
+        $requests = \App\Models\AdminPasswordResetRequest::with('user:user_id,full_name,email,department_id')
+            ->when($iid, fn ($q) => $q->whereHas('user', fn ($u) => $u->where('institution_id', $iid)))
+            ->orderByRaw("status = 'pending' desc")
+            ->orderBy('created_at', 'desc')
+            ->get();
+
+        return view('superadmin.password_requests', compact('requests'));
+    }
+
+    public function resolvePasswordRequest($id)
+    {
+        $requestRow = \App\Models\AdminPasswordResetRequest::with('user')->findOrFail($id);
+
+        if (!$requestRow->user) {
+            return response()->json(['message' => 'That admin account no longer exists.'], 404);
+        }
+
+        $newPassword = Str::password(12);
+
+        DB::transaction(function () use ($requestRow, $newPassword) {
+            $requestRow->user->password_hash = Hash::make($newPassword);
+            $requestRow->user->save();
+
+            $requestRow->status      = 'resolved';
+            $requestRow->resolved_by = auth()->id();
+            $requestRow->resolved_at = now();
+            $requestRow->save();
+
+            $this->logAction('admin.account.password_reset', 'USER_MANAGEMENT', $requestRow->user->user_id);
+        });
+
+        return response()->json([
+            'status'       => 'success',
+            'message'      => 'Password reset successfully.',
+            'new_password' => $newPassword,
+            'admin_name'   => $requestRow->user->full_name,
+            'admin_email'  => $requestRow->user->email,
+        ]);
+    }
+
+    public function dismissPasswordRequest($id)
+    {
+        $requestRow = \App\Models\AdminPasswordResetRequest::findOrFail($id);
+        $requestRow->update([
+            'status'      => 'resolved',
+            'resolved_by' => auth()->id(),
+            'resolved_at' => now(),
+        ]);
+
+        return response()->json(['status' => 'success']);
+    }
+
+    /* ================================================================
      *  EMERGENCY OVERRIDES
      * ================================================================ */
     public function forceEndExam($id)

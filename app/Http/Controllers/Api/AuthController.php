@@ -204,6 +204,59 @@ class AuthController extends Controller
     }
 
     /**
+     * Admins have no department admin above them to contact, so instead of
+     * a Telegram link they file a request that lands in the Super Admin's
+     * inbox (and fires an in-app notification to every Super Admin).
+     */
+    public function submitAdminPasswordResetRequest(Request $request)
+    {
+        $data = $request->validate([
+            'email'   => 'required|email',
+            'message' => 'nullable|string|max:500',
+        ]);
+
+        $admin = User::where('email', $data['email'])->where('role', 'admin')->first();
+
+        if (!$admin) {
+            return back()
+                ->withErrors(['admin_email' => 'We could not find an admin account with that email address.'])
+                ->withInput()
+                ->with('admin_request_open', true);
+        }
+
+        // Avoid spamming the Super Admin with duplicates if the admin
+        // double-submits or refreshes the page.
+        $existing = \App\Models\AdminPasswordResetRequest::pending()
+            ->where('user_id', $admin->user_id)
+            ->first();
+
+        if (!$existing) {
+            $existing = \App\Models\AdminPasswordResetRequest::create([
+                'user_id' => $admin->user_id,
+                'email'   => $admin->email,
+                'message' => $data['message'] ?? null,
+            ]);
+
+            $superAdmins = User::where('role', 'super_admin')
+                ->when($admin->institution_id, fn ($q) => $q->where('institution_id', $admin->institution_id))
+                ->get();
+
+            foreach ($superAdmins as $superAdmin) {
+                \App\Models\Notification::create([
+                    'user_id' => $superAdmin->user_id,
+                    'title'   => 'Password Reset Requested',
+                    'body'    => $admin->full_name . ' (' . $admin->email . ') is asking you to reset their password.',
+                    'type'    => 'warning',
+                    'data'    => ['admin_password_reset_request_id' => $existing->id],
+                ]);
+            }
+        }
+
+        return redirect()->route('password.request')
+            ->with('admin_request_sent', true);
+    }
+
+    /**
      * Students, teachers, and department admins cannot self-service reset
      * their password — they must contact the admin assigned to their own
      * department. This loads every active department together with the

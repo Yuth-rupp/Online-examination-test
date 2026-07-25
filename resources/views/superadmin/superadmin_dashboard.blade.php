@@ -124,6 +124,13 @@
                 </span>
                 <span>User Management</span>
             </a>
+            <a href="{{ route('superadmin.passwordRequests.index') }}"
+               class="flex items-center gap-3 px-3 py-2.5 text-slate-500 hover:text-slate-800 hover:bg-slate-100 font-medium rounded-xl text-sm mb-0.5 transition-all duration-200">
+                <span class="w-8 h-8 flex items-center justify-center rounded-lg flex-shrink-0">
+                    <i class="fa-solid fa-key text-xs text-slate-400"></i>
+                </span>
+                <span>Password Requests</span>
+            </a>
             <a href="{{ route('superadmin.audit-logs.index') }}"
                class="flex items-center gap-3 px-3 py-2.5 text-slate-500 hover:text-slate-800 hover:bg-slate-100 font-medium rounded-xl text-sm mb-0.5 transition-all duration-200">
                 <span class="w-8 h-8 flex items-center justify-center rounded-lg flex-shrink-0">
