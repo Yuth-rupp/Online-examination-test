@@ -301,18 +301,23 @@ class StudentController extends Controller
             return response()->json(['message' => 'Exam not found.'], 404);
         }
 
-        $enrolled = Enrollment::where('user_id', $user->user_id)
-            ->where('course_id', $exam->course_id)
-            ->where('status', 'active')
-            ->exists();
-
-        if (!$enrolled) {
-            return response()->json(['message' => 'You are not enrolled in this exam.'], 403);
-        }
-
         $hasSubmitted = Submission::where('user_id', $user->user_id)
             ->where('exam_id', $exam->exam_id)
             ->exists();
+
+        // A submission is proof the student legitimately took this exam,
+        // regardless of what their enrollment status looks like today
+        // (courses end, enrollments get archived/dropped, etc). Only fall
+        // back to checking enrollment when there's no submission on record.
+        if (!$hasSubmitted) {
+            $enrolled = Enrollment::where('user_id', $user->user_id)
+                ->where('course_id', $exam->course_id)
+                ->exists();
+
+            if (!$enrolled) {
+                return response()->json(['message' => 'You are not enrolled in this exam.'], 403);
+            }
+        }
 
         $examEnded = !empty($exam->end_time) && Carbon::parse($exam->end_time)->isPast();
 
