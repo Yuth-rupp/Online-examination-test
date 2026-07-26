@@ -177,13 +177,16 @@
                     const selectedRole = this.getAttribute('data-role');
                     roleInput.value = selectedRole;
 
-                    // Dynamically structuralize action end-points based on specific system permission rules
+                    // Super Admin now logs in with email + password just like
+                    // every other role — always submit to the standard login
+                    // endpoint. The OTP/code flow is kept ONLY for password
+                    // recovery, so the "Forgot password" link still routes
+                    // Super Admins to the code-based recovery flow.
+                    authForm.action = standardLoginUrl;
                     if (selectedRole === 'super_admin') {
                         forgotPasswordLink.href = superAdminForgotUrl;
-                        authForm.action = superAdminLoginUrl;
                     } else {
                         forgotPasswordLink.href = standardForgotUrl;
-                        authForm.action = standardLoginUrl;
                     }
                 });
             });

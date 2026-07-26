@@ -230,11 +230,9 @@ class AuthController extends Controller
             }
 
             // Prevent Super Admins from bypassing the secure 2FA workflow through this basic form
-            if ($user->role === 'super_admin') {
-                return redirect()->route('superadmin.login.page')
-                    ->with('error', 'Super Admin authentication requires a secure validation token. Please log in here.')
-                    ->withInput($request->only('email'));
-            }
+            // NOTE: intentionally removed — Super Admin now logs in with
+            // email + password like every other role. The OTP/code flow is
+            // kept ONLY for password recovery (see sendResetLink()).
 
             // 🔒 ACCOUNT STATUS GATE: correct credentials alone aren't
             // enough to sign in. A self-registered student or teacher
@@ -266,6 +264,8 @@ class AuthController extends Controller
 
             // Redirect user to their corresponding dynamic layout workspace names
             switch ($user->role) {
+                case 'super_admin':
+                    return redirect()->intended('/super-admin/dashboard');
                 case 'admin':
                     return redirect()->intended('/admin/dashboard');
                 case 'teacher':
