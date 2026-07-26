@@ -294,6 +294,14 @@
                         <form action="{{ route('superadmin.departments.update', $dept->id) }}" method="POST" class="p-6 space-y-4">
                             @csrf @method('PUT')
                             <div>
+                                <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Institution</label>
+                                <select name="institution_id" required class="form-input w-full px-4 py-2.5 rounded-xl text-sm font-medium text-slate-800 transition-all cursor-pointer">
+                                    @foreach($institutions as $inst)
+                                        <option value="{{ $inst->id }}" {{ $dept->institution_id == $inst->id ? 'selected' : '' }}>{{ $inst->name }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                            <div>
                                 <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Name</label>
                                 <input name="name" value="{{ $dept->name }}" required class="form-input w-full px-4 py-2.5 rounded-xl text-sm font-medium text-slate-800 transition-all">
                             </div>

@@ -564,13 +564,24 @@ class SuperAdminController extends Controller
     {
         $iid  = auth()->user()->institution_id;
         $dept = Department::when($iid, fn($q) => $q->where('institution_id', $iid))->findOrFail($id);
-        $v = $request->validate(['name' => 'required|string|max:255', 'code' => 'required|string|max:20', 'description' => 'nullable|string|max:1000']);
+        $v = $request->validate([
+            'name' => 'required|string|max:255',
+            'code' => 'required|string|max:20',
+            'description' => 'nullable|string|max:1000',
+            'institution_id' => 'required|exists:institutions,id',
+        ]);
 
-        if (Department::where('institution_id', $dept->institution_id)->where('code', $v['code'])->where('id', '!=', $id)->exists())
-            return back()->withErrors(['code' => 'A department with this code already exists.']);
+        if (Department::where('institution_id', $v['institution_id'])->where('code', $v['code'])->where('id', '!=', $id)->exists())
+            return back()->withErrors(['code' => 'A department with this code already exists for that institution.']);
 
         DB::transaction(function () use ($dept, $v, $request) {
-            $dept->update(['name' => $v['name'], 'code' => strtoupper($v['code']), 'description' => $v['description'] ?? $dept->description, 'is_active' => $request->has('is_active')]);
+            $dept->update([
+                'name' => $v['name'],
+                'code' => strtoupper($v['code']),
+                'description' => $v['description'] ?? $dept->description,
+                'institution_id' => $v['institution_id'],
+                'is_active' => $request->has('is_active'),
+            ]);
             $this->logAction('department.update', 'DEPARTMENT', $dept->id);
         });
 
