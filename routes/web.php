@@ -55,6 +55,7 @@ Route::middleware(['guest'])->group(function () {
         return view('auth.reset-password', ['token' => $token]);
     })->name('password.reset');
     Route::post('/reset-password', [AuthController::class, 'resetPassword'])->name('password.update');
+    Route::get('/register/departments', [AuthController::class, 'departmentsForEmail'])->name('register.departments');
     Route::prefix('auth')->group(function () {
         Route::post('/register', [AuthController::class, 'register'])->name('register');
         Route::post('/login',    [AuthController::class, 'login'])->name('login');

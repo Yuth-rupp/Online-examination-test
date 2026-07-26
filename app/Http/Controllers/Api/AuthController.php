@@ -17,6 +17,47 @@ use Illuminate\Support\Facades\Log;
 class AuthController extends Controller
 {
     /**
+     * Powers the Department dropdown on the public register page. A
+     * department lives under one institution, but the register form
+     * never asks the person to pick their institution directly — it's
+     * resolved automatically from their email's domain (see register()
+     * below). So the frontend calls this endpoint after the person types
+     * their email, and we look up which institution that domain belongs
+     * to and hand back its active departments.
+     *
+     * Deliberately read-only: unlike register(), this never creates a
+     * new institution for an unrecognized domain. If nothing matches
+     * yet, we just return an empty list and the frontend explains that
+     * departments will appear once a valid university email is entered.
+     */
+    public function departmentsForEmail(Request $request)
+    {
+        $email = strtolower((string) $request->query('email', ''));
+        $atPos = strrpos($email, '@');
+
+        if ($atPos === false) {
+            return response()->json(['departments' => []]);
+        }
+
+        $domain = substr($email, $atPos + 1);
+
+        $institution = \App\Models\Institution::where('domain', $domain)
+            ->where('is_active', true)
+            ->first();
+
+        if (!$institution) {
+            return response()->json(['departments' => []]);
+        }
+
+        $departments = \App\Models\Department::where('institution_id', $institution->id)
+            ->where('is_active', true)
+            ->orderBy('name')
+            ->get(['id', 'name']);
+
+        return response()->json(['departments' => $departments]);
+    }
+
+    /**
      * Handle an incoming browser registration request.
      */
     public function register(Request $request)
@@ -34,11 +75,17 @@ class AuthController extends Controller
         // public form. If this validation rule is ever loosened again,
         // anyone on the internet can grant themselves full system control.
         $data = $request->validate([
-            'first_name' => 'required|string|max:255',
-            'last_name'  => 'required|string|max:255',
-            'email'      => 'required|string|email|max:255|unique:users,email',
-            'password'   => 'required|string|min:8',
-            'role'       => 'required|string|in:student,teacher',
+            'first_name'    => 'required|string|max:255',
+            'last_name'     => 'required|string|max:255',
+            'email'         => 'required|string|email|max:255|unique:users,email',
+            'password'      => 'required|string|min:8',
+            'role'          => 'required|string|in:student,teacher',
+            // Both a student and a self-registered teacher declare which
+            // department they belong to (e.g. Data Science) so the right
+            // department Admin sees and approves them. A teacher can be
+            // added to further departments later by an Admin — this is
+            // just their home department to start with.
+            'department_id' => 'required_if:role,student,teacher|nullable|integer|exists:departments,id',
         ]);
 
         // 🔒 MULTI-TENANCY: this platform hosts many universities in one
@@ -87,6 +134,23 @@ class AuthController extends Controller
 
         $fullName = $data['first_name'] . ' ' . $data['last_name'];
 
+        // 🔒 Even though department_id already passed 'exists:departments,id'
+        // above, that alone doesn't prove it belongs to THIS institution —
+        // someone could otherwise submit a department ID that belongs to a
+        // completely different university. Re-check it's actually one of
+        // this institution's departments before trusting it.
+        if (!empty($data['department_id'])) {
+            $departmentBelongsToInstitution = \App\Models\Department::where('id', $data['department_id'])
+                ->where('institution_id', $institution->id)
+                ->exists();
+
+            if (!$departmentBelongsToInstitution) {
+                return back()
+                    ->withErrors(['department_id' => 'Please choose a department that belongs to your university.'])
+                    ->withInput($request->except('password'));
+            }
+        }
+
         // 2. Server generates the unique institutional ID for the chosen
         //    role, scoped per institution so two different universities can
         //    both have a "STU-0001" without colliding.
@@ -96,16 +160,16 @@ class AuthController extends Controller
 
         // 🔒 ROLE INTEGRITY: the "Registering as" dropdown is filled in by
         // the person themselves — nothing on the client can prove that a
-        // "Teacher" signup is actually a real member of staff. Anyone can
-        // pick Teacher off a public form. Because the teacher role carries
-        // real privileges elsewhere in the app (creating/grading exams,
-        // department assignment, teacher-only routes), we do NOT activate
-        // self-registered teacher accounts immediately. They're created in
-        // a 'pending' state and can't log in until an Admin at their
-        // institution approves them from Admin > Users. Students carry no
-        // elevated privileges from a self-declared role, so they stay
-        // auto-active.
-        $initialStatus = $data['role'] === 'teacher' ? 'pending' : 'active';
+        // "Teacher" signup is actually a real member of staff, or that a
+        // student/teacher actually belongs to the department they picked.
+        // Both self-registered roles are created in a 'pending' state and
+        // can't log in until an Admin approves them. A department Admin
+        // only sees/approves users inside their own department (see
+        // AdminController::scopedDepartmentIds), so someone who registers
+        // into "Data Science" lands in front of a Data Science Admin, not
+        // just any Admin at the institution. An Admin can still add a
+        // teacher to further departments later from Admin > Users.
+        $initialStatus = 'pending';
 
         // 3. Save and commit the user data fields into your database table
         $user = User::create([
@@ -115,8 +179,20 @@ class AuthController extends Controller
             'role'             => $data['role'],
             'status'           => $initialStatus,
             'institution_id'   => $institution->id,
+            'department_id'    => $data['department_id'] ?? null,
             'institutional_id' => $institutionalId,
         ]);
+
+        // A teacher's department_id column is just their "home"
+        // department — the actual roster shown on Admin > Department
+        // Teachers is driven by the department_teacher pivot table
+        // (see Department::teachers()). Sync it here too so a
+        // newly-registered teacher shows up on their department's
+        // roster right away, the same way AdminController::updateUser
+        // keeps it in sync when an Admin reassigns someone later.
+        if ($user->role === 'teacher' && $user->department_id) {
+            $user->departments()->syncWithoutDetaching([$user->department_id]);
+        }
 
         // Flash parameters to short-term session memory for your success page card layout
         return redirect()->route('register.success')->with([
@@ -124,6 +200,7 @@ class AuthController extends Controller
             'registered_email'            => $user->email,
             'registered_role'             => $user->role,
             'registered_institutional_id' => $user->institutional_id,
+            'registered_department'       => $user->department->name ?? null,
             'registered_pending_approval' => $initialStatus === 'pending',
         ]);
     }
@@ -160,14 +237,15 @@ class AuthController extends Controller
             }
 
             // 🔒 ACCOUNT STATUS GATE: correct credentials alone aren't
-            // enough to sign in. A self-registered teacher sitting in
-            // 'pending' hasn't been approved by an Admin yet, and any
-            // account an Admin has 'suspended' must stay locked out. This
-            // runs for every role, not just teacher, so a suspended
-            // student/admin account is blocked here too.
+            // enough to sign in. A self-registered student or teacher
+            // sitting in 'pending' hasn't been approved by their
+            // department's Admin yet, and any account an Admin has
+            // 'suspended' must stay locked out. This runs for every role,
+            // not just teacher, so a suspended student/admin account is
+            // blocked here too.
             if ($user->status === 'pending') {
                 return redirect()->back()
-                    ->with('error', 'Your teacher account is awaiting approval from your institution\'s Admin. You\'ll be able to log in once it\'s approved.')
+                    ->with('error', 'Your account is awaiting approval from your department\'s Admin. You\'ll be able to log in once it\'s approved.')
                     ->withInput($request->only('email'));
             }
 

@@ -74,9 +74,9 @@
                     <h2 class="text-3xl font-bold text-gray-800 tracking-tight leading-tight">Account Created Successfully</h2>
                     @if(session('registered_pending_approval'))
                         <p class="text-sm text-gray-500 font-normal leading-relaxed">
-                            Your teacher account has been created using <br>
+                            Your {{ session('registered_role', 'account') }} account has been created using <br>
                             <span class="font-semibold text-gray-700">{{ session('registered_email', 'name@university.edu') }}</span>.
-                            It's now awaiting approval from your institution's Admin before you can sign in.
+                            It's now awaiting approval from your department's Admin before you can sign in.
                         </p>
                     @else
                         <p class="text-sm text-gray-500 font-normal leading-relaxed">
@@ -90,7 +90,7 @@
                 @if(session('registered_pending_approval'))
                     <div class="bg-amber-50 border border-amber-200 rounded-lg p-4 text-left">
                         <p class="text-xs text-amber-700 leading-normal font-medium">
-                            ⏳ Pending Admin approval — you'll be able to log in once your teacher account is reviewed and approved.
+                            ⏳ Pending Admin approval — you'll be able to log in once your account is reviewed and approved.
                         </p>
                     </div>
                 @endif
@@ -100,6 +100,16 @@
                         <p class="text-[10px] font-bold tracking-wider text-gray-400 uppercase mb-1">Your Institutional ID</p>
                         <p class="text-lg font-bold text-[#1E4277] tracking-wide">{{ session('registered_institutional_id') }}</p>
                         <p class="text-xs text-gray-500 mt-1">Save this ID -- you'll use it to identify yourself on campus.</p>
+                    </div>
+                @endif
+
+                @if(session('registered_department'))
+                    <div class="bg-[#F4F6F9] border border-gray-100 rounded-lg p-4 flex items-start space-x-3 text-left">
+                        <i class="fas fa-building-columns text-[#1E4277] mt-0.5 text-base"></i>
+                        <div>
+                            <p class="text-[10px] font-bold tracking-wider text-gray-400 uppercase mb-1">Department</p>
+                            <p class="text-sm font-semibold text-gray-700">{{ session('registered_department') }}</p>
+                        </div>
                     </div>
                 @endif
 

@@ -64,7 +64,7 @@
                             <span class="absolute inset-y-0 left-0 flex items-center pl-4 text-gray-400 text-xs pointer-events-none">
                                 <i class="fa-solid fa-users"></i>
                             </span>
-                            <select name="role" required
+                            <select name="role" id="register_role_select" required
                                 class="w-full pl-11 pr-10 py-3 bg-[#f0f2f5] border border-transparent rounded-xl text-sm text-gray-700 focus:outline-none focus:bg-white focus:border-blue-500 transition-all shadow-inner appearance-none cursor-pointer">
                                 <option value="student" {{ old('role') == 'student' ? 'selected' : '' }}>Student (Default Portal Access)</option>
                                 <option value="teacher" {{ old('role') == 'teacher' ? 'selected' : '' }}>Teacher (Instructor Management Workspace)</option>
@@ -96,10 +96,29 @@
                             <span class="absolute inset-y-0 left-0 flex items-center pl-4 text-gray-400 text-xs">
                                 <i class="fa-regular fa-envelope"></i>
                             </span>
-                            <input type="email" name="email" value="{{ old('email') }}" required
+                            <input type="email" name="email" id="register_email_field" value="{{ old('email') }}" required
                                 class="w-full pl-11 pr-4 py-3 bg-[#f0f2f5] border border-transparent rounded-xl text-sm text-gray-700 placeholder-gray-400/80 focus:outline-none focus:bg-white focus:border-blue-500 transition-all shadow-inner"
                                 placeholder="jane.doe@university.edu">
                         </div>
+                    </div>
+
+                    <div id="department_field" class="hidden">
+                        <label class="block text-[10px] font-bold tracking-wider text-gray-500 uppercase mb-2">Department</label>
+                        <div class="relative">
+                            <span class="absolute inset-y-0 left-0 flex items-center pl-4 text-gray-400 text-xs pointer-events-none">
+                                <i class="fa-solid fa-building-columns"></i>
+                            </span>
+                            <select name="department_id" id="department_select"
+                                class="w-full pl-11 pr-10 py-3 bg-[#f0f2f5] border border-transparent rounded-xl text-sm text-gray-700 focus:outline-none focus:bg-white focus:border-blue-500 transition-all shadow-inner appearance-none cursor-pointer">
+                                <option value="">Enter your university email first</option>
+                            </select>
+                            <span class="absolute inset-y-0 right-0 flex items-center pr-4 text-gray-400 text-[10px] pointer-events-none">
+                                <i class="fa-solid fa-chevron-down"></i>
+                            </span>
+                        </div>
+                        <p class="text-[11px] text-gray-400 mt-1.5 font-light" id="department_hint">
+                            A department Admin will confirm your account before you can sign in.
+                        </p>
                     </div>
 
                     <div>
@@ -185,6 +204,92 @@
                 eyeIcon.classList.add('fa-eye');
             }
         }
+
+        // Department field: both students and teachers declare which
+        // department they belong to at registration (e.g. a teacher who
+        // teaches in Data Science registers into Data Science). That
+        // department's Admin is the one who reviews and approves them —
+        // see AdminController::scopedDepartmentIds — so this is what
+        // routes their pending account to the right person. A teacher can
+        // still be added to additional departments later by an Admin.
+        const roleSelect = document.getElementById('register_role_select');
+        const emailField = document.getElementById('register_email_field');
+        const departmentField = document.getElementById('department_field');
+        const departmentSelect = document.getElementById('department_select');
+        const departmentHint = document.getElementById('department_hint');
+
+        function needsDepartment() {
+            return roleSelect.value === 'student' || roleSelect.value === 'teacher';
+        }
+
+        function updateDepartmentVisibility() {
+            const show = needsDepartment();
+            departmentField.classList.toggle('hidden', !show);
+            departmentSelect.required = show;
+        }
+
+        let departmentFetchController = null;
+
+        async function loadDepartmentsForEmail() {
+            if (!needsDepartment()) return;
+
+            const email = emailField.value.trim();
+            const previouslySelected = departmentSelect.value;
+
+            if (!email.includes('@')) {
+                departmentSelect.innerHTML = '<option value="">Enter your university email first</option>';
+                departmentHint.textContent = "A department Admin will confirm your account before you can sign in.";
+                return;
+            }
+
+            // Cancel any in-flight lookup so a fast typist doesn't get an
+            // older, out-of-order response overwriting a newer one.
+            if (departmentFetchController) departmentFetchController.abort();
+            departmentFetchController = new AbortController();
+
+            departmentSelect.innerHTML = '<option value="">Loading departments…</option>';
+
+            try {
+                const res = await fetch(`{{ route('register.departments') }}?email=${encodeURIComponent(email)}`, {
+                    headers: { 'Accept': 'application/json' },
+                    signal: departmentFetchController.signal,
+                });
+                const data = await res.json();
+                const departments = data.departments || [];
+
+                if (departments.length === 0) {
+                    departmentSelect.innerHTML = '<option value="">No departments found for this email yet</option>';
+                    departmentHint.textContent = "Double-check your university email, or contact your Admin if your department isn't listed.";
+                    return;
+                }
+
+                departmentSelect.innerHTML = '<option value="">Select your department…</option>' +
+                    departments.map(d => `<option value="${d.id}">${d.name}</option>`).join('');
+
+                if (previouslySelected && departments.some(d => String(d.id) === previouslySelected)) {
+                    departmentSelect.value = previouslySelected;
+                }
+
+                departmentHint.textContent = "A department Admin will confirm your account before you can sign in.";
+            } catch (e) {
+                if (e.name === 'AbortError') return;
+                departmentSelect.innerHTML = '<option value="">Couldn\'t load departments — try again</option>';
+            }
+        }
+
+        roleSelect.addEventListener('change', () => {
+            updateDepartmentVisibility();
+            loadDepartmentsForEmail();
+        });
+        emailField.addEventListener('blur', loadDepartmentsForEmail);
+        emailField.addEventListener('input', () => {
+            // Debounce: only look up once typing pauses briefly.
+            clearTimeout(emailField._lookupTimer);
+            emailField._lookupTimer = setTimeout(loadDepartmentsForEmail, 500);
+        });
+
+        updateDepartmentVisibility();
+        if (emailField.value) loadDepartmentsForEmail();
     </script>
 </body>
 </html>

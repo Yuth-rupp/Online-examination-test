@@ -280,7 +280,7 @@
             <span class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold border"
                   :class="darkMode?'bg-slate-800 border-slate-700 text-slate-300':'bg-slate-50 border-slate-100 text-slate-600'">
               <i data-lucide="book" class="w-3 h-3 text-indigo-500"></i>
-              Computer Science
+              {{ $user->department->name ?? 'Not assigned yet' }}
             </span>
             <span class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold border"
                   :class="darkMode?'bg-slate-800 border-slate-700 text-slate-300':'bg-slate-50 border-slate-100 text-slate-600'">
