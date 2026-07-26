@@ -1077,15 +1077,16 @@ class SuperAdminController extends Controller
         $iid = auth()->user()->institution_id;
         $u = User::when($iid, fn($q) => $q->where('institution_id', $iid))->findOrFail($id);
 
-        if (method_exists($u, 'isSoleSuperAdmin') && $u->isSoleSuperAdmin())
-            return response()->json(['message' => 'Cannot delete the only Super Admin.'], 422);
+        if ($u->status === 'active' && method_exists($u, 'isSoleSuperAdmin') && $u->isSoleSuperAdmin())
+            return response()->json(['message' => 'Cannot suspend the only Super Admin.'], 422);
 
         DB::transaction(function () use ($u) {
-            $this->logAction('admin.account.delete', 'USER_MANAGEMENT', $u->user_id);
-            $u->delete();
+            $u->status = $u->status === 'active' ? 'suspended' : 'active';
+            $u->save();
+            $this->logAction('admin.account.toggle_status', 'USER_MANAGEMENT', $u->user_id);
         });
 
-        return response()->json(['status' => 'success', 'message' => 'Account deleted.']);
+        return response()->json(['status' => 'success', 'message' => 'Status updated.']);
     }
 
     public function adminChangeRole(Request $request, $id)
