@@ -268,8 +268,8 @@
                 :class="activeTab === 'upcoming'
                   ? 'bg-white dark:bg-slate-700 text-amber-600 dark:text-amber-400 shadow-sm'
                   : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'">
-          <span class="w-1.5 h-1.5 rounded-full bg-amber-400 flex-shrink-0"></span>
-          📅 Upcoming
+          <i data-lucide="calendar-clock" class="w-3.5 h-3.5 flex-shrink-0"></i>
+          Upcoming
           <span class="ml-1 px-1.5 py-0.5 rounded-md text-[10px] font-black"
                 :class="activeTab === 'upcoming' ? 'bg-amber-100 dark:bg-amber-500/20 text-amber-600' : 'bg-slate-200 dark:bg-slate-700 text-slate-500'"
                 x-text="exams.filter(e => e.status === 'upcoming').length"></span>
@@ -281,8 +281,8 @@
                 :class="activeTab === 'ongoing'
                   ? 'bg-white dark:bg-slate-700 text-emerald-600 dark:text-emerald-400 shadow-sm'
                   : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'">
-          <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 flex-shrink-0 status-live"></span>
-          🟢 Live Now
+          <i data-lucide="radio" class="w-3.5 h-3.5 flex-shrink-0" :class="activeTab === 'ongoing' && 'status-live'"></i>
+          Live Now
           <span class="ml-1 px-1.5 py-0.5 rounded-md text-[10px] font-black"
                 :class="activeTab === 'ongoing' ? 'bg-emerald-100 dark:bg-emerald-500/20 text-emerald-600' : 'bg-slate-200 dark:bg-slate-700 text-slate-500'"
                 x-text="exams.filter(e => e.status === 'ongoing').length"></span>
@@ -294,8 +294,8 @@
                 :class="activeTab === 'completed'
                   ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-sm'
                   : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'">
-          <span class="w-1.5 h-1.5 rounded-full bg-indigo-400 flex-shrink-0"></span>
-          ✓ Completed
+          <i data-lucide="check-circle-2" class="w-3.5 h-3.5 flex-shrink-0"></i>
+          Completed
           <span class="ml-1 px-1.5 py-0.5 rounded-md text-[10px] font-black"
                 :class="activeTab === 'completed' ? 'bg-indigo-100 dark:bg-indigo-500/20 text-indigo-600' : 'bg-slate-200 dark:bg-slate-700 text-slate-500'"
                 x-text="exams.filter(e => e.status === 'completed').length"></span>
@@ -369,80 +369,72 @@
               </div>
 
               <!-- Countdown / Progress indicator for upcoming -->
-              <template x-if="exam.status === 'upcoming' && exam.countdown">
-                <div class="flex items-center gap-2 px-3 py-2 rounded-xl"
-                     :class="darkMode ? 'bg-amber-500/10' : 'bg-amber-50'">
-                  <i data-lucide="timer" class="w-3.5 h-3.5 text-amber-500 flex-shrink-0"></i>
-                  <span class="text-[11px] font-bold text-amber-600 dark:text-amber-400" x-text="'Starts in ' + exam.countdown"></span>
-                </div>
-              </template>
+              <div x-show="exam.status === 'upcoming' && exam.countdown" x-cloak
+                   class="flex items-center gap-2 px-3 py-2 rounded-xl"
+                   :class="darkMode ? 'bg-amber-500/10' : 'bg-amber-50'">
+                <i data-lucide="timer" class="w-3.5 h-3.5 text-amber-500 flex-shrink-0"></i>
+                <span class="text-[11px] font-bold text-amber-600 dark:text-amber-400" x-text="'Starts in ' + exam.countdown"></span>
+              </div>
 
               <!-- Ongoing live progress bar -->
-              <template x-if="exam.status === 'ongoing'">
-                <div>
-                  <div class="flex items-center justify-between mb-1">
-                    <span class="text-[10px] font-bold text-emerald-500 flex items-center gap-1">
-                      <span class="w-1.5 h-1.5 bg-emerald-400 rounded-full status-live inline-block"></span>
-                      Exam in progress
-                    </span>
-                    <span class="text-[10px] text-slate-400 font-medium" x-text="exam.progressPct + '%'"></span>
-                  </div>
-                  <div class="w-full h-1.5 rounded-full overflow-hidden"
-                       :class="darkMode ? 'bg-slate-800' : 'bg-slate-100'">
-                    <div class="h-full bg-gradient-to-r from-emerald-400 to-teal-400 rounded-full transition-all duration-1000"
-                         :style="'width: ' + exam.progressPct + '%'"></div>
-                  </div>
+              <div x-show="exam.status === 'ongoing'" x-cloak>
+                <div class="flex items-center justify-between mb-1">
+                  <span class="text-[10px] font-bold text-emerald-500 flex items-center gap-1">
+                    <span class="w-1.5 h-1.5 bg-emerald-400 rounded-full status-live inline-block"></span>
+                    Exam in progress
+                  </span>
+                  <span class="text-[10px] text-slate-400 font-medium" x-text="exam.progressPct + '%'"></span>
                 </div>
-              </template>
+                <div class="w-full h-1.5 rounded-full overflow-hidden"
+                     :class="darkMode ? 'bg-slate-800' : 'bg-slate-100'">
+                  <div class="h-full bg-gradient-to-r from-emerald-400 to-teal-400 rounded-full transition-all duration-1000"
+                       :style="'width: ' + exam.progressPct + '%'"></div>
+                </div>
+              </div>
 
               <!-- Completed score badge -->
-              <template x-if="exam.status === 'completed' && exam.score !== undefined">
-                <div class="flex items-center gap-2 px-3 py-2 rounded-xl"
-                     :class="darkMode ? 'bg-indigo-500/10' : 'bg-indigo-50'">
-                  <i data-lucide="star" class="w-3.5 h-3.5 text-indigo-500 flex-shrink-0"></i>
-                  <span class="text-[11px] font-bold text-indigo-600 dark:text-indigo-400" x-text="'Score: ' + exam.score + '%'"></span>
-                </div>
-              </template>
+              <div x-show="exam.status === 'completed' && exam.score !== undefined" x-cloak
+                   class="flex items-center gap-2 px-3 py-2 rounded-xl"
+                   :class="darkMode ? 'bg-indigo-500/10' : 'bg-indigo-50'">
+                <i data-lucide="star" class="w-3.5 h-3.5 text-indigo-500 flex-shrink-0"></i>
+                <span class="text-[11px] font-bold text-indigo-600 dark:text-indigo-400" x-text="'Score: ' + exam.score + '%'"></span>
+              </div>
 
               <!-- Action Row -->
               <div class="flex items-center gap-2 pt-2 border-t mt-auto"
                    :class="darkMode ? 'border-slate-800' : 'border-slate-100'">
 
                 <!-- ONGOING: Enter Exam -->
-                <template x-if="exam.status === 'ongoing'">
-                  <a :href="'/student/exams/' + exam.id + '/enter'"
-                     class="flex-1 flex items-center justify-center gap-2 py-2.5 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white text-xs font-black rounded-xl transition-all shadow-sm shadow-emerald-200 dark:shadow-emerald-900/20">
-                    <i data-lucide="play-circle" class="w-3.5 h-3.5"></i>
-                    Enter Exam Now
-                  </a>
-                </template>
+                <a x-show="exam.status === 'ongoing'" x-cloak
+                   :href="'/student/exams/' + exam.id + '/enter'"
+                   class="flex-1 flex items-center justify-center gap-2 py-2.5 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white text-xs font-black rounded-xl transition-all shadow-sm shadow-emerald-200 dark:shadow-emerald-900/20">
+                  <i data-lucide="play-circle" class="w-3.5 h-3.5"></i>
+                  Enter Exam Now
+                </a>
 
                 <!-- UPCOMING: View Details -->
-                <template x-if="exam.status === 'upcoming'">
-                  <button @click="showExamDetails(exam)"
-                          class="flex-1 flex items-center justify-center gap-2 py-2.5 text-xs font-bold rounded-xl transition-all cursor-pointer"
-                          :class="darkMode ? 'bg-slate-800 text-slate-300 hover:bg-slate-700' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'">
-                    <i data-lucide="info" class="w-3.5 h-3.5"></i>
-                    View Details
-                  </button>
-                </template>
+                <button x-show="exam.status === 'upcoming'" x-cloak
+                        @click="showExamDetails(exam)"
+                        class="flex-1 flex items-center justify-center gap-2 py-2.5 text-xs font-bold rounded-xl transition-all cursor-pointer"
+                        :class="darkMode ? 'bg-slate-800 text-slate-300 hover:bg-slate-700' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'">
+                  <i data-lucide="info" class="w-3.5 h-3.5"></i>
+                  View Details
+                </button>
 
                 <!-- COMPLETED: Review Score + Remove -->
-                <template x-if="exam.status === 'completed'">
-                  <a href="{{ route('student.history') }}"
-                     class="flex-1 flex items-center justify-center gap-2 py-2.5 bg-gradient-to-r from-indigo-500 to-violet-500 hover:from-indigo-600 hover:to-violet-600 text-white text-xs font-black rounded-xl transition-all shadow-sm shadow-indigo-200 dark:shadow-indigo-900/20">
-                    <i data-lucide="bar-chart-2" class="w-3.5 h-3.5"></i>
-                    Review Score
-                  </a>
-                </template>
-                <template x-if="exam.status === 'completed'">
-                  <button @click="deleteExam(exam)"
-                          title="Remove from list"
-                          class="flex-shrink-0 flex items-center justify-center w-10 h-10 rounded-xl text-xs font-bold transition-all cursor-pointer"
-                          :class="darkMode ? 'bg-slate-800 text-slate-400 hover:bg-red-500/10 hover:text-red-400' : 'bg-slate-100 text-slate-500 hover:bg-red-50 hover:text-red-500'">
-                    <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
-                  </button>
-                </template>
+                <a x-show="exam.status === 'completed'" x-cloak
+                   href="{{ route('student.history') }}"
+                   class="flex-1 flex items-center justify-center gap-2 py-2.5 bg-gradient-to-r from-indigo-500 to-violet-500 hover:from-indigo-600 hover:to-violet-600 text-white text-xs font-black rounded-xl transition-all shadow-sm shadow-indigo-200 dark:shadow-indigo-900/20">
+                  <i data-lucide="bar-chart-2" class="w-3.5 h-3.5"></i>
+                  Review Score
+                </a>
+                <button x-show="exam.status === 'completed'" x-cloak
+                        @click="deleteExam(exam)"
+                        title="Remove from list"
+                        class="flex-shrink-0 flex items-center justify-center w-10 h-10 rounded-xl text-xs font-bold transition-all cursor-pointer"
+                        :class="darkMode ? 'bg-slate-800 text-slate-400 hover:bg-red-500/10 hover:text-red-400' : 'bg-slate-100 text-slate-500 hover:bg-red-50 hover:text-red-500'">
+                  <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                </button>
               </div>
 
             </div>
@@ -454,15 +446,9 @@
           <div class="col-span-full border-2 border-dashed rounded-2xl p-14 flex flex-col items-center justify-center text-center"
                :class="darkMode ? 'border-slate-800 bg-slate-900/40' : 'border-slate-200 bg-white'">
             <div class="w-16 h-16 rounded-2xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center mb-4">
-              <template x-if="activeTab === 'upcoming'">
-                <i data-lucide="calendar-x" class="w-7 h-7 text-slate-400"></i>
-              </template>
-              <template x-if="activeTab === 'ongoing'">
-                <i data-lucide="radio" class="w-7 h-7 text-slate-400"></i>
-              </template>
-              <template x-if="activeTab === 'completed'">
-                <i data-lucide="inbox" class="w-7 h-7 text-slate-400"></i>
-              </template>
+              <i data-lucide="calendar-x" class="w-7 h-7 text-slate-400" x-show="activeTab === 'upcoming'" x-cloak></i>
+              <i data-lucide="radio" class="w-7 h-7 text-slate-400" x-show="activeTab === 'ongoing'" x-cloak></i>
+              <i data-lucide="inbox" class="w-7 h-7 text-slate-400" x-show="activeTab === 'completed'" x-cloak></i>
             </div>
             <h4 class="text-sm font-bold mb-1" :class="darkMode ? 'text-slate-300' : 'text-slate-700'"
                 x-text="activeTab === 'ongoing' ? 'No Live Exams Right Now' : (activeTab === 'upcoming' ? 'No Upcoming Exams' : 'No Completed Exams Yet')"></h4>
@@ -558,11 +544,11 @@
           return this.exams.filter(e => {
             const matchStatus = e.status === this.activeTab;
             const q = this.searchQuery.toLowerCase().trim();
+            // Matches on exam title, course name, and course ID only.
+            // Course code/token is intentionally excluded from search.
             const matchSearch = q === '' ||
               e.title.toLowerCase().includes(q) ||
-              e.code.toLowerCase().includes(q) ||
               e.dept.toLowerCase().includes(q) ||
-              String(e.courseId).toLowerCase() === q ||
               String(e.courseId).toLowerCase().includes(q);
             return matchStatus && matchSearch;
           });
@@ -634,6 +620,15 @@
           this.liveDate = now.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
         },
 
+        // Re-run Lucide over the DOM after Alpine finishes updating it.
+        // Needed because new icons (e.g. an exam card switching from
+        // "upcoming" to "ongoing") only render once Lucide processes them.
+        refreshIcons() {
+          this.$nextTick(() => {
+            if (window.lucide) lucide.createIcons();
+          });
+        },
+
         formatCountdown(diffMs) {
           if (diffMs <= 0) return null;
           const totalSecs = Math.floor(diffMs / 1000);
@@ -701,6 +696,7 @@
                 });
               }
             });
+            this.refreshIcons();
           } catch (e) {
             console.warn('Failed to sync exams from server', e);
           }
@@ -708,6 +704,7 @@
 
         init() {
           this.$watch('darkMode', val => localStorage.setItem('darkMode', val));
+          this.$watch('activeTab', () => this.refreshIcons());
 
           this.updateClock();
           setInterval(() => this.updateClock(), 1000);
@@ -716,32 +713,38 @@
 
           setInterval(() => {
             const now = new Date();
+            let statusChanged = false;
             this.exams.forEach(exam => {
+              const prevStatus = exam.status;
+
               if (exam.isSubmittedByStudent === true) {
                 exam.status = 'completed';
-                return;
-              }
-              const start = new Date(exam.startTimeRaw);
-              const end = new Date(exam.endTimeRaw);
-
-              if (now >= start && now <= end) {
-                exam.status = 'ongoing';
-                const total = end - start;
-                const elapsed = now - start;
-                exam.progressPct = Math.min(100, Math.round((elapsed / total) * 100));
-                exam.countdown = '';
-              } else if (now > end) {
-                exam.status = 'completed';
-                exam.countdown = '';
               } else {
-                exam.status = 'upcoming';
-                exam.countdown = this.formatCountdown(start - now);
-                exam.progressPct = 0;
+                const start = new Date(exam.startTimeRaw);
+                const end = new Date(exam.endTimeRaw);
+
+                if (now >= start && now <= end) {
+                  exam.status = 'ongoing';
+                  const total = end - start;
+                  const elapsed = now - start;
+                  exam.progressPct = Math.min(100, Math.round((elapsed / total) * 100));
+                  exam.countdown = '';
+                } else if (now > end) {
+                  exam.status = 'completed';
+                  exam.countdown = '';
+                } else {
+                  exam.status = 'upcoming';
+                  exam.countdown = this.formatCountdown(start - now);
+                  exam.progressPct = 0;
+                }
               }
+
+              if (exam.status !== prevStatus) statusChanged = true;
             });
+            if (statusChanged) this.refreshIcons();
           }, 1000);
 
-          lucide.createIcons();
+          this.refreshIcons();
         }
       }));
     });
