@@ -256,6 +256,7 @@ Route::middleware(['auth', 'role:super_admin', 'audit.capture'])->prefix('super-
     Route::post('/institutions/store',                  [InstitutionController::class, 'store'])->name('superadmin.institutions.store');
     Route::put('/institutions/{institution}/update',     [InstitutionController::class, 'update'])->name('superadmin.institutions.update');
     Route::patch('/institutions/{institution}/toggle-status', [InstitutionController::class, 'toggleStatus'])->name('superadmin.institutions.toggleStatus');
+    Route::delete('/institutions/{institution}',        [InstitutionController::class, 'destroy'])->name('superadmin.institutions.destroy');
 });
 
 /* =========================================================================

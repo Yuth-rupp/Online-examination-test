@@ -119,6 +119,12 @@
             </div>
             @endif
 
+            @if(session('error'))
+            <div class="mb-5 p-3.5 rounded-xl flex items-center gap-2.5 text-sm font-medium text-red-700" style="background:#fef2f2;border:1px solid #fecaca">
+                <i class="fa-solid fa-triangle-exclamation text-red-500"></i> {{ session('error') }}
+            </div>
+            @endif
+
             @if($errors->any())
             <div class="mb-5 p-3.5 rounded-xl text-sm font-medium text-red-700" style="background:#fef2f2;border:1px solid #fecaca">
                 <ul class="list-disc pl-5">
@@ -178,6 +184,13 @@
                                         @csrf @method('PATCH')
                                         <button type="submit" class="text-xs font-semibold {{ $inst->is_active ? 'text-red-500 hover:text-red-700' : 'text-emerald-600 hover:text-emerald-800' }}">
                                             <i class="fa-solid {{ $inst->is_active ? 'fa-ban' : 'fa-circle-check' }}"></i> {{ $inst->is_active ? 'Deactivate' : 'Activate' }}
+                                        </button>
+                                    </form>
+                                    <form action="{{ route('superadmin.institutions.destroy', $inst->id) }}" method="POST"
+                                          onsubmit="return confirm('Permanently delete {{ $inst->name }}? This cannot be undone. Users and departments must be removed first.');">
+                                        @csrf @method('DELETE')
+                                        <button type="submit" title="Permanently delete" class="text-xs font-semibold text-red-600 hover:text-red-800">
+                                            <i class="fa-solid fa-trash-can"></i>
                                         </button>
                                     </form>
                                 </div>

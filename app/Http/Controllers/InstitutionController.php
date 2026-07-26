@@ -99,4 +99,31 @@ class InstitutionController extends Controller
         return redirect()->route('superadmin.institutions.index')
             ->with('success', $institution->name . ($institution->is_active ? ' reactivated.' : ' deactivated — new self-registrations from that domain are now blocked.'));
     }
+
+    /**
+     * Permanently remove a university from the directory. Blocked if it
+     * still has users or departments attached — those must be reassigned
+     * or removed first, otherwise this would silently orphan real data.
+     */
+    public function destroy(Institution $institution)
+    {
+        $userCount = \App\Models\User::where('institution_id', $institution->id)->count();
+        $deptCount = \App\Models\Department::where('institution_id', $institution->id)->count();
+
+        if ($userCount > 0 || $deptCount > 0) {
+            return redirect()->route('superadmin.institutions.index')
+                ->with('error', "Can't delete {$institution->name} — it still has {$userCount} user(s) and {$deptCount} department(s) attached. Reassign or remove those first.");
+        }
+
+        $name = $institution->name;
+
+        \App\Services\AuditLogger::record('institution.delete', 'INSTITUTION', $institution->id, [
+            'target_title' => 'Institution Directory',
+            'summary'      => "Deleted institution: {$name}",
+        ]);
+
+        $institution->delete();
+
+        return redirect()->route('superadmin.institutions.index')->with('success', "{$name} was permanently deleted.");
+    }
 }

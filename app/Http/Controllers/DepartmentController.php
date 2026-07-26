@@ -95,6 +95,7 @@ class DepartmentController extends Controller
     public function update(Request $request, Department $department)
     {
         $validated = $request->validate([
+            'institution_id' => 'required|exists:institutions,id',
             'name'        => 'required|string|max:255',
             'code'        => 'required|string|max:20',
             'description' => 'nullable|string|max:1000',
