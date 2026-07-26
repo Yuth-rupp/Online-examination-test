@@ -429,6 +429,12 @@
                             style="border-color:${isActive?'#fecdd3':'#a7f3d0'};background:${isActive?'#fff1f2':'#ecfdf5'};color:${isActive?'#e11d48':'#059669'};">
                         <i class="fa-solid ${isActive?'fa-ban':'fa-check'} mr-1"></i>${isActive?'Suspend':'Activate'}
                     </button>
+                    <button onclick="deleteUserAccount(${u.user_id}, '${esc(u.full_name || '').replace(/'/g, "\\'")}')"
+                            title="Permanently delete this account"
+                            class="text-[11px] font-bold px-3 py-1.5 rounded-lg border cursor-pointer transition-all"
+                            style="border-color:#fecaca;background:#fef2f2;color:#b91c1c;">
+                        <i class="fa-solid fa-trash-can"></i>
+                    </button>
                 </div>`;
 
             const innerContent = `
@@ -540,6 +546,25 @@
                 fetchLatestUsers();
             } else {
                 showToast(data.message || 'Failed to update status.', 'error');
+            }
+        })
+        .catch(() => showToast('Network error.', 'error'));
+    };
+
+    window.deleteUserAccount = function(userId, name) {
+        if (!confirm(`Permanently delete ${name || 'this account'}? This cannot be undone — all of their data will be removed. Type OK to confirm.`)) return;
+
+        fetch(`/super-admin/admins/${userId}`, {
+            method: 'DELETE',
+            headers: { 'Accept': 'application/json', 'Content-Type': 'application/json', 'X-CSRF-TOKEN': CSRF, 'X-Requested-With': 'XMLHttpRequest' }
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.status === 'success') {
+                showToast(data.message || 'Account deleted.', 'success');
+                fetchLatestUsers();
+            } else {
+                showToast(data.message || 'Failed to delete account.', 'error');
             }
         })
         .catch(() => showToast('Network error.', 'error'));

@@ -236,6 +236,7 @@ Route::middleware(['auth', 'role:super_admin', 'audit.capture'])->prefix('super-
     Route::get('/admins/api-stream',               [SuperAdminController::class, 'adminApiIndex'])->name('superadmin.admins.api');
     Route::post('/admins/store',                   [SuperAdminController::class, 'adminStore'])->name('superadmin.admins.store');
     Route::patch('/admins/{id}/toggle-status',     [SuperAdminController::class, 'adminToggleStatus'])->name('superadmin.admins.toggleStatus');
+    Route::delete('/admins/{id}',                  [SuperAdminController::class, 'adminDestroy'])->name('superadmin.admins.destroy');
     Route::patch('/admins/{id}/change-role',       [SuperAdminController::class, 'adminChangeRole'])->name('superadmin.admins.changeRole');
     Route::patch('/admins/{id}/change-department', [SuperAdminController::class, 'adminChangeDepartment'])->name('superadmin.admins.changeDepartment');
     Route::post('/admins/{id}/reset-password',     [SuperAdminController::class, 'adminResetPassword'])->name('superadmin.admins.resetPassword');

@@ -1089,6 +1089,32 @@ class SuperAdminController extends Controller
         return response()->json(['status' => 'success', 'message' => 'Status updated.']);
     }
 
+    /**
+     * Permanently delete a user account. This is intentionally a separate
+     * action from adminToggleStatus() (Suspend/Activate) — suspending an
+     * account must never destroy data. Deletion here is explicit, final,
+     * and only reachable via its own confirm-guarded button in the UI.
+     */
+    public function adminDestroy($id)
+    {
+        if (auth()->id() == $id) return response()->json(['message' => 'Denied.'], 403);
+
+        $iid = auth()->user()->institution_id;
+        $u = User::when($iid, fn($q) => $q->where('institution_id', $iid))->findOrFail($id);
+
+        if (method_exists($u, 'isSoleSuperAdmin') && $u->isSoleSuperAdmin())
+            return response()->json(['message' => 'Cannot delete the only Super Admin.'], 422);
+
+        $name = $u->full_name;
+
+        DB::transaction(function () use ($u) {
+            $this->logAction('admin.account.delete', 'USER_MANAGEMENT', $u->user_id);
+            $u->delete();
+        });
+
+        return response()->json(['status' => 'success', 'message' => $name . ' was permanently deleted.']);
+    }
+
     public function adminChangeRole(Request $request, $id)
     {
         if (auth()->id() == $id) return response()->json(['message' => 'Denied.'], 403);
