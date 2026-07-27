@@ -140,7 +140,6 @@
                         </span>
                         System Status: <strong class="text-emerald-300 ml-0.5">Healthy</strong>
                     </span>
-                    <p class="text-sm text-blue-100/80">Live status, teacher &amp; course tracking, and submission counts — exams themselves are created by teachers.</p>
                     @if(!empty($isDepartmentAdmin) && !empty($departmentName))
                     <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold text-blue-50 bg-white/10 border border-white/20">
                         <i class="fa-solid fa-building-columns text-[10px]"></i> {{ $departmentName }}
