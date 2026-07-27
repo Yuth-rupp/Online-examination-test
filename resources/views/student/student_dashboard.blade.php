@@ -98,6 +98,10 @@
         <div>
           <h1 class="font-black text-sm leading-tight" :class="darkMode ? 'text-white' : 'text-slate-900'">ExamSystem</h1>
           <p class="text-[11px] font-medium text-slate-400">Student Portal</p>
+          <p class="text-[11px] font-bold text-indigo-500 mt-0.5 flex items-center gap-1" x-show="department" x-cloak>
+            <i data-lucide="building-2" class="w-3 h-3"></i>
+            <span x-text="department?.name"></span>
+          </p>
         </div>
       </div>
     </div>
@@ -297,72 +301,6 @@
           <p class="text-xs font-semibold text-slate-400 mt-1 uppercase tracking-wider">Average Score</p>
         </div>
 
-      </section>
-
-      <!-- ══════════════════════════════════
-           MY DEPARTMENT (live — teachers & admins
-           for whichever department this student is in)
-      ═══════════════════════════════════ -->
-      <section class="card rounded-2xl p-6 border"
-               :class="darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-transparent'"
-               x-show="department">
-        <div class="flex items-center justify-between mb-5">
-          <div class="flex items-center gap-2.5">
-            <div class="w-9 h-9 bg-indigo-50 dark:bg-indigo-500/10 rounded-xl flex items-center justify-center">
-              <i data-lucide="building-2" class="w-4 h-4 text-indigo-500"></i>
-            </div>
-            <div>
-              <h3 class="text-sm font-black" :class="darkMode ? 'text-white' : 'text-slate-900'">
-                My Department: <span x-text="department?.name"></span>
-              </h3>
-              <p class="text-[11px] text-slate-400">Teachers and admins for your department, live.</p>
-            </div>
-          </div>
-        </div>
-
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <!-- Teachers -->
-          <div>
-            <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-2.5">
-              Teachers <span class="text-indigo-500" x-text="'(' + (department?.teachers?.length ?? 0) + ')'"></span>
-            </p>
-            <div class="space-y-2" x-show="department?.teachers?.length">
-              <template x-for="t in (department?.teachers ?? [])" :key="t.email">
-                <div class="flex items-center gap-2.5 py-2 px-3 rounded-xl"
-                     :class="darkMode ? 'bg-slate-800' : 'bg-slate-50'">
-                  <div class="w-8 h-8 rounded-full bg-emerald-100 dark:bg-emerald-500/10 text-emerald-600 flex items-center justify-center text-[11px] font-black flex-shrink-0"
-                       x-text="(t.name || '?').substring(0,2).toUpperCase()"></div>
-                  <div class="min-w-0">
-                    <p class="text-xs font-bold truncate" :class="darkMode ? 'text-white' : 'text-slate-800'" x-text="t.name"></p>
-                    <p class="text-[11px] text-slate-400">Teacher</p>
-                  </div>
-                </div>
-              </template>
-            </div>
-            <p class="text-xs text-slate-400" x-show="!(department?.teachers?.length)">No teachers assigned yet.</p>
-          </div>
-
-          <!-- Admins -->
-          <div>
-            <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-2.5">
-              Admins <span class="text-indigo-500" x-text="'(' + (department?.admins?.length ?? 0) + ')'"></span>
-            </p>
-            <div class="space-y-2" x-show="department?.admins?.length">
-              <template x-for="a in (department?.admins ?? [])" :key="a.email">
-                <div class="flex items-center gap-2.5 py-2 px-3 rounded-xl"
-                     :class="darkMode ? 'bg-slate-800' : 'bg-slate-50'">
-                  <div class="w-8 h-8 rounded-full bg-indigo-100 dark:bg-indigo-500/10 text-indigo-600 flex items-center justify-center text-[11px] font-black flex-shrink-0"
-                       x-text="(a.name || '?').substring(0,2).toUpperCase()"></div>
-                  <div class="min-w-0">
-                    <p class="text-xs font-bold truncate" :class="darkMode ? 'text-white' : 'text-slate-800'" x-text="a.name"></p>
-                    <p class="text-[11px] text-slate-400">Admin</p>
-                  </div>
-                </div>
-              </template>
-            </div>
-            <p class="text-xs text-slate-400" x-show="!(department?.admins?.length)">No admin assigned yet.</p>
-          </div>
-        </div>
       </section>
 
       <!-- ══════════════════════════════════
