@@ -434,7 +434,7 @@ class AdminController extends Controller
         $user->password_hash = Hash::make($request->input('password'));
         $user->save();
 
-        $this->logSecurityEvent(Auth::id(), 'created', 'Security Override', 'Forcefully overrode entry passkey signatures.');
+        $this->logSecurityEvent(Auth::id(), 'created', 'Security Override', 'Forcefully overrode entry passkey signatures for ' . $user->full_name . '.');
         return redirect()->route('admin.users')->with('success', 'Password reset successfully completed for ' . $user->full_name);
     }
 
@@ -463,7 +463,7 @@ class AdminController extends Controller
 
         $user->save();
 
-        $this->logSecurityEvent(Auth::id(), 'comments', 'Status Control', $actionName . ' profile node availability rules.');
+        $this->logSecurityEvent(Auth::id(), 'comments', 'Status Control', $actionName . ' account for ' . $user->full_name . '.');
 
         return redirect()->route('admin.users')->with('success', 'Account status updated.');
     }
@@ -479,7 +479,7 @@ class AdminController extends Controller
             ->findOrFail($id);
         $user->delete();
 
-        $this->logSecurityEvent(Auth::id(), 'completed', 'Destruction Shield', 'Permanently dropped active user profile.');
+        $this->logSecurityEvent(Auth::id(), 'completed', 'Destruction Shield', 'Permanently deleted user account: ' . $user->full_name . '.');
         return redirect()->route('admin.users')->with('success', 'User profile removed securely.');
     }
 

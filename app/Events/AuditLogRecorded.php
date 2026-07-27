@@ -52,17 +52,19 @@ class AuditLogRecorded implements ShouldBroadcastNow
      */
     public function broadcastWith(): array
     {
-        $log  = $this->auditLog;
-        $user = $log->user; // lazy-loaded on purpose — this fires rarely enough that the extra query is cheap.
+        $log     = $this->auditLog;
+        $user    = $log->user; // lazy-loaded on purpose — this fires rarely enough that the extra query is cheap.
+        $payload = is_array($log->payload) ? $log->payload : (json_decode($log->payload ?? '', true) ?? []);
 
         return [
-            'id'         => $log->id,
-            'operator'   => $user ? $user->full_name : 'System',
-            'role'       => $user ? $user->role : 'system',
-            'action'     => $log->action ?? '—',
-            'resource'   => ($log->model_type ?? 'SYSTEM') . ($log->model_id ? ' [ID: ' . $log->model_id . ']' : ''),
-            'ip'         => $log->ip_address ?? '—',
-            'created_at' => $log->created_at ? $log->created_at->format('Y-m-d H:i:s') : now()->format('Y-m-d H:i:s'),
+            'id'          => $log->id,
+            'operator'    => $user ? $user->full_name : 'System',
+            'role'        => $user ? $user->role : 'system',
+            'action'      => $log->action ?? '—',
+            'description' => $payload['summary'] ?? null,
+            'resource'    => $payload['target_title'] ?? (($log->model_type ?? 'SYSTEM') . ($log->model_id ? ' [ID: ' . $log->model_id . ']' : '')),
+            'ip'          => $log->ip_address ?? '—',
+            'created_at'  => $log->created_at ? $log->created_at->format('Y-m-d H:i:s') : now()->format('Y-m-d H:i:s'),
         ];
     }
 }

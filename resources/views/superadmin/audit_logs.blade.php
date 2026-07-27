@@ -224,7 +224,10 @@
     // ── Severity classifier ──
     function getSeverity(action) {
         const a = (action || '').toLowerCase();
-        if (a.includes('force_end') || a.includes('emergency') || a.includes('delete') || a.includes('wipe'))
+        // 'completed' is the generic bucket the legacy Admin logger uses
+        // for destructive actions (e.g. permanently deleting a user) —
+        // treat it the same as an explicit delete/wipe/emergency action.
+        if (a.includes('force_end') || a.includes('emergency') || a.includes('delete') || a.includes('wipe') || a === 'completed')
             return { key:'critical', label:'Critical', bg:'#fff1f2', color:'#e11d48', border:'#fecdd3', icon:'fa-circle-xmark', iconC:'#f43f5e' };
         if (a.includes('settings') || a.includes('policy') || a.includes('role') || a.includes('super'))
             return { key:'root', label:'Root', bg:'#f5f3ff', color:'#6d28d9', border:'#ede9fe', icon:'fa-shield-halved', iconC:'#7c3aed' };
@@ -375,8 +378,9 @@
                         <div><div style="display:flex;align-items:center;gap:4px;"><p style="font-size:13px;font-weight:700;color:#0f172a;">${esc(log.operator)}</p>${rolePill}</div></div>
                     </div>
                 </td>
-                <td style="padding:14px 16px;max-width:220px;">
+                <td style="padding:14px 16px;max-width:260px;">
                     <span style="font-size:11px;font-weight:700;font-family:'JetBrains Mono',monospace;color:#2563eb;background:#eff6ff;border:1px solid #bfdbfe;padding:3px 8px;border-radius:6px;display:inline-block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:200px;">${esc(log.action)}</span>
+                    ${log.description ? `<p style="font-size:11px;color:#64748b;font-weight:500;margin-top:4px;line-height:1.35;">${esc(log.description)}</p>` : ''}
                 </td>
                 <td style="padding:14px 16px;font-size:12px;color:#475569;font-weight:500;max-width:200px;">
                     <span style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block;max-width:190px;" title="${esc(log.resource)}">${esc(log.resource)}</span>

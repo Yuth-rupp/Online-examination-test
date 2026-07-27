@@ -436,14 +436,23 @@ class SuperAdminController extends Controller
                 ->take(200)
                 ->get()
                 ->map(function ($l) {
+                    // Some entries (Admin actions logged via the legacy
+                    // logSecurityEvent() helper) only store a generic
+                    // category word in `action` ("comments", "completed",
+                    // etc). The actual human-readable description lives in
+                    // `payload.summary` — surface it here so the page
+                    // doesn't just show a bare category with no context.
+                    $payload = is_array($l->payload) ? $l->payload : (json_decode($l->payload ?? '', true) ?? []);
+
                     return [
-                        'id'         => $l->id,
-                        'operator'   => $l->user ? $l->user->full_name : 'System',
-                        'role'       => $l->user ? $l->user->role : 'system',
-                        'action'     => $l->action ?? '—',
-                        'resource'   => ($l->model_type ?? 'SYSTEM') . ($l->model_id ? ' [ID: ' . $l->model_id . ']' : ''),
-                        'ip'         => $l->ip_address ?? '—',
-                        'created_at' => $l->created_at ? $l->created_at->format('Y-m-d H:i:s') : '—',
+                        'id'          => $l->id,
+                        'operator'    => $l->user ? $l->user->full_name : 'System',
+                        'role'        => $l->user ? $l->user->role : 'system',
+                        'action'      => $l->action ?? '—',
+                        'description' => $payload['summary'] ?? null,
+                        'resource'    => $payload['target_title'] ?? (($l->model_type ?? 'SYSTEM') . ($l->model_id ? ' [ID: ' . $l->model_id . ']' : '')),
+                        'ip'          => $l->ip_address ?? '—',
+                        'created_at'  => $l->created_at ? $l->created_at->format('Y-m-d H:i:s') : '—',
                     ];
                 });
 
@@ -453,7 +462,12 @@ class SuperAdminController extends Controller
                 $q->where('action', 'like', '%force_end%')
                   ->orWhere('action', 'like', '%emergency%')
                   ->orWhere('action', 'like', '%delete%')
-                  ->orWhere('action', 'like', '%wipe%');
+                  ->orWhere('action', 'like', '%wipe%')
+                  // Admin actions logged via logSecurityEvent() use the
+                  // generic 'completed' bucket for destructive actions
+                  // (e.g. permanently deleting a user) instead of a
+                  // descriptive string — catch those too so they count.
+                  ->orWhere('action', '=', 'completed');
             })->count();
 
             $uniqueActors = AuditLog::distinct('user_id')->count('user_id');
@@ -474,14 +488,17 @@ class SuperAdminController extends Controller
                 ->take(200)
                 ->get()
                 ->map(function ($l) {
+                    $payload = is_array($l->payload) ? $l->payload : (json_decode($l->payload ?? '', true) ?? []);
+
                     return [
-                        'id'         => $l->id,
-                        'operator'   => $l->user ? $l->user->full_name : 'System',
-                        'role'       => $l->user ? $l->user->role : 'system',
-                        'action'     => $l->action ?? '—',
-                        'resource'   => ($l->model_type ?? 'SYSTEM') . ($l->model_id ? ' [ID: ' . $l->model_id . ']' : ''),
-                        'ip'         => $l->ip_address ?? '—',
-                        'created_at' => $l->created_at ? $l->created_at->format('Y-m-d H:i:s') : '—',
+                        'id'          => $l->id,
+                        'operator'    => $l->user ? $l->user->full_name : 'System',
+                        'role'        => $l->user ? $l->user->role : 'system',
+                        'action'      => $l->action ?? '—',
+                        'description' => $payload['summary'] ?? null,
+                        'resource'    => $payload['target_title'] ?? (($l->model_type ?? 'SYSTEM') . ($l->model_id ? ' [ID: ' . $l->model_id . ']' : '')),
+                        'ip'          => $l->ip_address ?? '—',
+                        'created_at'  => $l->created_at ? $l->created_at->format('Y-m-d H:i:s') : '—',
                     ];
                 });
 
@@ -495,7 +512,8 @@ class SuperAdminController extends Controller
                     $q->where('action', 'like', '%force_end%')
                       ->orWhere('action', 'like', '%emergency%')
                       ->orWhere('action', 'like', '%delete%')
-                      ->orWhere('action', 'like', '%wipe%');
+                      ->orWhere('action', 'like', '%wipe%')
+                      ->orWhere('action', '=', 'completed');
                 })->count(),
                 'unique_actors' => AuditLog::distinct('user_id')->count('user_id'),
                 'last_event'    => optional(AuditLog::orderBy('created_at', 'desc')->first())->created_at
