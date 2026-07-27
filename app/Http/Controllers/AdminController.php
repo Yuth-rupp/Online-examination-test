@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use App\Models\User;
 use App\Models\Exam;
 use App\Models\Submission;
+use App\Models\Enrollment;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Hash;
@@ -272,24 +273,24 @@ class AdminController extends Controller
     /**
      * Build the live exam list + summary stat cards straight from the
      * database. No placeholder numbers — a freshly registered account
-     * with no activity yet correctly shows 0 students / 0 submissions
+     * with no activity yet correctly shows 0 enrolled / 0 submissions
      * instead of the old hardcoded "45 students, 12 submitted" demo data.
+     *
+     * This now powers a read-only "Department Schedule & Monitor" view:
+     * admins watch live status, which teacher/course an exam belongs to,
+     * and the submission count out of that course's actual enrollment —
+     * they no longer create or edit exams from here (that stays with
+     * the teacher who owns the course).
      */
     private function getExamWorkspaceData()
     {
         $deptIds = $this->scopedDepartmentIds();
 
-        // Every account with the "student" role is a prospective test-taker.
-        // (There is no per-course enrollment table in this schema, so the
-        // eligible pool for every exam is the current student roster,
-        // scoped to the admin's department(s) if they manage one.)
-        $totalStudents = User::where('role', 'student')->inDepartments($deptIds)->count();
-
         $exams = Exam::inDepartments($deptIds)
             ->with('course', 'creator')
             ->orderBy('created_at', 'desc')
             ->get()
-            ->map(function ($exam) use ($totalStudents) {
+            ->map(function ($exam) {
                 $isPublished = $exam->status === 'published';
 
                 $isActive = $isPublished
@@ -303,6 +304,16 @@ class AdminController extends Controller
                     ->whereNotNull('submitted_at')
                     ->count();
 
+                // Total enrolled = the actual roster of that exam's course,
+                // not the whole department's student count. Falls back to
+                // 0 when the exam has no course assigned yet.
+                $enrolled = $exam->course_id
+                    ? Enrollment::where('course_id', $exam->course_id)
+                        ->where('status', 'active')
+                        ->distinct('user_id')
+                        ->count('user_id')
+                    : 0;
+
                 $questionCount = $exam->questions()->count();
 
                 $instructor = $exam->creator->full_name ?? null;
@@ -315,7 +326,7 @@ class AdminController extends Controller
                     'title' => $exam->title,
                     'subject' => $exam->course->name ?? 'No course assigned',
                     'status' => $status,
-                    'students' => $totalStudents,
+                    'students' => $enrolled,
                     'submitted' => $submitted,
                     'closes' => $exam->end_time ?: 'Not scheduled yet',
                     'instructor' => $instructor,
@@ -368,32 +379,6 @@ class AdminController extends Controller
     public function getExamsDataApi()
     {
         return response()->json($this->getExamWorkspaceData());
-    }
-
-    /**
-     * Handle the generation and creation of new exam rooms.
-     */
-    public function storeExam(Request $request)
-    {
-        $request->validate([
-            'title' => 'required|string|max:255',
-            'subject' => 'required|string|max:255',
-            'duration' => 'required|integer|min:1',
-            'status' => 'required|string|in:draft,active'
-        ]);
-
-        $exam = Exam::create([
-            'title' => $request->input('title'),
-            'description' => $request->input('subject'),
-            'status' => $request->input('status') === 'active' ? 'published' : 'draft',
-            'start_time' => now(),
-            'end_time' => now()->addMinutes($request->input('duration')),
-            'access_code' => strtoupper(substr(md5(uniqid()), 0, 6))
-        ]);
-
-        $this->logSecurityEvent(Auth::id(), 'created', 'Exam Registry', 'Created new exam deployment room: ' . $exam->title);
-
-        return redirect()->route('admin.exams')->with('success', 'Exam node created successfully');
     }
 
     /**

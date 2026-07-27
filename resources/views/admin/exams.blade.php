@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Exams | ExamSystem Admin</title>
-    <meta name="description" content="Create, schedule, and manage exams for your department in ExamSystem.">
+    <title>Department Schedule & Monitor | ExamSystem Admin</title>
+    <meta name="description" content="Monitor live exam status, teacher/course assignments, and submission counts for your department in ExamSystem.">
     <meta name="csrf-token" content="{{ csrf_token() }}">
 
     <!-- Anti-flash dark mode (matches the dashboard) -->
@@ -130,7 +130,7 @@
                     <span class="w-8 h-8 rounded-lg flex items-center justify-center text-white bg-white/15 border border-white/25">
                         <i class="fa-solid fa-file-pen text-sm"></i>
                     </span>
-                    Exams
+                    Department Schedule & Monitor
                 </h2>
                 <div class="flex items-center gap-3 flex-wrap mt-1.5">
                     <span class="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold text-blue-50 bg-white/10 border border-white/20">
@@ -140,7 +140,7 @@
                         </span>
                         System Status: <strong class="text-emerald-300 ml-0.5">Healthy</strong>
                     </span>
-                    <p class="text-sm text-blue-100/80">Create, schedule, and manage exams for your department.</p>
+                    <p class="text-sm text-blue-100/80">Live status, teacher &amp; course tracking, and submission counts — exams themselves are created by teachers.</p>
                     @if(!empty($isDepartmentAdmin) && !empty($departmentName))
                     <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold text-blue-50 bg-white/10 border border-white/20">
                         <i class="fa-solid fa-building-columns text-[10px]"></i> {{ $departmentName }}
@@ -250,11 +250,6 @@
                     <input id="exam-search" type="text" placeholder="Search exams..."
                         class="form-input pl-10 pr-4 py-2.5 rounded-xl text-sm text-slate-700 placeholder-slate-400 w-52">
                 </div>
-                <!-- Create button -->
-                <button onclick="openCreateModal()"
-                    class="btn-primary flex items-center gap-2 text-white text-xs font-bold px-4 py-2.5 rounded-xl transition-all">
-                    <i class="fa-solid fa-plus"></i> Create Exam
-                </button>
             </div>
         </div>
 
@@ -278,10 +273,7 @@
                     <i class="fa-solid fa-file-pen text-blue-500 text-lg"></i>
                 </div>
                 <h4 class="font-bold text-sm mb-1" :class="darkMode ? 'text-slate-200' : 'text-slate-700'">No exams yet</h4>
-                <p class="text-xs text-slate-400 max-w-xs mb-5">Nothing has been created for your department yet. Once a teacher publishes an exam, it will show up here in real time.</p>
-                <button onclick="openCreateModal()" class="btn-primary flex items-center gap-2 text-white text-xs font-bold px-4 py-2.5 rounded-xl transition-all">
-                    <i class="fa-solid fa-plus"></i> Create Exam
-                </button>
+                <p class="text-xs text-slate-400 max-w-xs">Nothing has been created for your department yet. Once a teacher publishes an exam, it will show up here in real time.</p>
             </div>
             @endif
             @foreach($liveExams as $exam)
@@ -317,41 +309,11 @@
                         <i class="fa-solid {{ $statusIcon }}" style="font-size:8px"></i>
                         {{ $examStatus }}
                     </span>
-                    <!-- 3-dot menu -->
-                    <div class="relative" onclick="event.stopPropagation()">
-                        <button class="w-7 h-7 rounded-lg flex items-center justify-center text-slate-300 hover:text-slate-600 hover:bg-slate-100 transition-all"
-                            onclick="toggleMenu({{ $examId }})">
-                            <i class="fa-solid fa-ellipsis-vertical text-xs"></i>
-                        </button>
-                        <div id="menu-{{ $examId }}" class="action-menu hidden absolute right-0 top-9 rounded-xl w-44 py-1.5 z-10">
-                            <button onclick='openExamDrawer(@json($exam))' class="action-item w-full text-left px-4 py-2.5 text-xs font-semibold text-slate-700 flex items-center gap-2.5">
-                                <i class="fa-solid fa-eye text-blue-500 w-4 text-center"></i> View Details
-                            </button>
-                            <button onclick='openExamDrawer(@json($exam))' class="action-item w-full text-left px-4 py-2.5 text-xs font-semibold text-slate-700 flex items-center gap-2.5">
-                                <i class="fa-solid fa-pencil text-violet-500 w-4 text-center"></i> Edit Questions
-                            </button>
-                            <button onclick='openExamDrawer(@json($exam))' class="action-item w-full text-left px-4 py-2.5 text-xs font-semibold text-slate-700 flex items-center gap-2.5">
-                                <i class="fa-solid fa-user-tie text-emerald-500 w-4 text-center"></i> Assign Instructor
-                            </button>
-                            <button onclick='openExamDrawer(@json($exam))' class="action-item w-full text-left px-4 py-2.5 text-xs font-semibold text-slate-700 flex items-center gap-2.5">
-                                <i class="fa-solid fa-clock-rotate-left text-amber-500 w-4 text-center"></i> Adjust Time
-                            </button>
-                            <div class="border-t border-slate-100 my-1"></div>
-                            
-                            @if(Route::has('admin.exams.destroy'))
-                            <form action="{{ route('admin.exams.destroy', $examId) }}" method="POST" onsubmit="return confirm('Delete this exam?')">
-                                @csrf @method('DELETE')
-                                <button type="submit" class="action-item w-full text-left px-4 py-2.5 text-xs font-semibold text-red-600 flex items-center gap-2.5">
-                                    <i class="fa-solid fa-trash-can w-4 text-center"></i> Delete
-                                </button>
-                            </form>
-                            @else
-                            <button onclick="alert('Delete operations are managed explicitly via the Teacher controller.')" class="action-item w-full text-left px-4 py-2.5 text-xs font-semibold text-slate-400 flex items-center gap-2.5">
-                                <i class="fa-solid fa-trash-can w-4 text-center text-slate-300"></i> Delete Locked
-                            </button>
-                            @endif
-                        </div>
-                    </div>
+                    <!-- Read-only view button (admin monitors only; teachers own edit/delete) -->
+                    <button class="w-7 h-7 rounded-lg flex items-center justify-center text-slate-300 hover:text-blue-600 hover:bg-blue-50 transition-all"
+                        onclick='event.stopPropagation(); openExamDrawer(@json($exam))' title="View details">
+                        <i class="fa-solid fa-eye text-xs"></i>
+                    </button>
                 </div>
 
                 <!-- Title & subject -->
@@ -377,8 +339,8 @@
 
                 <!-- Participation progress -->
                 <div class="flex items-center justify-between text-xs mb-1.5">
-                    <span class="text-slate-400 font-medium">Participation</span>
-                    <span class="font-bold text-slate-700">{{ $examSubmitted }}/{{ $examStudents }}
+                    <span class="text-slate-400 font-medium">Submissions</span>
+                    <span class="font-bold text-slate-700">{{ $examSubmitted }} / {{ $examStudents }}
                         @if($examStudents > 0)
                         <span class="text-slate-400 font-normal">({{ $pct }}%)</span>
                         @endif
@@ -407,144 +369,6 @@
     </main>
 </div>
 
-<!-- ════════════ CREATE EXAM MODAL ════════════ -->
-<div id="create-exam-modal" class="modal-overlay hidden fixed inset-0 z-30 flex items-center justify-center p-4">
-    <div class="modal-card rounded-2xl w-full max-w-lg overflow-hidden max-h-[90vh] flex flex-col">
-        <!-- Header -->
-        <div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between shrink-0" style="background:#f8fafc">
-            <div class="flex items-center gap-2.5">
-                <div class="w-8 h-8 rounded-lg flex items-center justify-center text-blue-600" style="background:#eff6ff;border:1px solid #bfdbfe">
-                    <i class="fa-solid fa-file-plus text-sm"></i>
-                </div>
-                <div>
-                    <h3 class="font-bold text-sm text-slate-900">Create New Exam</h3>
-                    <p class="text-[11px] text-slate-400">Fill in the exam details below</p>
-                </div>
-            </div>
-            <button onclick="closeCreateModal()" class="w-7 h-7 rounded-lg hover:bg-slate-200 flex items-center justify-center text-slate-400 transition-all">
-                <i class="fa-solid fa-xmark text-sm"></i>
-            </button>
-        </div>
-
-        <!-- Body -->
-        <div class="p-6 overflow-y-auto flex-1">
-            <form action="{{ Route::has('admin.exams.store') ? route('admin.exams.store') : '#' }}" method="POST" class="space-y-4" id="create-exam-form">
-                @csrf
-
-                <div class="grid grid-cols-2 gap-4">
-                    <div class="col-span-2">
-                        <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">
-                            <i class="fa-solid fa-heading mr-1 text-slate-400"></i>Exam Title
-                        </label>
-                        <input name="title" required type="text" placeholder="e.g. Algorithms Final Exam"
-                            class="form-input w-full px-4 py-2.5 rounded-xl text-sm text-slate-800 placeholder-slate-400">
-                    </div>
-
-                    <div class="col-span-2">
-                        <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">
-                            <i class="fa-solid fa-book mr-1 text-slate-400"></i>Subject / Course
-                        </label>
-                        <input name="subject" required type="text" placeholder="e.g. Computer Science 210"
-                            class="form-input w-full px-4 py-2.5 rounded-xl text-sm text-slate-800 placeholder-slate-400">
-                    </div>
-
-                    <div>
-                        <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">
-                            <i class="fa-regular fa-calendar mr-1 text-slate-400"></i>Start Date & Time
-                        </label>
-                        <input name="starts_at" type="datetime-local"
-                            class="form-input w-full px-4 py-2.5 rounded-xl text-sm text-slate-800">
-                    </div>
-
-                    <div>
-                        <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">
-                            <i class="fa-regular fa-calendar-xmark mr-1 text-slate-400"></i>End Date & Time
-                        </label>
-                        <input name="ends_at" type="datetime-local"
-                            class="form-input w-full px-4 py-2.5 rounded-xl text-sm text-slate-800">
-                    </div>
-
-                    <div>
-                        <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">
-                            <i class="fa-solid fa-stopwatch mr-1 text-slate-400"></i>Duration (min)
-                        </label>
-                        <input name="duration" type="number" value="60" min="5"
-                            class="form-input w-full px-4 py-2.5 rounded-xl text-sm text-slate-800">
-                    </div>
-
-                    <div>
-                        <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">
-                            <i class="fa-solid fa-user-tie mr-1 text-slate-400"></i>Assign Instructor
-                        </label>
-                        <select name="instructor_id" class="form-input w-full px-4 py-2.5 rounded-xl text-sm text-slate-700 bg-white cursor-pointer">
-                            <option value="">— Select instructor —</option>
-                            @foreach($instructors ?? [] as $instructor)
-                            <option value="{{ $instructor->user_id }}">{{ $instructor->full_name }}</option>
-                            @endforeach
-                            <option value="1">Dr. Chea Sophea</option>
-                            <option value="2">Mr. Vannak Pich</option>
-                            <option value="3">Ms. Srey Leak</option>
-                        </select>
-                    </div>
-                </div>
-
-                <!-- Sections builder -->
-                <div>
-                    <div class="flex items-center justify-between mb-2">
-                        <label class="text-xs font-semibold text-slate-500 uppercase tracking-wide">
-                            <i class="fa-solid fa-layer-group mr-1 text-slate-400"></i>Sections
-                        </label>
-                        <button type="button" onclick="addSection()" class="text-xs font-bold text-blue-600 flex items-center gap-1 hover:text-blue-800">
-                            <i class="fa-solid fa-plus text-[9px]"></i> Add Section
-                        </button>
-                    </div>
-                    <div id="sections-list" class="space-y-2">
-                        <div class="section-row flex items-center gap-2">
-                            <input type="text" name="sections[0][name]" placeholder="Section name" value="Section 1"
-                                class="form-input flex-1 px-3 py-2 rounded-xl text-xs text-slate-800 placeholder-slate-400">
-                            <input type="number" name="sections[0][duration]" placeholder="Min" value="60"
-                                class="form-input w-20 px-3 py-2 rounded-xl text-xs text-slate-800">
-                            <span class="text-[10px] text-slate-400 shrink-0">min</span>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Save as -->
-                <div>
-                    <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">
-                        <i class="fa-solid fa-floppy-disk mr-1 text-slate-400"></i>Save As
-                    </label>
-                    <div class="flex gap-3">
-                        <label class="flex-1 flex items-center gap-2.5 p-3 rounded-xl border-2 cursor-pointer transition-all" style="border-color:#fde68a;background:#fffbeb" id="save-draft-label">
-                            <input type="radio" name="status" value="draft" checked class="accent-amber-500" onchange="highlightSave()">
-                            <div>
-                                <p class="text-xs font-bold text-amber-700">Draft</p>
-                                <p class="text-[10px] text-amber-600">Save for later</p>
-                            </div>
-                        </label>
-                        <label class="flex-1 flex items-center gap-2.5 p-3 rounded-xl border-2 cursor-pointer transition-all" style="border-color:#e2e8f0;background:#f8fafc" id="save-active-label">
-                            <input type="radio" name="status" value="active" class="accent-blue-600" onchange="highlightSave()">
-                            <div>
-                                <p class="text-xs font-bold text-slate-700">Publish Now</p>
-                                <p class="text-[10px] text-slate-400">Make it live</p>
-                            </div>
-                        </label>
-                    </div>
-                </div>
-
-                <div class="flex gap-3 pt-1">
-                    <button type="button" onclick="closeCreateModal()" class="flex-1 py-2.5 rounded-xl text-sm font-semibold text-slate-600 border border-slate-200 hover:bg-slate-50 transition-all">
-                        Cancel
-                    </button>
-                    <button type="submit" class="flex-1 btn-primary text-white py-2.5 rounded-xl text-sm font-bold transition-all">
-                        <i class="fa-solid fa-floppy-disk mr-1.5"></i>Save Exam
-                    </button>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
-
 <!-- ════════════ EXAM DETAIL DRAWER ════════════ -->
 <div id="exam-drawer-backdrop" class="hidden fixed inset-0 z-30" style="background:rgba(15,23,42,0.3);backdrop-filter:blur(3px)" onclick="closeDrawer()"></div>
 <div id="exam-drawer" class="fixed top-0 right-0 h-full w-full max-w-md bg-white z-40 shadow-2xl overflow-y-auto flex flex-col" style="border-left:1px solid #e8edf5">
@@ -557,7 +381,7 @@
             </div>
             <div>
                 <h3 class="font-bold text-slate-900 text-sm">Exam Details</h3>
-                <p class="text-[11px] text-slate-400">View, edit and manage this exam</p>
+                <p class="text-[11px] text-slate-400">Read-only monitoring view</p>
             </div>
         </div>
         <button onclick="closeDrawer()" class="w-7 h-7 rounded-lg hover:bg-slate-200 flex items-center justify-center text-slate-400 transition-all">
@@ -570,9 +394,6 @@
 
     <!-- Drawer footer actions -->
     <div id="drawer-footer" class="shrink-0 px-6 py-4 border-t border-slate-100 flex gap-3" style="background:#f8fafc">
-        <a id="drawer-edit-btn" href="#" class="flex-1 btn-primary text-white py-2.5 rounded-xl text-xs font-bold text-center flex items-center justify-center gap-2 transition-all">
-            <i class="fa-solid fa-pencil"></i> Edit Questions
-        </a>
         <button onclick="closeDrawer()" class="flex-1 py-2.5 rounded-xl text-xs font-semibold text-slate-600 border border-slate-200 hover:bg-slate-50 transition-all">
             Close
         </button>
@@ -588,48 +409,6 @@
         document.getElementById('last-refresh').textContent = new Date().toLocaleTimeString();
     }
     tick(); setInterval(tick, 1000);
-
-    /* ── Section counter ── */
-    let sectionCount = 1;
-    function addSection() {
-        const list = document.getElementById('sections-list');
-        const idx  = sectionCount++;
-        const row  = document.createElement('div');
-        row.className = 'section-row flex items-center gap-2';
-        row.innerHTML = `
-            <input type="text" name="sections[${idx}][name]" placeholder="Section name" value="Section ${idx+1}"
-                class="form-input flex-1 px-3 py-2 rounded-xl text-xs text-slate-800 placeholder-slate-400">
-            <input type="number" name="sections[${idx}][duration]" placeholder="Min" value="60"
-                class="form-input w-20 px-3 py-2 rounded-xl text-xs text-slate-800">
-            <span class="text-[10px] text-slate-400 shrink-0">min</span>
-            <button type="button" onclick="this.parentElement.remove()" class="w-6 h-6 rounded-lg flex items-center justify-center text-red-400 hover:bg-red-50 transition-all shrink-0">
-                <i class="fa-solid fa-xmark text-[10px]"></i>
-            </button>`;
-        list.appendChild(row);
-    }
-
-    /* ── Create modal ── */
-    function openCreateModal() {
-        document.getElementById('create-exam-modal').classList.remove('hidden');
-    }
-    function closeCreateModal() {
-        document.getElementById('create-exam-modal').classList.add('hidden');
-    }
-    document.getElementById('create-exam-modal').addEventListener('click', function(e) {
-        if (e.target === this) closeCreateModal();
-    });
-
-    /* ── 3-dot menu ── */
-    let openMenuId = null;
-    function toggleMenu(id) {
-        if (openMenuId && openMenuId !== id) document.getElementById('menu-' + openMenuId)?.classList.add('hidden');
-        const menu = document.getElementById('menu-' + id);
-        menu?.classList.toggle('hidden');
-        openMenuId = menu?.classList.contains('hidden') ? null : id;
-    }
-    document.addEventListener('click', () => {
-        if (openMenuId) { document.getElementById('menu-' + openMenuId)?.classList.add('hidden'); openMenuId = null; }
-    });
 
     /* ── Filter tabs ── */
     document.querySelectorAll('.tab-btn').forEach(btn => {
@@ -666,26 +445,6 @@
         const badgeCls = {active:'badge-active',draft:'badge-draft',closed:'badge-closed'}[status] ?? 'badge-draft';
         const fillCls  = {active:'fill-active',draft:'fill-draft',closed:'fill-closed'}[status] ?? 'fill-default';
 
-        /* Build section time editors */
-        const sections = exam.sections || [{name:'Section 1',duration:60}];
-        let sectionsHtml = sections.map((s,i) => `
-            <div class="time-editor rounded-xl p-4 flex items-center justify-between gap-3">
-                <div>
-                    <p class="text-xs font-bold text-slate-700">${s.name}</p>
-                    <p class="text-[10px] text-slate-400 mt-0.5">Base: ${s.duration} min</p>
-                </div>
-                <div class="flex items-center gap-2">
-                    <button onclick="adjustTime(${i}, -5)" class="w-7 h-7 rounded-lg flex items-center justify-center bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 text-xs font-bold transition-all">−</button>
-                    <span id="time-display-${i}" class="text-sm font-black text-slate-900 w-16 text-center font-mono">${s.duration} min</span>
-                    <button onclick="adjustTime(${i}, 5)" class="w-7 h-7 rounded-lg flex items-center justify-center bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 text-xs font-bold transition-all">+</button>
-                </div>
-                <button onclick="applyTimeChange(${id}, ${i}, '${s.name}')"
-                    class="text-[10px] font-bold px-2.5 py-1.5 rounded-lg transition-all" style="background:#eff6ff;border:1px solid #bfdbfe;color:#1d4ed8"
-                    onmouseover="this.style.background='#dbeafe'" onmouseout="this.style.background='#eff6ff'">
-                    Apply
-                </button>
-            </div>`).join('');
-
         document.getElementById('drawer-body').innerHTML = `
             <!-- Status & title -->
             <div>
@@ -699,7 +458,7 @@
             <!-- Key stats -->
             <div class="grid grid-cols-3 gap-3">
                 <div class="p-3.5 rounded-xl text-center" style="background:#eff6ff;border:1px solid #bfdbfe">
-                    <p class="text-[10px] text-blue-500 font-bold uppercase mb-1">Students</p>
+                    <p class="text-[10px] text-blue-500 font-bold uppercase mb-1">Enrolled</p>
                     <p class="text-xl font-black text-blue-700">${students}</p>
                 </div>
                 <div class="p-3.5 rounded-xl text-center" style="background:#f0fdf4;border:1px solid #bbf7d0">
@@ -712,47 +471,32 @@
                 </div>
             </div>
 
-            <!-- Participation bar -->
+            <!-- Submission counter bar -->
             <div>
                 <div class="flex items-center justify-between text-xs mb-2">
-                    <span class="font-bold text-slate-600">Participation Rate</span>
-                    <span class="font-black text-slate-900">${pct}%</span>
+                    <span class="font-bold text-slate-600">Submission Counter</span>
+                    <span class="font-black text-slate-900">${submitted} / ${students}${students > 0 ? ` (${pct}%)` : ''}</span>
                 </div>
                 <div class="progress-bar" style="height:8px">
                     <div class="progress-fill ${fillCls}" style="width:${pct}%"></div>
                 </div>
             </div>
 
-            <!-- Instructor -->
+            <!-- Teacher & course tracking -->
             <div>
-                <p class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Assigned Instructor</p>
+                <p class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Teacher &amp; Course</p>
                 <div class="flex items-center justify-between p-3.5 rounded-xl" style="background:#f8fafc;border:1px solid #e2e8f0">
                     ${exam.instructor ? `
                     <div class="flex items-center gap-3">
                         <div class="instructor-chip w-9 h-9 rounded-xl flex items-center justify-center text-xs font-bold">${exam.instructor_initials}</div>
                         <div>
                             <p class="text-sm font-semibold text-slate-800">${exam.instructor}</p>
-                            <p class="text-[10px] text-slate-400">Lead Instructor</p>
+                            <p class="text-[10px] text-slate-400">${subject}</p>
                         </div>
                     </div>
-                    <button class="text-xs text-blue-600 font-bold hover:text-blue-800">Change</button>
                     ` : `
-                    <p class="text-sm text-slate-400 italic">No instructor assigned yet</p>
-                    <button class="text-xs font-bold px-3 py-1.5 rounded-lg text-blue-600" style="background:#eff6ff;border:1px solid #bfdbfe">Assign</button>
+                    <p class="text-sm text-slate-400 italic">No teacher assigned yet</p>
                     `}
-                </div>
-            </div>
-
-            <!-- Section time editor -->
-            <div>
-                <div class="flex items-center justify-between mb-3">
-                    <p class="text-xs font-bold text-slate-400 uppercase tracking-widest">Section Time Editor</p>
-                    <span class="text-[10px] text-slate-400 font-mono bg-amber-50 border border-amber-100 text-amber-700 px-2 py-0.5 rounded-full font-semibold">
-                        <i class="fa-solid fa-triangle-exclamation text-[8px] mr-1"></i>Live changes apply instantly
-                    </span>
-                </div>
-                <div class="space-y-2" id="section-editors">
-                    ${sectionsHtml}
                 </div>
             </div>
 
@@ -763,48 +507,13 @@
                     <i class="fa-regular fa-calendar text-amber-500"></i>
                     <div>
                         <p class="text-xs font-bold text-amber-800">${closes && closes !== 'Not scheduled yet' ? 'Closing: ' + new Date(closes).toLocaleString() : 'Not scheduled yet'}</p>
-                        <p class="text-[10px] text-amber-600 mt-0.5">Click Edit Questions to update the schedule</p>
+                        <p class="text-[10px] text-amber-600 mt-0.5">Schedule is managed by the teacher who owns this exam</p>
                     </div>
                 </div>
             </div>`;
 
-        /* Store section durations for +/- */
-        window._drawerSections = sections.map(s => ({...s}));
-        window._drawerExamId   = id;
-
-        document.getElementById('drawer-edit-btn').href = `/admin/exams/${id}/questions`;
         document.getElementById('exam-drawer-backdrop').classList.remove('hidden');
         document.getElementById('exam-drawer').classList.add('open');
-    }
-
-    /* Section time adjust */
-    window._drawerSections = [];
-    function adjustTime(idx, delta) {
-        const sec = window._drawerSections[idx];
-        sec.duration = Math.max(5, sec.duration + delta);
-        document.getElementById('time-display-' + idx).textContent = sec.duration + ' min';
-    }
-
-    function applyTimeChange(examId, idx, sectionName) {
-        const newDuration = window._drawerSections[idx].duration;
-        fetch(`/admin/exams/${examId}/sections/time`, {
-            method: 'PATCH',
-            headers: {'Content-Type':'application/json','X-CSRF-TOKEN':document.querySelector('meta[name=csrf-token]')?.content || ''},
-            body: JSON.stringify({section_index: idx, section_name: sectionName, duration: newDuration})
-        }).then(r => {
-            if (r.ok) {
-                const btn = document.querySelector(`#section-editors .time-editor:nth-child(${idx+1}) button:last-child`);
-                if (btn) {
-                    const orig = btn.textContent;
-                    btn.textContent = '✓ Saved';
-                    btn.style.background = '#f0fdf4'; btn.style.borderColor = '#bbf7d0'; btn.style.color = '#15803d';
-                    setTimeout(() => { btn.textContent = orig; btn.style.background='#eff6ff'; btn.style.borderColor='#bfdbfe'; btn.style.color='#1d4ed8'; }, 2000);
-                }
-            }
-        }).catch(() => {
-            /* Demo fallback */
-            alert(`✓ Applied: ${sectionName} → ${newDuration} min`);
-        });
     }
 
     function closeDrawer() {
@@ -858,24 +567,17 @@
                 <span class="${badgeCls} inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wide">
                     <i class="fa-solid ${iconCls}" style="font-size:8px"></i>${status}
                 </span>
-                <div class="relative" onclick="event.stopPropagation()">
-                    <button class="w-7 h-7 rounded-lg flex items-center justify-center text-slate-300 hover:text-slate-600 hover:bg-slate-100 transition-all" onclick="toggleMenu('${id}')">
-                        <i class="fa-solid fa-ellipsis-vertical text-xs"></i>
-                    </button>
-                    <div id="menu-${id}" class="action-menu hidden absolute right-0 top-9 rounded-xl w-44 py-1.5 z-10">
-                        <button onclick='openExamDrawer(${examJson})' class="action-item w-full text-left px-4 py-2.5 text-xs font-semibold text-slate-700 flex items-center gap-2.5"><i class="fa-solid fa-eye text-blue-500 w-4 text-center"></i> View Details</button>
-                        <button onclick='openExamDrawer(${examJson})' class="action-item w-full text-left px-4 py-2.5 text-xs font-semibold text-slate-700 flex items-center gap-2.5"><i class="fa-solid fa-pencil text-violet-500 w-4 text-center"></i> Edit Questions</button>
-                        <button onclick='openExamDrawer(${examJson})' class="action-item w-full text-left px-4 py-2.5 text-xs font-semibold text-slate-700 flex items-center gap-2.5"><i class="fa-solid fa-user-tie text-emerald-500 w-4 text-center"></i> Assign Instructor</button>
-                        <button onclick='openExamDrawer(${examJson})' class="action-item w-full text-left px-4 py-2.5 text-xs font-semibold text-slate-700 flex items-center gap-2.5"><i class="fa-solid fa-clock-rotate-left text-amber-500 w-4 text-center"></i> Adjust Time</button>
-                    </div>
-                </div>
+                <button class="w-7 h-7 rounded-lg flex items-center justify-center text-slate-300 hover:text-blue-600 hover:bg-blue-50 transition-all"
+                    onclick='event.stopPropagation(); openExamDrawer(${examJson})' title="View details">
+                    <i class="fa-solid fa-eye text-xs"></i>
+                </button>
             </div>
             <h4 class="font-bold text-slate-900 text-sm leading-tight mb-1">${title}</h4>
             <p class="text-xs text-slate-400 mb-4">${subject}</p>
             ${instructorBlock}
             <div class="flex items-center justify-between text-xs mb-1.5">
-                <span class="text-slate-400 font-medium">Participation</span>
-                <span class="font-bold text-slate-700">${submitted}/${students}${students > 0 ? ` <span class="text-slate-400 font-normal">(${pct}%)</span>` : ''}</span>
+                <span class="text-slate-400 font-medium">Submissions</span>
+                <span class="font-bold text-slate-700">${submitted} / ${students}${students > 0 ? ` <span class="text-slate-400 font-normal">(${pct}%)</span>` : ''}</span>
             </div>
             <div class="progress-bar mb-4"><div class="progress-fill ${fillCls}" style="width:${pct}%"></div></div>
             <div class="flex items-center justify-between">
@@ -892,10 +594,7 @@
                 <i class="fa-solid fa-file-pen text-blue-500 text-lg"></i>
             </div>
             <h4 class="font-bold text-sm mb-1 text-slate-700">No exams yet</h4>
-            <p class="text-xs text-slate-400 max-w-xs mb-5">Nothing has been created for your department yet. Once a teacher publishes an exam, it will show up here in real time.</p>
-            <button onclick="openCreateModal()" class="btn-primary flex items-center gap-2 text-white text-xs font-bold px-4 py-2.5 rounded-xl transition-all">
-                <i class="fa-solid fa-plus"></i> Create Exam
-            </button>
+            <p class="text-xs text-slate-400 max-w-xs">Nothing has been created for your department yet. Once a teacher publishes an exam, it will show up here in real time.</p>
         </div>`;
     }
 
