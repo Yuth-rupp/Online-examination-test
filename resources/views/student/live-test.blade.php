@@ -534,6 +534,10 @@
     let activeStream = null, fallbackBroadcastLoop = null;
     let proctorAuthKey = 'PR-' + Math.floor(1000 + Math.random() * 9000);
     let isProctorApproved = false;
+    // Webcam frame capture rate for the teacher's monitoring grid. Fixed —
+    // no longer tied to a Global Settings dropdown (that control was
+    // repurposed for Tab-Switch Detection Grace Period, see Alpine data below).
+    const webcamCaptureIntervalMs = 5000;
 
     document.getElementById('proctorKeyDisplay').textContent = proctorAuthKey;
 
@@ -661,7 +665,7 @@
             student_id: '{{ Auth::user()->id ?? Auth::user()->user_id ?? "2" }}'
           })
         }).catch(e => console.debug(e));
-      }, 3000);
+      }, webcamCaptureIntervalMs);
     }
 
     window.addEventListener('DOMContentLoaded', () => {
@@ -685,6 +689,7 @@
         saving: false,
         _timerRef: null,
         _tabTimeout: null,
+        _tabGraceRef: null,
 
         // ── Live exam rules (admin-controlled, refreshed on a poll so mid-exam
         //    changes from the admin settings panel apply without a reload) ──
@@ -693,6 +698,9 @@
         blockRightClick: {{ ($examRules['blockRightClick'] ?? true) ? 'true' : 'false' }},
         forceFullscreen: {{ ($examRules['forceFullscreen'] ?? true) ? 'true' : 'false' }},
         syncInterval: {{ $examRules['syncInterval'] ?? 10 }},
+        // Global Settings > Proctoring Thresholds > Tab-Switch Detection Grace
+        // Period (Super Admin-only, enforced system-wide — see setupTabDetection()).
+        tabSwitchGraceMs: {{ max(1, (int) ($examRules['tabSwitchGrace'] ?? 5)) * 1000 }},
         disqualified: false,
         _rulesPollRef: null,
 
@@ -737,32 +745,47 @@
 
         setupTabDetection() {
           document.addEventListener('visibilitychange', () => {
-            if (document.hidden && !this.disqualified) {
-              this.tabSwitchCount++;
+            if (this.disqualified) return;
+
+            if (document.hidden) {
+              // Tab/app switched away from — don't count it yet. Start the
+              // grace-period clock (Global Settings > Proctoring Thresholds >
+              // Tab-Switch Detection Grace Period). Only if the student is
+              // STILL away when this timer fires does it become a real strike.
               this.tabWarning = true;
-              if (this._tabTimeout) clearTimeout(this._tabTimeout);
-              this._tabTimeout = setTimeout(() => { this.tabWarning = false; }, 4000);
               lucide.createIcons();
+              if (this._tabGraceRef) clearTimeout(this._tabGraceRef);
+              this._tabGraceRef = setTimeout(() => {
+                if (!document.hidden || this.disqualified) return; // came back in time
+                this.tabSwitchCount++;
 
-              // Real-time: send every violation to the server immediately so it
-              // shows up on the admin's live security/threat feed right away.
-              fetch('{{ route("student.exams.logViolation") }}', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': '{{ csrf_token() }}' },
-                body: JSON.stringify({
-                  exam_id: '{{ $exam->exam_id ?? "1" }}',
-                  strike: this.tabSwitchCount
-                })
-              }).catch(e => console.debug(e));
+                // Real-time: send every violation to the server immediately so it
+                // shows up on the admin's live security/threat feed right away.
+                fetch('{{ route("student.exams.logViolation") }}', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': '{{ csrf_token() }}' },
+                  body: JSON.stringify({
+                    exam_id: '{{ $exam->exam_id ?? "1" }}',
+                    strike: this.tabSwitchCount
+                  })
+                }).catch(e => console.debug(e));
 
-              // Enforce the admin's live rule: past the allowed limit, the
-              // exam auto-submits and the student is locked out.
-              if (this.tabSwitchCount > this.proctorMaxSwitches) {
-                this.disqualified = true;
-                window.examSubmittedBySystem = true;
-                if (this._timerRef) clearInterval(this._timerRef);
-                this.$refs.examForm.submit();
-              }
+                // Enforce the admin's live rule: past the allowed limit, the
+                // exam auto-submits and the student is locked out.
+                if (this.tabSwitchCount > this.proctorMaxSwitches) {
+                  this.disqualified = true;
+                  window.examSubmittedBySystem = true;
+                  if (this._timerRef) clearInterval(this._timerRef);
+                  this.$refs.examForm.submit();
+                }
+              }, this.tabSwitchGraceMs);
+            } else {
+              // Returned before the grace period elapsed — cancel the pending
+              // strike entirely, it was a brief/accidental switch.
+              if (this._tabGraceRef) { clearTimeout(this._tabGraceRef); this._tabGraceRef = null; }
+              if (this._tabTimeout) clearTimeout(this._tabTimeout);
+              this._tabTimeout = setTimeout(() => { this.tabWarning = false; }, 1500);
+              lucide.createIcons();
             }
           });
         },
@@ -800,6 +823,9 @@
                 this.proctorWarnThreshold = rules.proctor_warn_threshold;
                 this.blockRightClick      = rules.block_right_click;
                 this.forceFullscreen      = rules.force_fullscreen;
+                if (rules.tab_switch_grace_seconds) {
+                  this.tabSwitchGraceMs = Math.max(1, rules.tab_switch_grace_seconds) * 1000;
+                }
               })
               .catch(e => console.debug(e));
           };

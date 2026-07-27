@@ -239,7 +239,14 @@
                 </span>
                 Security Audit Center
             </h2>
-            <p class="text-sm text-slate-400 mt-1 font-mono">Real-time cryptographically signed audit trail &middot; Auto-refresh every 3s</p>
+            <div class="flex items-center gap-3 flex-wrap mt-1">
+                <p class="text-sm text-slate-400 font-mono">Real-time cryptographically signed audit trail &middot; Auto-refresh every 3s</p>
+                @if(!empty($isDepartmentAdmin) && !empty($departmentName))
+                <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold text-blue-700" style="background:#eff6ff;border:1px solid #bfdbfe">
+                    <i class="fa-solid fa-building-columns text-[10px]"></i> {{ $departmentName }}
+                </span>
+                @endif
+            </div>
         </div>
 
         <!-- ── ROW 1: METRIC CARDS ── -->

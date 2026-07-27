@@ -413,13 +413,13 @@
                                 <p class="text-[10px] text-slate-400 font-medium mt-1.5">Admin can set the same number or lower.</p>
                             </div>
                             <div>
-                                <label class="f-label">Face Detection Poll Interval</label>
-                                <select name="face_poll_interval" class="f-input" onchange="markDirty()">
-                                    <option value="5"  {{ ($settings['face_poll_interval']??'5')==='5' ?'selected':'' }}>Every 5 seconds (High)</option>
-                                    <option value="10" {{ ($settings['face_poll_interval']??'5')==='10'?'selected':'' }}>Every 10 seconds (Balanced)</option>
-                                    <option value="15" {{ ($settings['face_poll_interval']??'5')==='15'?'selected':'' }}>Every 15 seconds (Low)</option>
+                                <label class="f-label">Tab-Switch Detection Grace Period</label>
+                                <select name="tab_switch_grace_seconds" class="f-input" onchange="markDirty()">
+                                    <option value="5"  {{ ($settings['tab_switch_grace_seconds']??'5')==='5' ?'selected':'' }}>5 seconds (Strict)</option>
+                                    <option value="10" {{ ($settings['tab_switch_grace_seconds']??'5')==='10'?'selected':'' }}>10 seconds (Balanced)</option>
+                                    <option value="15" {{ ($settings['tab_switch_grace_seconds']??'5')==='15'?'selected':'' }}>15 seconds (Lenient)</option>
                                 </select>
-                                <p class="text-[10px] text-slate-400 font-medium mt-1.5">Admin cannot set a longer interval than configured here.</p>
+                                <p class="text-[10px] text-slate-400 font-medium mt-1.5">How long a student can stay on another tab/app before it's counted as a violation. Applied to every live exam system-wide — admin settings cannot override this.</p>
                             </div>
                         </div>
                     </div>

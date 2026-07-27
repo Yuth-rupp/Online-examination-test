@@ -53,12 +53,31 @@ class Department extends Model
      * The admin students/teachers in this department should contact for a
      * password reset. Prefers an admin who has actually set a Telegram
      * handle; falls back to any department admin if none has one yet.
+     *
+     * Kept for backwards compatibility — prefer contactAdmins() below,
+     * which returns EVERY admin in the department instead of just one.
      */
     public function contactAdmin()
     {
         $admins = $this->admins()->get();
 
         return $admins->firstWhere('telegram_username', '!=', null) ?: $admins->first();
+    }
+
+    /**
+     * ALL admins assigned to this department (there can be more than one —
+     * e.g. a department with 2 or 3 admins should surface all of them as
+     * reset-password contacts, not just a single "best" one). Admins with
+     * a Telegram handle set are sorted first since they're directly
+     * reachable, but everyone is included.
+     */
+    public function contactAdmins()
+    {
+        $admins = $this->relationLoaded('admins') ? $this->admins : $this->admins()->get();
+
+        return $admins
+            ->sortByDesc(fn ($admin) => !empty($admin->telegram_username))
+            ->values();
     }
 
     /**

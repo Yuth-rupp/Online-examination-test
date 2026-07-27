@@ -348,20 +348,53 @@ class AuthController extends Controller
             ->orderBy('name')
             ->get()
             ->map(function ($department) {
-                $admin = $department->admins->firstWhere('telegram_username', '!=', null)
-                    ?? $department->admins->first();
+                // Every admin in the department, not just one — a
+                // department with 2 admins shows 2 contact cards, a
+                // department with 3 shows 3, and so on. Telegram-enabled
+                // admins are listed first since they're directly reachable.
+                $admins = $department->contactAdmins()->map(fn ($admin) => [
+                    'name'              => $admin->full_name,
+                    'telegram_username' => $admin->telegram_username,
+                ])->values();
 
                 return [
                     'id'               => $department->id,
                     'name'             => $department->name,
                     'institution_name' => $department->institution->name ?? null,
-                    'admin_name'       => $admin->full_name ?? null,
-                    'telegram_username'=> $admin->telegram_username ?? null,
+                    'admins'           => $admins,
                 ];
             })
             ->values();
 
         return view('auth.forgot-password', ['departments' => $departments]);
+    }
+
+    /**
+     * Live lookup of a single department's current admin contacts. The
+     * forgot-password page calls this over AJAX whenever a department is
+     * selected so the admin list always reflects the database at that
+     * exact moment (an admin added, removed, or updating their Telegram
+     * handle a minute ago shows up immediately — no cached/stale list
+     * baked in at page load, and no full page reload needed).
+     */
+    public function departmentContacts($id)
+    {
+        $department = \App\Models\Department::with(['institution:id,name', 'admins:user_id,full_name,telegram_username,department_id'])
+            ->where('is_active', true)
+            ->findOrFail($id);
+
+        $admins = $department->contactAdmins()->map(fn ($admin) => [
+            'name'              => $admin->full_name,
+            'telegram_username' => $admin->telegram_username,
+        ])->values();
+
+        return response()->json([
+            'id'               => $department->id,
+            'name'             => $department->name,
+            'institution_name' => $department->institution->name ?? null,
+            'admins'           => $admins,
+            'admin_count'      => $admins->count(),
+        ]);
     }
 
     /**

@@ -45,6 +45,7 @@ Route::middleware(['guest'])->group(function () {
         return view('auth.register_success');
     })->name('register.success');
     Route::get('/forgot-password', [AuthController::class, 'showForgotPassword'])->name('password.request');
+    Route::get('/forgot-password/department/{id}/contacts', [AuthController::class, 'departmentContacts'])->name('password.department.contacts');
     Route::post('/forgot-password/admin-request', [AuthController::class, 'submitAdminPasswordResetRequest'])->name('password.admin.request');
     Route::post('/forgot-password', [AuthController::class, 'sendResetLink'])->name('password.email');
     Route::get('/forgot-password/success', function () {

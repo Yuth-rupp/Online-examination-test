@@ -22,7 +22,7 @@ return new class extends Migration {
             ['key' => 'mail_password', 'value' => 'tavdwpjzkadteibl', 'created_at' => now(), 'updated_at' => now()],
             ['key' => 'proctor_lockdown', 'value' => '1', 'created_at' => now(), 'updated_at' => now()],
             ['key' => 'max_tab_switches', 'value' => '3', 'created_at' => now(), 'updated_at' => now()],
-            ['key' => 'face_poll_interval', 'value' => '5', 'created_at' => now(), 'updated_at' => now()],
+            ['key' => 'tab_switch_grace_seconds', 'value' => '5', 'created_at' => now(), 'updated_at' => now()],
         ]);
     }
 

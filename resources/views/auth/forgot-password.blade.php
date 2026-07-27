@@ -111,34 +111,27 @@
                     </div>
                 </div>
 
-                <!-- Contact card, filled in by JS once a department is picked -->
-                <div id="admin-contact-card" class="hidden text-left bg-slate-50 border border-slate-200 rounded-xl p-4 mb-4">
-                    <div class="flex items-center gap-3 mb-4">
-                        <div class="w-10 h-10 rounded-full bg-[#1e4ea1]/10 text-[#1e4ea1] flex items-center justify-center flex-shrink-0">
-                            <i class="fa-solid fa-user-tie"></i>
-                        </div>
-                        <div class="min-w-0">
-                            <div id="admin-contact-name" class="text-sm font-bold text-slate-900 truncate">—</div>
-                            <div id="admin-contact-role" class="text-xs text-gray-500">Department Admin</div>
-                        </div>
+                <!-- Contact cards, filled in by JS once a department is picked. One
+                     card per admin currently assigned to that department — 2 admins
+                     show 2 cards, 3 admins show 3, etc. Fetched live from the server
+                     every time a department is selected so it never goes stale. -->
+                <div id="admin-contact-wrap" class="hidden text-left mb-4">
+                    <div class="flex items-center justify-between mb-2 px-1">
+                        <span class="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Department Admins</span>
+                        <span id="admin-count-badge" class="text-[10px] font-bold text-[#1e4ea1] bg-blue-50 px-2 py-0.5 rounded-full">—</span>
                     </div>
-
-                    <a id="admin-telegram-link"
-                       href="#" target="_blank" rel="noopener noreferrer"
-                       class="hidden w-full flex items-center justify-center space-x-2 py-3 px-4 bg-[#229ED9] hover:bg-[#1c8bc0] text-white text-sm font-medium rounded-xl shadow-md transition-all group">
-                        <i class="fa-brands fa-telegram text-base"></i>
-                        <span>Message on Telegram</span>
-                        <i class="fa-solid fa-arrow-up-right-from-square text-xs opacity-80 transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform"></i>
-                    </a>
-
-                    <p id="admin-no-telegram" class="hidden text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2.5 leading-relaxed">
+                    <div id="admin-contact-loading" class="hidden text-xs text-gray-400 flex items-center gap-2 py-3">
+                        <i class="fa-solid fa-circle-notch fa-spin"></i> Loading current admins…
+                    </div>
+                    <div id="admin-contact-list" class="space-y-3"></div>
+                    <p id="admin-contact-empty" class="hidden text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2.5 leading-relaxed">
                         <i class="fa-solid fa-triangle-exclamation mr-1"></i>
-                        This department's admin hasn't added a Telegram contact yet. Please use the support options below instead.
+                        No admin has been assigned to this department yet. Please use the support options below instead.
                     </p>
                 </div>
 
                 <p id="no-department-hint" class="text-xs text-gray-400 mb-4">
-                    Pick your department above and the right admin's contact will appear here.
+                    Pick your department above and the admins who can reset your password will appear here.
                 </p>
 
                 <div class="flex items-center gap-3 my-4">
@@ -264,44 +257,105 @@
             showAdminPanel();
         @endif
 
-        // Department → admin contact map, rendered server-side so it stays
-        // accurate without any extra network request when the user picks
-        // their department.
-        const departmentContacts = @json(($departments ?? collect())->keyBy('id'));
-
+        // Real-time admin lookup: instead of baking a fixed admin list into
+        // the page at render time, we hit a live JSON endpoint every time a
+        // department is picked (and again on a short interval while it's
+        // open). That way if a department has 2 admins it shows 2 cards, if
+        // it has 3 it shows 3, and any change made in the admin panel a
+        // moment ago (new admin assigned, one removed, a Telegram handle
+        // updated) shows up immediately without a page refresh.
         const departmentSelect = document.getElementById('department-select');
-        const contactCard      = document.getElementById('admin-contact-card');
+        const contactWrap      = document.getElementById('admin-contact-wrap');
+        const contactLoading   = document.getElementById('admin-contact-loading');
+        const contactList      = document.getElementById('admin-contact-list');
+        const contactEmpty     = document.getElementById('admin-contact-empty');
+        const countBadge       = document.getElementById('admin-count-badge');
         const noDeptHint       = document.getElementById('no-department-hint');
-        const nameEl           = document.getElementById('admin-contact-name');
-        const telegramLink     = document.getElementById('admin-telegram-link');
-        const noTelegramNotice = document.getElementById('admin-no-telegram');
+
+        const contactsUrlBase = "{{ url('/forgot-password/department') }}";
+        let refreshTimer = null;
+
+        function renderAdmins(dept) {
+            const admins = dept.admins || [];
+
+            countBadge.textContent = admins.length === 1 ? '1 admin' : (admins.length + ' admins');
+            contactList.innerHTML = '';
+
+            if (admins.length === 0) {
+                contactEmpty.classList.remove('hidden');
+                return;
+            }
+            contactEmpty.classList.add('hidden');
+
+            admins.forEach(function (admin) {
+                const card = document.createElement('div');
+                card.className = 'bg-slate-50 border border-slate-200 rounded-xl p-4';
+
+                const hasTelegram = !!admin.telegram_username;
+                card.innerHTML = `
+                    <div class="flex items-center gap-3 mb-3">
+                        <div class="w-10 h-10 rounded-full bg-[#1e4ea1]/10 text-[#1e4ea1] flex items-center justify-center flex-shrink-0">
+                            <i class="fa-solid fa-user-tie"></i>
+                        </div>
+                        <div class="min-w-0">
+                            <div class="text-sm font-bold text-slate-900 truncate">${admin.name ?? 'Department Admin'}</div>
+                            <div class="text-xs text-gray-500">Department Admin</div>
+                        </div>
+                    </div>
+                    ${hasTelegram ? `
+                        <a href="https://t.me/${admin.telegram_username}" target="_blank" rel="noopener noreferrer"
+                           class="w-full flex items-center justify-center space-x-2 py-2.5 px-4 bg-[#229ED9] hover:bg-[#1c8bc0] text-white text-sm font-medium rounded-xl shadow-md transition-all group">
+                            <i class="fa-brands fa-telegram text-base"></i>
+                            <span>Message on Telegram</span>
+                            <i class="fa-solid fa-arrow-up-right-from-square text-xs opacity-80 transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform"></i>
+                        </a>
+                    ` : `
+                        <p class="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 leading-relaxed">
+                            <i class="fa-solid fa-triangle-exclamation mr-1"></i>
+                            Hasn't added a Telegram contact yet — use the support options below.
+                        </p>
+                    `}
+                `;
+                contactList.appendChild(card);
+            });
+        }
+
+        function fetchDepartmentContacts(deptId) {
+            contactWrap.classList.remove('hidden');
+            noDeptHint.classList.add('hidden');
+            contactLoading.classList.remove('hidden');
+
+            fetch(`${contactsUrlBase}/${deptId}/contacts`, {
+                headers: { 'Accept': 'application/json' }
+            })
+                .then(res => res.ok ? res.json() : Promise.reject())
+                .then(dept => {
+                    contactLoading.classList.add('hidden');
+                    renderAdmins(dept);
+                })
+                .catch(() => {
+                    contactLoading.classList.add('hidden');
+                    countBadge.textContent = '—';
+                    contactList.innerHTML = '';
+                    contactEmpty.classList.remove('hidden');
+                });
+        }
 
         departmentSelect.addEventListener('change', function () {
-            const dept = departmentContacts[this.value];
+            if (refreshTimer) clearInterval(refreshTimer);
 
-            if (!dept) {
-                contactCard.classList.add('hidden');
+            const deptId = this.value;
+            if (!deptId) {
+                contactWrap.classList.add('hidden');
                 noDeptHint.classList.remove('hidden');
                 return;
             }
 
-            noDeptHint.classList.add('hidden');
-            contactCard.classList.remove('hidden');
+            fetchDepartmentContacts(deptId);
 
-            if (dept.admin_name) {
-                nameEl.textContent = dept.admin_name;
-            } else {
-                nameEl.textContent = 'No admin assigned yet';
-            }
-
-            if (dept.telegram_username) {
-                telegramLink.href = 'https://t.me/' + dept.telegram_username;
-                telegramLink.classList.remove('hidden');
-                noTelegramNotice.classList.add('hidden');
-            } else {
-                telegramLink.classList.add('hidden');
-                noTelegramNotice.classList.remove('hidden');
-            }
+            // Keep it live while the visitor is sitting on this page —
+            // picks up admin changes made elsewhere without a reload.
+            refreshTimer = setInterval(() => fetchDepartmentContacts(deptId), 15000);
         });
     </script>
 </body>

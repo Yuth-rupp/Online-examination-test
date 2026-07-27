@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
 use App\Support\InstitutionalIdGenerator;
 
 class AdminController extends Controller
@@ -57,13 +58,124 @@ class AdminController extends Controller
     /**
      * Private helper to read diagnostic server process footprints.
      */
+    /**
+     * Real container CPU usage, not the old sys_getloadavg()/4 guess.
+     *
+     * Why the old version was broken: sys_getloadavg() returns the machine's
+     * Unix load average (queued processes), not a CPU %, and on a shared
+     * host like Railway it often reflects OTHER tenants' load too — dividing
+     * that by an assumed "4 cores" produced nonsense numbers like 379.9%.
+     *
+     * This reads the actual cgroup CPU accounting for THIS container
+     * (v2 first, v1 fallback) and computes real usage as a delta between two
+     * samples — i.e. "how much of its allocated CPU did this container use
+     * between the last check and now" — which is what "real-time load" means.
+     */
     private function getSystemLoadPercentage()
     {
-        if (function_exists('sys_getloadavg')) {
-            $systemLoad = \sys_getloadavg();
-            return isset($systemLoad[0]) ? round($systemLoad[0] * 100 / 4, 1) : 24.0;
+        try {
+            $usageUsec = $this->readCgroupCpuUsageUsec();
+            $cores     = $this->readCgroupAllocatedCores();
+
+            if ($usageUsec !== null && $cores !== null) {
+                return $this->cpuPercentFromUsageSample($usageUsec, $cores);
+            }
+        } catch (\Throwable $e) {
+            // Fall through to the load-average fallback below (e.g. cgroups
+            // unavailable — local Windows/macOS dev environment).
         }
-        return 24.0;
+
+        if (function_exists('sys_getloadavg')) {
+            $load  = \sys_getloadavg();
+            $cores = (float) (trim((string) @shell_exec('nproc')) ?: 4);
+            return isset($load[0]) ? round(min(100, $load[0] * 100 / max(0.5, $cores)), 1) : 0.0;
+        }
+
+        return 0.0;
+    }
+
+    /**
+     * Turns a cumulative CPU-usage reading into a real percentage by diffing
+     * it against the last sample taken (cached). This is what makes the
+     * number "real-time" — it reflects actual usage in the interval since
+     * the last poll, not a smoothed multi-minute average.
+     */
+    private function cpuPercentFromUsageSample(float $usageUsec, float $cores): float
+    {
+        $cacheKey = 'system.cpu.last_sample';
+        $now      = microtime(true);
+        $prev     = Cache::get($cacheKey);
+
+        if (!$prev) {
+            // Cold start (first request in 5+ minutes) — nothing to diff
+            // against yet. Take a real 150ms synchronous second sample so we
+            // still return an accurate number instead of a fake placeholder.
+            usleep(150000);
+            $usageUsec2 = $this->readCgroupCpuUsageUsec() ?? $usageUsec;
+            Cache::put($cacheKey, ['usage' => $usageUsec2, 'time' => microtime(true)], 300);
+
+            $deltaUsageUsec = max(0, $usageUsec2 - $usageUsec);
+            $percent = ($deltaUsageUsec / 150000) / max(0.01, $cores) * 100;
+            return round(max(0, min(100, $percent)), 1);
+        }
+
+        Cache::put($cacheKey, ['usage' => $usageUsec, 'time' => $now], 300);
+
+        $deltaUsageUsec = $usageUsec - $prev['usage'];
+        $deltaTimeUsec  = ($now - $prev['time']) * 1_000_000;
+
+        if ($deltaTimeUsec <= 0) {
+            return 0.0;
+        }
+
+        $percent = ($deltaUsageUsec / $deltaTimeUsec) / max(0.01, $cores) * 100;
+        return round(max(0, min(100, $percent)), 1);
+    }
+
+    /** Cumulative CPU time (microseconds) this container has used — cgroup v2, falling back to v1. */
+    private function readCgroupCpuUsageUsec(): ?float
+    {
+        if (is_readable('/sys/fs/cgroup/cpu.stat')) {
+            $stat = @file_get_contents('/sys/fs/cgroup/cpu.stat');
+            if ($stat && preg_match('/^usage_usec\s+(\d+)/m', $stat, $m)) {
+                return (float) $m[1];
+            }
+        }
+
+        if (is_readable('/sys/fs/cgroup/cpuacct/cpuacct.usage')) {
+            $nsec = @file_get_contents('/sys/fs/cgroup/cpuacct/cpuacct.usage');
+            if ($nsec !== false) {
+                return ((float) trim($nsec)) / 1000; // nanoseconds → microseconds
+            }
+        }
+
+        return null;
+    }
+
+    /** How many CPU cores this container is actually allocated (its real ceiling, not the host's). */
+    private function readCgroupAllocatedCores(): ?float
+    {
+        $hostCores = (float) (trim((string) @shell_exec('nproc')) ?: 4);
+
+        if (is_readable('/sys/fs/cgroup/cpu.max')) {
+            $raw = trim((string) @file_get_contents('/sys/fs/cgroup/cpu.max'));
+            [$quota, $period] = array_pad(explode(' ', $raw), 2, null);
+            if ($quota && $quota !== 'max' && $period) {
+                return max(0.01, ((float) $quota) / ((float) $period));
+            }
+            return $hostCores; // no quota set — container can use up to the host's cores
+        }
+
+        if (is_readable('/sys/fs/cgroup/cpu/cpu.cfs_quota_us') && is_readable('/sys/fs/cgroup/cpu/cpu.cfs_period_us')) {
+            $quota  = (float) trim((string) @file_get_contents('/sys/fs/cgroup/cpu/cpu.cfs_quota_us'));
+            $period = (float) trim((string) @file_get_contents('/sys/fs/cgroup/cpu/cpu.cfs_period_us'));
+            if ($quota > 0 && $period > 0) {
+                return max(0.01, $quota / $period);
+            }
+            return $hostCores;
+        }
+
+        return null;
     }
 
     /**
@@ -237,7 +349,14 @@ class AdminController extends Controller
 
         $data = $this->getExamWorkspaceData();
 
-        return view('admin.exams', array_merge($data, compact('openTickets')));
+        // Lets the view show a "Data Science"-style department badge next
+        // to the page title when a department-scoped admin is looking at
+        // it, same treatment as the Security Audit Center below.
+        $actor = Auth::user();
+        $isDepartmentAdmin = $actor->isDepartmentAdmin();
+        $departmentName = $isDepartmentAdmin ? optional($actor->department)->name : null;
+
+        return view('admin.exams', array_merge($data, compact('openTickets', 'isDepartmentAdmin', 'departmentName')));
     }
 
     /**
@@ -520,21 +639,46 @@ class AdminController extends Controller
         return response()->stream($callback, 200, $headers);
     }
 
+    /**
+     * Display and manage the Security Audit Center for the signed-in
+     * admin's own department(s). A department admin only ever sees
+     * login/activity events for students and teachers who belong to
+     * their department — a super_admin (or a legacy admin with no
+     * department_id) sees every event system-wide.
+     */
     public function securityLogWorkspace(Request $request)
     {
-        $totalUsers = User::count();
-        $activeExams = Exam::where('status', 'published')->where('start_time', '<=', now())->where('end_time', '>=', now())->count();
+        $deptIds = $this->scopedDepartmentIds();
+
+        $totalUsers = User::inDepartments($deptIds)->count();
+        $activeExams = Exam::inDepartments($deptIds)->where('status', 'published')->where('start_time', '<=', now())->where('end_time', '>=', now())->count();
         $cpuUsage = $this->getSystemLoadPercentage();
         $activeFilter = $request->input('filter', 'all');
 
-        return view('admin.security', compact('totalUsers', 'activeExams', 'cpuUsage', 'activeFilter'));
+        $actor = Auth::user();
+        $isDepartmentAdmin = $actor->isDepartmentAdmin();
+        $departmentName = $isDepartmentAdmin ? optional($actor->department)->name : null;
+
+        return view('admin.security', compact('totalUsers', 'activeExams', 'cpuUsage', 'activeFilter', 'isDepartmentAdmin', 'departmentName'));
     }
 
+    /**
+     * Live security telemetry — scoped the same way as the page above.
+     * A department admin's audit trail is filtered down to only the
+     * students/teachers who belong to their department(s); everyone
+     * else's activity never appears in their feed.
+     */
     public function getSecurityTelemetryApi(Request $request)
     {
+        $deptIds = $this->scopedDepartmentIds();
+
         $query = DB::table('audit_logs')
             ->leftJoin('users', 'audit_logs.user_id', '=', 'users.user_id')
             ->select('audit_logs.*', 'users.full_name', 'users.email', 'users.role', 'users.status');
+
+        if (!empty($deptIds)) {
+            $query->whereIn('users.department_id', $deptIds);
+        }
 
         $filter = $request->input('filter', 'all');
         if (in_array($filter, ['created', 'uploaded', 'comments', 'completed'])) {
@@ -564,8 +708,8 @@ class AdminController extends Controller
             ];
         });
 
-        $totalUsers = User::count();
-        $activeExams = Exam::where('status', 'published')->where('start_time', '<=', now())->where('end_time', '>=', now())->count();
+        $totalUsers = User::inDepartments($deptIds)->count();
+        $activeExams = Exam::inDepartments($deptIds)->where('status', 'published')->where('start_time', '<=', now())->where('end_time', '>=', now())->count();
         $cpuUsage = $this->getSystemLoadPercentage();
 
         return response()->json([
@@ -699,6 +843,25 @@ class AdminController extends Controller
         $validated['force_fullscreen']  = $request->has('force_fullscreen') ? '1' : '0';
         $validated['webcam_monitor']    = $request->has('webcam_monitor') ? '1' : '0';
 
+        // ── Enforce the Super Admin's Global Settings > Proctoring Thresholds
+        //    as a real floor/ceiling, not just descriptive text on the page. ──
+        $global = DB::table('system_settings')
+            ->whereIn('key', ['proctor_lockdown', 'max_tab_switches'])
+            ->pluck('value', 'key');
+
+        // If the Super Admin has forced fullscreen lockdown globally, the
+        // department admin cannot turn it off — silently re-force it rather
+        // than reject the whole form, so the rest of the save still succeeds.
+        if (($global['proctor_lockdown'] ?? '1') === '1') {
+            $validated['force_fullscreen'] = '1';
+        }
+
+        // Admin can only match or tighten the global max-tab-switches ceiling,
+        // never loosen it — clamp instead of erroring so a well-meaning admin
+        // typing a bigger number doesn't lose the rest of their changes.
+        $globalMaxSwitches = (int) ($global['max_tab_switches'] ?? 3);
+        $validated['proctor_max_switches'] = min((int) $validated['proctor_max_switches'], $globalMaxSwitches);
+
         DB::transaction(function () use ($validated) {
             foreach ($validated as $key => $value) {
                 DB::table('system_settings')->updateOrInsert(
@@ -727,18 +890,22 @@ class AdminController extends Controller
      */
     public function getExamRulesApi()
     {
-        $raw = DB::table('system_settings')->whereIn('key', self::EXAM_RULE_KEYS)->pluck('value', 'key');
+        $raw = DB::table('system_settings')
+            ->whereIn('key', array_merge(self::EXAM_RULE_KEYS, ['tab_switch_grace_seconds']))
+            ->pluck('value', 'key');
 
         return response()->json([
-            'proctor_max_switches'   => (int) ($raw['proctor_max_switches'] ?? 3),
-            'proctor_warn_threshold' => (int) ($raw['proctor_warn_threshold'] ?? 2),
-            'block_right_click'      => ($raw['block_right_click'] ?? '1') === '1',
-            'force_fullscreen'       => ($raw['force_fullscreen'] ?? '1') === '1',
-            'webcam_monitor'         => ($raw['webcam_monitor'] ?? '0') === '1',
-            'sync_interval'          => (int) ($raw['sync_interval'] ?? 10),
-            'passing_rate'           => (int) ($raw['passing_rate'] ?? 50),
-            'default_time_limit'     => (int) ($raw['default_time_limit'] ?? 60),
-            'max_attempts'           => (int) ($raw['max_attempts'] ?? 1),
+            'proctor_max_switches'     => (int) ($raw['proctor_max_switches'] ?? 3),
+            'proctor_warn_threshold'   => (int) ($raw['proctor_warn_threshold'] ?? 2),
+            'block_right_click'        => ($raw['block_right_click'] ?? '1') === '1',
+            'force_fullscreen'         => ($raw['force_fullscreen'] ?? '1') === '1',
+            'webcam_monitor'           => ($raw['webcam_monitor'] ?? '0') === '1',
+            'sync_interval'            => (int) ($raw['sync_interval'] ?? 10),
+            'passing_rate'             => (int) ($raw['passing_rate'] ?? 50),
+            'default_time_limit'       => (int) ($raw['default_time_limit'] ?? 60),
+            'max_attempts'             => (int) ($raw['max_attempts'] ?? 1),
+            // Super Admin global setting — not admin-editable, read-only here.
+            'tab_switch_grace_seconds' => (int) ($raw['tab_switch_grace_seconds'] ?? 5),
         ]);
     }
 

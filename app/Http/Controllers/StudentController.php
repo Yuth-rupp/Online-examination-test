@@ -67,6 +67,38 @@ class StudentController extends Controller
             ->where('status', 'published')
             ->first();
 
+        // The student's home department, plus every teacher and admin
+        // currently attached to it — this is what powers the "My
+        // Department" card so a student in, say, Data Science sees the
+        // Data Science teachers and admins, not a generic list. Queried
+        // fresh on every request (and on every poll, since the dashboard
+        // is polled) so a newly assigned teacher/admin shows up without
+        // the student needing to do anything.
+        $department = null;
+        if ($user->department_id) {
+            $department = \App\Models\Department::where('id', $user->department_id)
+                ->with([
+                    'teachers:user_id,full_name,email,telegram_username',
+                    'admins:user_id,full_name,email,telegram_username,department_id',
+                ])
+                ->first();
+        }
+
+        $departmentPayload = $department ? [
+            'id'       => $department->id,
+            'name'     => $department->name,
+            'teachers' => $department->teachers->map(fn ($t) => [
+                'name'              => $t->full_name,
+                'email'             => $t->email,
+                'telegram_username' => $t->telegram_username,
+            ])->values(),
+            'admins' => $department->admins->map(fn ($a) => [
+                'name'              => $a->full_name,
+                'email'             => $a->email,
+                'telegram_username' => $a->telegram_username,
+            ])->values(),
+        ] : null;
+
         if ($request->wantsJson()) {
             return response()->json([
                 'totalExams'     => $totalExams,
@@ -74,7 +106,8 @@ class StudentController extends Controller
                 'averageScore'   => $averageScore,
                 'upcomingExams'  => $upcomingExams,
                 'liveExam'       => $liveExam,
-                'submissions'    => $submissions
+                'submissions'    => $submissions,
+                'department'     => $departmentPayload,
             ]);
         }
 
@@ -84,7 +117,8 @@ class StudentController extends Controller
             'averageScore',
             'upcomingExams',
             'liveExam',
-            'submissions'
+            'submissions',
+            'departmentPayload'
         ));
     }
 
@@ -570,7 +604,7 @@ class StudentController extends Controller
         $secondsRemaining = $now->diffInSeconds($end, false);
         if ($secondsRemaining < 0) { $secondsRemaining = 0; }
 
-        $ruleKeys = ['proctor_max_switches', 'proctor_warn_threshold', 'block_right_click', 'force_fullscreen', 'webcam_monitor', 'sync_interval'];
+        $ruleKeys = ['proctor_max_switches', 'proctor_warn_threshold', 'block_right_click', 'force_fullscreen', 'webcam_monitor', 'sync_interval', 'tab_switch_grace_seconds'];
         $rawRules = DB::table('system_settings')->whereIn('key', $ruleKeys)->pluck('value', 'key');
         $examRules = [
             'proctorMaxSwitches'   => (int) ($rawRules['proctor_max_switches'] ?? 3),
@@ -579,6 +613,11 @@ class StudentController extends Controller
             'forceFullscreen'      => ($rawRules['force_fullscreen'] ?? '1') === '1',
             'webcamMonitor'        => ($rawRules['webcam_monitor'] ?? '0') === '1',
             'syncInterval'         => (int) ($rawRules['sync_interval'] ?? 10),
+            // Global Settings > Proctoring Thresholds > Tab-Switch Detection Grace Period.
+            // How long a student can stay on another tab before it counts as a
+            // violation (see setupTabDetection() in live-test.blade.php). This is a
+            // Super Admin-only value — department admins cannot override it.
+            'tabSwitchGrace'       => (int) ($rawRules['tab_switch_grace_seconds'] ?? 5),
         ];
 
         return view('student.live-test', compact('exam', 'secondsRemaining', 'examRules'));
