@@ -763,6 +763,7 @@ class StudentController extends Controller
             'exam_id'     => $exam->exam_id,
             'session_id'  => $activeSessionId,
             'started_at'  => now(),
+            'submitted_at'=> now(),
             'total_score' => $earnedPoints,
             'percentage'  => $percentage,
             'is_passed'   => $isPassed,
