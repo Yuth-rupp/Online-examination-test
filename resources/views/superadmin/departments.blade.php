@@ -271,7 +271,7 @@
                     </div>
 
                     <div class="flex items-center justify-between mt-3 pt-3 border-t border-slate-50">
-                        <a href="{{ route('admin.departments.teachers', $dept->id) }}" class="inline-flex items-center gap-1.5 text-xs font-semibold text-blue-600 hover:text-blue-800 transition-colors">
+                        <a href="{{ route('superadmin.departments.teachers', $dept->id) }}" class="inline-flex items-center gap-1.5 text-xs font-semibold text-blue-600 hover:text-blue-800 transition-colors">
                             <i class="fa-solid fa-chalkboard-user"></i> Teaching roster
                         </a>
                         <button type="button" onclick="document.getElementById('edit-dept-{{ $dept->id }}').style.display='flex'"

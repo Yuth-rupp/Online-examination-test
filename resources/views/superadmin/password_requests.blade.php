@@ -110,6 +110,13 @@
                 <h2 class="text-sm font-extrabold text-slate-900 leading-none">Password Reset Requests</h2>
                 <p class="text-[11px] text-slate-400 font-medium mt-0.5">Admins can't self-service reset — resolve their requests here.</p>
             </div>
+            <div class="ml-auto">
+                <button id="delete-all-btn" onclick="deleteAllRequests()"
+                        class="inline-flex items-center gap-2 text-xs font-bold text-rose-600 hover:text-white hover:bg-rose-600 border border-rose-200 hover:border-rose-600 px-3.5 py-2 rounded-xl transition-all"
+                        {{ $requests->count() === 0 ? 'style=display:none;' : '' }}>
+                    <i class="fa-solid fa-trash-can"></i> Delete All
+                </button>
+            </div>
         </header>
 
         <div class="p-8 flex-1">
@@ -176,12 +183,15 @@
                                             <i class="fa-solid fa-key mr-1"></i> Reset & Resolve
                                         </button>
                                         <button onclick="dismissRequest({{ $row->id }})"
-                                                class="text-xs font-bold text-slate-400 hover:text-slate-600">
+                                                class="text-xs font-bold text-slate-400 hover:text-slate-600 mr-3">
                                             Dismiss
                                         </button>
-                                    @else
-                                        <span class="text-xs text-slate-300">—</span>
                                     @endif
+                                    <button onclick="deleteRequest({{ $row->id }})"
+                                            title="Delete this request"
+                                            class="text-xs font-bold text-slate-300 hover:text-rose-600 transition-colors">
+                                        <i class="fa-solid fa-trash-can"></i>
+                                    </button>
                                 </td>
                             </tr>
                         @empty
@@ -256,7 +266,77 @@
             const statusCell = row.children[3];
             const actionsCell = row.children[4];
             statusCell.innerHTML = `<span class="inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider bg-emerald-50 text-emerald-700 border border-emerald-200 px-2.5 py-1 rounded-full"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> Resolved</span>`;
-            actionsCell.innerHTML = `<span class="text-xs text-slate-300">—</span>`;
+            actionsCell.innerHTML = `<button onclick="deleteRequest(${id})" title="Delete this request" class="text-xs font-bold text-slate-300 hover:text-rose-600 transition-colors"><i class="fa-solid fa-trash-can"></i></button>`;
+        }
+    }
+
+    // ── Delete a single password request ──
+    window.deleteRequest = function (id) {
+        if (!confirm('Permanently delete this password reset request? This cannot be undone.')) return;
+
+        fetch(`/super-admin/password-requests/${id}`, {
+            method: 'DELETE',
+            headers: { 'Accept': 'application/json', 'Content-Type': 'application/json', 'X-CSRF-TOKEN': CSRF, 'X-Requested-With': 'XMLHttpRequest' }
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.status === 'success') {
+                const row = document.getElementById(`request-row-${id}`);
+                if (row) row.remove();
+                showToast('Request deleted.', 'success');
+                refreshCountsAfterDelete();
+            } else {
+                showToast('Failed to delete request.', 'error');
+            }
+        })
+        .catch(() => showToast('Network error.', 'error'));
+    };
+
+    // ── Delete every password request (clean slate) ──
+    window.deleteAllRequests = function () {
+        if (!confirm('Permanently delete ALL password reset requests (pending and resolved)? This cannot be undone.')) return;
+
+        fetch(`/super-admin/password-requests/delete-all`, {
+            method: 'DELETE',
+            headers: { 'Accept': 'application/json', 'Content-Type': 'application/json', 'X-CSRF-TOKEN': CSRF, 'X-Requested-With': 'XMLHttpRequest' }
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.status === 'success') {
+                document.getElementById('requests-tbody').innerHTML =
+                    `<tr><td colspan="5" class="px-5 py-12 text-center text-slate-400 text-sm">No password reset requests yet.</td></tr>`;
+                showToast(`Deleted ${data.deleted ?? ''} request(s).`, 'success');
+                updateSummaryCounts(0, 0);
+                const btn = document.getElementById('delete-all-btn');
+                if (btn) btn.style.display = 'none';
+            } else {
+                showToast('Failed to delete requests.', 'error');
+            }
+        })
+        .catch(() => showToast('Network error.', 'error'));
+    };
+
+    function refreshCountsAfterDelete() {
+        const rows = document.querySelectorAll('#requests-tbody tr[id^="request-row-"]');
+        let pending = 0, resolved = 0;
+        rows.forEach(r => {
+            r.querySelector('td:nth-child(4)')?.textContent.includes('Pending') ? pending++ : resolved++;
+        });
+        updateSummaryCounts(pending, resolved);
+        if (rows.length === 0) {
+            document.getElementById('requests-tbody').innerHTML =
+                `<tr><td colspan="5" class="px-5 py-12 text-center text-slate-400 text-sm">No password reset requests yet.</td></tr>`;
+            const btn = document.getElementById('delete-all-btn');
+            if (btn) btn.style.display = 'none';
+        }
+    }
+
+    function updateSummaryCounts(pending, resolved) {
+        const cards = document.querySelectorAll('.grid.sm\\:grid-cols-3 > div');
+        if (cards.length >= 3) {
+            cards[0].querySelector('div:last-child').textContent = pending;
+            cards[1].querySelector('div:last-child').textContent = resolved;
+            cards[2].querySelector('div:last-child').textContent = pending + resolved;
         }
     }
 

@@ -109,10 +109,14 @@
                         <span class="relative inline-flex rounded-full bg-emerald-500" style="width:8px;height:8px;"></span>
                     </span>All Systems Operational
                 </div>
+                <div id="poll-mode-badge" class="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg border {{ $liveSessions > 0 ? 'bg-rose-50 text-rose-600 border-rose-100' : 'bg-slate-50 text-slate-400 border-slate-100' }}">
+                    <i class="fa-solid {{ $liveSessions > 0 ? 'fa-bolt' : 'fa-moon' }} text-[10px]"></i>
+                    <span id="poll-mode-label">{{ $liveSessions > 0 ? 'Real-time' : 'Idle' }}</span>
+                </div>
                 <div class="flex items-center gap-2 text-xs text-slate-400 bg-white border border-slate-100 px-3 py-1.5 rounded-lg" style="box-shadow:0 1px 4px rgba(148,163,184,0.08);">
                     <i id="refresh-icon" class="fa-solid fa-rotate text-slate-300 text-xs"></i>
                     <span>Refresh in</span>
-                    <span id="refresh-countdown" class="font-mono font-bold text-slate-700 w-4 text-center">10</span><span>s</span>
+                    <span id="refresh-countdown" class="font-mono font-bold text-slate-700 w-4 text-center">{{ $liveSessions > 0 ? 5 : 30 }}</span><span>s</span>
                 </div>
             </div>
         </header>
@@ -406,7 +410,7 @@
         </div>
         <footer class="px-8 py-4 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-300">
             <span>© {{ date('Y') }} ExamSystem — Live Monitoring</span>
-            <span class="font-mono">Real-time Engine · 10s polling</span>
+            <span id="footer-poll-text" class="font-mono">Real-time Engine · {{ $liveSessions > 0 ? '5s' : '30s (idle)' }} polling</span>
         </footer>
     </main>
 </div>
@@ -414,7 +418,14 @@
 <script>
 (function() {
     'use strict';
-    const REFRESH_INTERVAL = 10;
+    // Adaptive polling: while at least one exam session is actually live,
+    // poll fast for a true real-time feel. When nothing is happening, back
+    // off to a slow idle interval instead of hammering the server for no
+    // reason.
+    const LIVE_INTERVAL = 5;
+    const IDLE_INTERVAL  = 30;
+    let isLive = {{ $liveSessions > 0 ? 'true' : 'false' }};
+    let REFRESH_INTERVAL = isLive ? LIVE_INTERVAL : IDLE_INTERVAL;
     let countdown = REFRESH_INTERVAL;
     // ── Live clock ──
     function updateClock() {
@@ -435,6 +446,24 @@
             fetchLiveData();
         }
     }, 1000);
+    // ── Switch between real-time and idle polling modes ──
+    function setPollMode(nowLive) {
+        if (nowLive === isLive) return;
+        isLive = nowLive;
+        REFRESH_INTERVAL = isLive ? LIVE_INTERVAL : IDLE_INTERVAL;
+        countdown = REFRESH_INTERVAL;
+
+        const badge = document.getElementById('poll-mode-badge');
+        const label = document.getElementById('poll-mode-label');
+        const footer = document.getElementById('footer-poll-text');
+        if (badge) {
+            badge.className = 'flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg border ' +
+                (isLive ? 'bg-rose-50 text-rose-600 border-rose-100' : 'bg-slate-50 text-slate-400 border-slate-100');
+            badge.querySelector('i').className = 'fa-solid ' + (isLive ? 'fa-bolt' : 'fa-moon') + ' text-[10px]';
+        }
+        if (label) label.textContent = isLive ? 'Real-time' : 'Idle';
+        if (footer) footer.textContent = 'Real-time Engine · ' + (isLive ? '5s' : '30s (idle)') + ' polling';
+    }
     // ── Fetch real data ──
     function fetchLiveData() {
         fetch('{{ route("superadmin.monitoring.api") }}', {
@@ -456,6 +485,7 @@
             renderNodeTable(data.nodes || []);
             renderTeacherGrid(data.teachers || []);
             renderAlerts(data.alerts || []);
+            setPollMode((m.total_sessions ?? 0) > 0);
         })
         .catch(err => console.error('Monitoring poll failed:', err));
     }

@@ -255,6 +255,9 @@ Route::middleware(['auth', 'role:super_admin', 'audit.capture'])->prefix('super-
     Route::post('/departments/{department}/assign-admin',       [DepartmentController::class, 'assignAdmin'])->name('superadmin.departments.assignAdmin');
     Route::delete('/departments/{department}/admins/{userId}',  [DepartmentController::class, 'removeAdmin'])->name('superadmin.departments.removeAdmin');
     Route::get('/departments/{department}/teachers',   [DepartmentController::class, 'teachers'])->name('superadmin.departments.teachers');
+    Route::get('/departments/{department}/teachers/search',      [DepartmentController::class, 'searchTeachers'])->name('superadmin.departments.teachers.search');
+    Route::post('/departments/{department}/teachers/assign',     [DepartmentController::class, 'assignTeacher'])->name('superadmin.departments.teachers.assign');
+    Route::delete('/departments/{department}/teachers/{userId}', [DepartmentController::class, 'removeTeacher'])->name('superadmin.departments.teachers.remove');
 
     Route::get('/institutions',                        [InstitutionController::class, 'index'])->name('superadmin.institutions.index');
     Route::post('/institutions/store',                  [InstitutionController::class, 'store'])->name('superadmin.institutions.store');

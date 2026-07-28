@@ -163,7 +163,11 @@ class DepartmentController extends Controller
 
         $teachers = $department->teachers()->orderBy('full_name')->get();
 
-        return view('admin.department_teachers', compact('department', 'teachers'));
+        $view = Auth::user()->role === 'super_admin'
+            ? 'superadmin.department_teachers'
+            : 'admin.department_teachers';
+
+        return view($view, compact('department', 'teachers'));
     }
 
     /**
@@ -209,7 +213,9 @@ class DepartmentController extends Controller
             \App\Services\AuditLogger::record('department.teacher.assign', 'DEPARTMENT', $department->id, null, $department->institution_id);
         } catch (\Exception $e) {}
 
-        return redirect()->route('admin.departments.teachers', $department)->with('success', 'Teacher added to this department.');
+        $route = Auth::user()->role === 'super_admin' ? 'superadmin.departments.teachers' : 'admin.departments.teachers';
+
+        return redirect()->route($route, $department)->with('success', 'Teacher added to this department.');
     }
 
     /**
@@ -221,6 +227,8 @@ class DepartmentController extends Controller
 
         $department->teachers()->detach($userId);
 
-        return redirect()->route('admin.departments.teachers', $department)->with('success', 'Teacher removed from this department.');
+        $route = Auth::user()->role === 'super_admin' ? 'superadmin.departments.teachers' : 'admin.departments.teachers';
+
+        return redirect()->route($route, $department)->with('success', 'Teacher removed from this department.');
     }
 }
