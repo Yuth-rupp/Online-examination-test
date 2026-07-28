@@ -341,6 +341,17 @@ class TeacherController extends Controller
         ]);
 
         $course = Course::find($data['course_id']);
+
+        // Backfill: a course created before department scoping existed (or
+        // via the old storeCourse path) may still have a null department_id,
+        // which would silently hide this exam from every department-scoped
+        // admin/super-admin view. Repair it here using the owning teacher's
+        // home department so existing courses self-heal the first time a
+        // new exam is published against them.
+        if ($course && !$course->department_id && $user->department_id) {
+            $course->update(['department_id' => $user->department_id]);
+        }
+
         $prefix = $course ? strtoupper(preg_replace('/[^A-Za-z0-9]/', '', substr($course->name, 0, 4))) : 'EXAM';
         $cleanSingleUseCode = $prefix . '-' . str_pad(random_int(0, 9999), 4, '0', STR_PAD_LEFT);
 
@@ -351,7 +362,9 @@ class TeacherController extends Controller
             'pass_mark'   => $data['pass_mark'],
             'created_by'  => $user->user_id,
             'access_code' => $cleanSingleUseCode,
-            'status'      => 'published'
+            'status'      => 'published',
+            'start_time'  => now(),
+            'end_time'    => now()->addMinutes($data['duration']),
         ]);
 
         $this->notifyEnrolledStudents($exam, $course);
@@ -433,6 +446,13 @@ class TeacherController extends Controller
                     'teacher_id'     => $user->user_id,
                     'is_active'      => true,
                 ]);
+            }
+
+            // Self-heal: a course created before department scoping existed
+            // may still have a null department_id, which would silently
+            // hide any exam attached to it from department-scoped views.
+            if (!$defaultCourse->department_id && $user->department_id) {
+                $defaultCourse->update(['department_id' => $user->department_id]);
             }
 
             $courseId = $defaultCourse->id;

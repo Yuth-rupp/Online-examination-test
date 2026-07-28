@@ -207,7 +207,7 @@ Route::middleware(['auth', 'role:super_admin', 'audit.capture'])->prefix('super-
     Route::get('/monitoring/api',       [SuperAdminController::class, 'monitoringApi'])->name('superadmin.monitoring.api');
 
     Route::get('/exams',                [SuperAdminController::class, 'exams'])->name('superadmin.exams.index');
-    Route::get('/exams/api',            [SuperAdminController::class, 'getExamsDataApi'])->name('superadmin.exams.api');
+    Route::get('/exams/api',            [SuperAdminController::class, 'examsApi'])->name('superadmin.exams.api');
     Route::post('/exams/{id}/force-end',[SuperAdminController::class, 'forceEndExam'])->name('superadmin.exams.forceEnd');
 
     Route::get('/reports',              [SuperAdminController::class, 'reports'])->name('superadmin.reports.index');
