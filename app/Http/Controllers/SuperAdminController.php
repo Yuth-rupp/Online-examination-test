@@ -129,6 +129,7 @@ class SuperAdminController extends Controller
         $dbLatency      = $this->measureDbLatency();
         $activeProctors = $this->getActiveProctors($iid);
         $systemAlerts   = $this->getSystemAlerts();
+        $liveByDepartment = $this->getLiveSessionsByDepartment($iid);
 
         $nodeInfo = [
             'name'     => gethostname() ?: 'APP-SERVER-01',
@@ -139,7 +140,7 @@ class SuperAdminController extends Controller
         ];
 
         return view('superadmin.monitoring', compact(
-            'liveSessions', 'serverLoad', 'dbLatency', 'activeProctors', 'systemAlerts', 'nodeInfo'
+            'liveSessions', 'serverLoad', 'dbLatency', 'activeProctors', 'systemAlerts', 'nodeInfo', 'liveByDepartment'
         ));
     }
 
@@ -174,21 +175,57 @@ class SuperAdminController extends Controller
                 'nodes_online'   => 1,
                 'nodes_total'    => 1,
             ],
-            'nodes'    => [$node],
-            'teachers' => $activeProctors,
-            'alerts'   => $systemAlerts,
+            'nodes'      => [$node],
+            'teachers'   => $activeProctors,
+            'alerts'     => $systemAlerts,
+            'departments'=> $this->getLiveSessionsByDepartment($iid),
         ]);
     }
 
     /* ================================================================
      *  EXAMS OVERSIGHT
      * ================================================================ */
+    /**
+     * An exam is "completed" once its published window has actually
+     * elapsed, or it was force-ended by a Super Admin. `exams.status` only
+     * ever holds 'draft'/'published' (plus the literal 'ended' written by
+     * forceEndExam) — it is NEVER set to the string 'completed' anywhere in
+     * this codebase, so the old `whereIn('status', ['completed','ended'])`
+     * query only ever matched force-ended exams and silently missed every
+     * exam that simply finished naturally.
+     */
+    private function completedExamsQuery()
+    {
+        return DB::table('exams')->where(function ($q) {
+            $q->where('status', 'ended')
+              ->orWhere(function ($q2) {
+                  $q2->where('status', 'published')
+                     ->whereNotNull('end_time')
+                     ->where('end_time', '<', now());
+              });
+        });
+    }
+
+    /**
+     * draft / active / completed — the single derived status every view
+     * should use instead of the raw `exams.status` column, which can't
+     * distinguish "still running" from "window already closed" on its own.
+     */
+    private function deriveExamStatus($status, $startTime, $endTime): string
+    {
+        if ($status === 'ended') return 'ended';
+        if ($status !== 'published') return 'draft';
+        if ($startTime && $endTime && now()->between($startTime, $endTime)) return 'active';
+        if ($endTime && now()->gt($endTime)) return 'completed';
+        return 'scheduled';
+    }
+
     public function exams()
     {
         $iid = auth()->user()->institution_id;
         $totalExams     = DB::table('exams')->count();
         $activeExams    = $this->activeExamsQuery()->count();
-        $completedExams = DB::table('exams')->whereIn('status', ['completed', 'ended'])->count();
+        $completedExams = $this->completedExamsQuery()->count();
         $avgFlagRate    = $this->computeFlagRate();
 
         $allExams = DB::table('exams')->orderBy('created_at', 'desc')->get()->map(function ($e) {
@@ -203,12 +240,23 @@ class SuperAdminController extends Controller
             $e->exam_id = $examId;
             $e->session_count = $sc;
             $e->flagged_count = $fc;
+            $e->effective_status = $this->deriveExamStatus($e->status ?? null, $e->start_time ?? null, $e->end_time ?? null);
             return $e;
         });
 
         $departments = DB::table('departments')
             ->when($iid, fn($q) => $q->where('institution_id', $iid))
             ->get()->map(function ($d) {
+                $sessionStats = DB::table('exam_sessions')
+                    ->join('exams', 'exams.exam_id', '=', 'exam_sessions.exam_id')
+                    ->join('courses', 'exams.course_id', '=', 'courses.id')
+                    ->where('courses.department_id', $d->id)
+                    ->selectRaw('COUNT(*) as total, SUM(CASE WHEN exam_sessions.is_flagged = 1 THEN 1 ELSE 0 END) as flagged')
+                    ->first();
+
+                $total   = (int) ($sessionStats->total ?? 0);
+                $flagged = (int) ($sessionStats->flagged ?? 0);
+
                 return (object) [
                     'id'            => $d->id,
                     'department'    => $d->name,
@@ -224,14 +272,14 @@ class SuperAdminController extends Controller
                         ->where('exams.start_time', '<=', now())
                         ->where('exams.end_time', '>=', now())
                         ->count(),
-                    'avg_flag_rate' => 0,
+                    'avg_flag_rate' => $total > 0 ? round(($flagged / $total) * 100, 1) : 0,
                 ];
             });
 
         if ($departments->isEmpty()) {
             $departments = collect([(object) [
                 'department' => 'General Academic', 'exam_count' => $totalExams,
-                'sessions' => $activeExams, 'avg_flag_rate' => 0,
+                'sessions' => $activeExams, 'avg_flag_rate' => $avgFlagRate,
             ]]);
         }
 
@@ -247,7 +295,7 @@ class SuperAdminController extends Controller
     {
         $totalExams     = DB::table('exams')->count();
         $activeExams    = $this->activeExamsQuery()->count();
-        $completedExams = DB::table('exams')->whereIn('status', ['completed', 'ended'])->count();
+        $completedExams = $this->completedExamsQuery()->count();
         $avgFlagRate    = $this->computeFlagRate();
         $stuckCount     = $this->activeExamsQuery()
             ->where('updated_at', '<', now()->subMinutes(15))->count();
@@ -1412,10 +1460,24 @@ class SuperAdminController extends Controller
             ->where('end_time', '>=', now());
     }
 
+    /**
+     * Real count of students currently mid-exam. Also joins back to the
+     * parent exam and requires its window to still be open — this is a
+     * safety net against "zombie" rows left behind by a student who closed
+     * their browser tab without submitting (so their session never got
+     * marked 'completed'). Once the exam's end_time passes, they naturally
+     * stop counting as live even if their row is technically still
+     * 'in_progress'.
+     */
     private function countLiveSessions(): int
     {
-        try { return DB::table('exam_sessions')->where('status', 'in_progress')->count(); }
-        catch (\Exception $e) { return $this->activeExamsQuery()->count(); }
+        try {
+            return DB::table('exam_sessions')
+                ->join('exams', 'exams.exam_id', '=', 'exam_sessions.exam_id')
+                ->where('exam_sessions.status', 'in_progress')
+                ->where('exams.end_time', '>=', now())
+                ->count();
+        } catch (\Exception $e) { return $this->activeExamsQuery()->count(); }
     }
 
     private function computeFlagRate(): float
@@ -1478,25 +1540,72 @@ class SuperAdminController extends Controller
                 }
             } catch (\Exception $x) {}
 
-            $sa  = $e->started_at ?? $e->updated_at ?? $e->created_at;
+            // ✅ FIX: `exams` has no `started_at` column — this was falling
+            // back to updated_at/created_at (whenever the row was last
+            // saved), which has nothing to do with the exam's actual
+            // schedule. activeExamsQuery() already guarantees start_time
+            // is set and <= now() for every exam reaching this point, so
+            // use that real value to compute genuine elapsed running time.
+            $sa  = $e->start_time;
             $dur = $sa ? Carbon::parse($sa)->diffForHumans(null, true) : '—';
             $st  = 'idle';
 
             if ($sc > 0 && $fc > 3) $st = 'flagging';
             elseif ($sc > 0) $st = 'active';
 
+            $deptName = null;
+            try {
+                $deptName = DB::table('courses')
+                    ->join('departments', 'departments.id', '=', 'courses.department_id')
+                    ->where('courses.id', $e->course_id)
+                    ->value('departments.name');
+            } catch (\Exception $x) {}
+
             $proctors[] = [
-                'name'     => $t->full_name,
-                'role'     => ucfirst($t->role),
-                'exam'     => $e->title ?? $e->name ?? 'Exam #' . ($examId ?? '0'),
-                'students' => $sc,
-                'flags'    => $fc,
-                'duration' => $dur,
-                'status'   => $st,
+                'name'       => $t->full_name,
+                'role'       => ucfirst($t->role),
+                'exam'       => $e->title ?? $e->name ?? 'Exam #' . ($examId ?? '0'),
+                'department' => $deptName ?? 'General Academic',
+                'students'   => $sc,
+                'flags'      => $fc,
+                'duration'   => $dur,
+                'status'     => $st,
             ];
         }
 
         return $proctors;
+    }
+
+    /**
+     * Real "how many students are in an exam, in which department" view —
+     * this is what Live Monitoring should show instead of individual
+     * webcams (which stay correctly scoped to teachers/proctors). Grouped
+     * purely by department name with a live headcount and flag count, no
+     * per-student identity or video.
+     */
+    private function getLiveSessionsByDepartment($iid): array
+    {
+        try {
+            $rows = DB::table('exam_sessions')
+                ->join('exams', 'exams.exam_id', '=', 'exam_sessions.exam_id')
+                ->join('courses', 'courses.id', '=', 'exams.course_id')
+                ->leftJoin('departments', 'departments.id', '=', 'courses.department_id')
+                ->where('exam_sessions.status', 'in_progress')
+                ->where('exams.end_time', '>=', now())
+                ->when($iid, fn($q) => $q->where('departments.institution_id', $iid))
+                ->selectRaw('COALESCE(departments.name, ?) as department, COUNT(*) as live_students, SUM(CASE WHEN exam_sessions.is_flagged = 1 THEN 1 ELSE 0 END) as flagged', ['Unassigned'])
+                ->groupBy('department')
+                ->orderByDesc('live_students')
+                ->get();
+
+            return $rows->map(fn($r) => [
+                'department'    => $r->department,
+                'live_students' => (int) $r->live_students,
+                'flagged'       => (int) $r->flagged,
+            ])->toArray();
+        } catch (\Exception $e) {
+            return [];
+        }
     }
 
     private function getSystemAlerts(): array

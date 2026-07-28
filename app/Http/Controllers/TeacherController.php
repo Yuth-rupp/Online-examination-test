@@ -45,7 +45,18 @@ class TeacherController extends Controller
         $examsThisWeek = $teacherExams->where('created_at', '>=', now()->subDays(7))->count();
 
         // Currently live/published exam sessions belonging to this teacher.
-        $activeSessionsCount = $teacherExams->where('status', 'published')->count();
+        // ✅ FIX: `status` stays 'published' forever once set — it's never
+        // flipped back after end_time passes. Counting on status alone
+        // meant every exam this teacher ever published kept showing as
+        // "active" long after it closed. Match the same is-it-actually-
+        // live check used on the Admin Exams page: published AND the
+        // current time still falls within [start_time, end_time].
+        $activeSessionsCount = $teacherExams->filter(function ($exam) {
+            return $exam->status === 'published'
+                && $exam->start_time
+                && $exam->end_time
+                && now()->between($exam->start_time, $exam->end_time);
+        })->count();
 
         // Distinct students enrolled in THIS teacher's courses (not the whole platform).
         $courseIds = $courses->pluck('id');
@@ -565,7 +576,14 @@ class TeacherController extends Controller
         // 1. Gather master collections owned by this authenticated teacher
         $teacherExams = Exam::where('created_by', $user->user_id)->get();
         $teacherExamIds = $teacherExams->pluck('exam_id');
-        $activeSessionsCount = $teacherExams->where('status', 'published')->count();
+        // ✅ FIX: same status-never-reverts bug as index() above — check
+        // the actual [start_time, end_time] window instead of just status.
+        $activeSessionsCount = $teacherExams->filter(function ($exam) {
+            return $exam->status === 'published'
+                && $exam->start_time
+                && $exam->end_time
+                && now()->between($exam->start_time, $exam->end_time);
+        })->count();
 
         $totalStudentsCount = User::where('role', 'student')->count();
         $totalSubmissionsCount = Submission::whereIn('exam_id', $teacherExamIds)->count();

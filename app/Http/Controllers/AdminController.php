@@ -103,9 +103,21 @@ class AdminController extends Controller
      */
     private function cpuPercentFromUsageSample(float $usageUsec, float $cores): float
     {
+        // ✅ Bug: this used to call the default Cache facade store. In this
+        // app's .env, CACHE_STORE=array — which only lives for the
+        // duration of a single request and is never shared between
+        // requests/workers. That meant `Cache::get($cacheKey)` returned
+        // null on literally every single request, forcing the "cold
+        // start" branch below every time: a 150ms synchronous sample
+        // window on every poll, which is both slow and produces a noisy,
+        // often near-0% reading instead of a stable rolling percentage.
+        // Pinning this to the 'file' store makes the sample persist on
+        // disk across requests regardless of the app's default cache
+        // driver, so consecutive polls actually diff against each other.
+        $store    = Cache::store('file');
         $cacheKey = 'system.cpu.last_sample';
         $now      = microtime(true);
-        $prev     = Cache::get($cacheKey);
+        $prev     = $store->get($cacheKey);
 
         if (!$prev) {
             // Cold start (first request in 5+ minutes) — nothing to diff
@@ -113,14 +125,14 @@ class AdminController extends Controller
             // still return an accurate number instead of a fake placeholder.
             usleep(150000);
             $usageUsec2 = $this->readCgroupCpuUsageUsec() ?? $usageUsec;
-            Cache::put($cacheKey, ['usage' => $usageUsec2, 'time' => microtime(true)], 300);
+            $store->put($cacheKey, ['usage' => $usageUsec2, 'time' => microtime(true)], 300);
 
             $deltaUsageUsec = max(0, $usageUsec2 - $usageUsec);
             $percent = ($deltaUsageUsec / 150000) / max(0.01, $cores) * 100;
             return round(max(0, min(100, $percent)), 1);
         }
 
-        Cache::put($cacheKey, ['usage' => $usageUsec, 'time' => $now], 300);
+        $store->put($cacheKey, ['usage' => $usageUsec, 'time' => $now], 300);
 
         $deltaUsageUsec = $usageUsec - $prev['usage'];
         $deltaTimeUsec  = ($now - $prev['time']) * 1_000_000;
@@ -466,7 +478,7 @@ class AdminController extends Controller
             $newUser->departments()->syncWithoutDetaching([$departmentId]);
         }
 
-        $this->logSecurityEvent(Auth::id(), 'uploaded', 'User Directory', 'Compiled new application profile space for ' . $newUser->full_name);
+        $this->logSecurityEvent(Auth::id(), 'account.created', 'User Directory', 'Compiled new application profile space for ' . $newUser->full_name);
 
         return redirect()->route('admin.users')->with('success', 'User profile compiled successfully.');
     }
@@ -519,7 +531,7 @@ class AdminController extends Controller
             $user->departments()->syncWithoutDetaching([$newDepartmentId]);
         }
 
-        $this->logSecurityEvent(Auth::id(), 'updated', 'User Directory', 'Updated profile/department assignment for ' . $user->full_name);
+        $this->logSecurityEvent(Auth::id(), 'account.updated', 'User Directory', 'Updated profile/department assignment for ' . $user->full_name);
 
         return redirect()->route('admin.users')->with('success', $user->full_name . ' updated successfully.');
     }
@@ -538,7 +550,7 @@ class AdminController extends Controller
         $user->password_hash = Hash::make($request->input('password'));
         $user->save();
 
-        $this->logSecurityEvent(Auth::id(), 'created', 'Security Override', 'Forcefully overrode entry passkey signatures for ' . $user->full_name . '.');
+        $this->logSecurityEvent(Auth::id(), 'account.password_reset', 'Security Override', 'Forcefully overrode entry passkey signatures for ' . $user->full_name . '.');
         return redirect()->route('admin.users')->with('success', 'Password reset successfully completed for ' . $user->full_name);
     }
 
@@ -567,7 +579,7 @@ class AdminController extends Controller
 
         $user->save();
 
-        $this->logSecurityEvent(Auth::id(), 'comments', 'Status Control', $actionName . ' account for ' . $user->full_name . '.');
+        $this->logSecurityEvent(Auth::id(), 'account.status_changed', 'Status Control', $actionName . ' account for ' . $user->full_name . '.');
 
         return redirect()->route('admin.users')->with('success', 'Account status updated.');
     }
@@ -583,7 +595,7 @@ class AdminController extends Controller
             ->findOrFail($id);
         $user->delete();
 
-        $this->logSecurityEvent(Auth::id(), 'completed', 'Destruction Shield', 'Permanently deleted user account: ' . $user->full_name . '.');
+        $this->logSecurityEvent(Auth::id(), 'account.deleted', 'Destruction Shield', 'Permanently deleted user account: ' . $user->full_name . '.');
         return redirect()->route('admin.users')->with('success', 'User profile removed securely.');
     }
 
@@ -665,9 +677,28 @@ class AdminController extends Controller
             $query->whereIn('users.department_id', $deptIds);
         }
 
+        // ✅ These filters used to check for literal action strings like
+        // 'created'/'uploaded'/'comments'/'completed' — labels that were
+        // only ever used for the ADMIN's own actions (profile edits,
+        // password overrides). No teacher or student action in the entire
+        // app was ever recorded under those strings, so "Proctor Flags"
+        // (wired to 'completed') never actually showed a real proctor
+        // flag — it showed account-deletion events instead, and real
+        // tab-switch violations only ever appeared lumped into "All
+        // Activities" with a generic grey icon. Filtering by category
+        // prefix instead means every new real action (logins, exam starts/
+        // submissions, proctor violations) is automatically covered.
         $filter = $request->input('filter', 'all');
-        if (in_array($filter, ['created', 'uploaded', 'comments', 'completed'])) {
-            $query->where('audit_logs.action', '=', $filter);
+        if ($filter === 'account') {
+            $query->where(function ($q) {
+                $q->where('audit_logs.action', 'like', 'account.%')
+                  ->orWhere('audit_logs.action', 'like', 'admin.%')
+                  ->orWhere('audit_logs.action', '=', 'auth.login');
+            });
+        } elseif ($filter === 'exam') {
+            $query->where('audit_logs.action', 'like', 'exam.%');
+        } elseif ($filter === 'flag') {
+            $query->where('audit_logs.action', 'like', 'proctor.%');
         }
 
         $rawLogs = $query->orderBy('audit_logs.created_at', 'desc')->take(15)->get();
@@ -679,6 +710,16 @@ class AdminController extends Controller
             foreach ($words as $w) { $initials .= $w[0] ?? ''; }
             $initials = strtoupper(substr($initials, 0, 2));
 
+            $action = $log->action ?? '';
+            $category = 'other';
+            if (str_starts_with($action, 'account.') || str_starts_with($action, 'admin.') || $action === 'auth.login') {
+                $category = 'account';
+            } elseif (str_starts_with($action, 'exam.')) {
+                $category = 'exam';
+            } elseif (str_starts_with($action, 'proctor.') || $action === 'tab_switch_violation') {
+                $category = 'flag';
+            }
+
             return [
                 'id'          => $log->id,
                 'author'      => $log->full_name ?? 'System Core',
@@ -686,7 +727,8 @@ class AdminController extends Controller
                 'email'       => $log->email ?? 'system_core@examsystem.com',
                 'role'        => strtoupper($log->role ?? 'SYSTEM'),
                 'status'      => $log->status ?? 'active',
-                'action_type' => $log->action, 
+                'action_type' => $action,
+                'category'    => $category,
                 'target_item' => $payload['target_title'] ?? 'System Asset Instance',
                 'description' => $payload['summary'] ?? 'Automated system background process logged.',
                 'time_span'   => \Carbon\Carbon::parse($log->created_at)->diffForHumans(),
@@ -860,7 +902,7 @@ class AdminController extends Controller
         // in the audit stream (which polls every few seconds) immediately.
         $this->logSecurityEvent(
             Auth::id(),
-            'comments',
+            'exam.rules_updated',
             'Exam Rules',
             "Updated live exam rules — max switches: {$validated['proctor_max_switches']}, warn at: {$validated['proctor_warn_threshold']}, sync every {$validated['sync_interval']}s."
         );
@@ -947,7 +989,7 @@ class AdminController extends Controller
 
         $user->save();
 
-        $this->logSecurityEvent(Auth::id(), 'comments', 'Admin Profile', 'Updated profile details' . ($request->hasFile('avatar_photo') ? ' and photo' : '') . '.');
+        $this->logSecurityEvent(Auth::id(), 'admin.profile_updated', 'Admin Profile', 'Updated profile details' . ($request->hasFile('avatar_photo') ? ' and photo' : '') . '.');
 
         if ($request->wantsJson()) {
             return response()->json([
@@ -1004,7 +1046,7 @@ class AdminController extends Controller
         $user->must_change_password = false;
         $user->save();
 
-        $this->logSecurityEvent(Auth::id(), 'comments', 'Account Security', 'Changed their own password.');
+        $this->logSecurityEvent(Auth::id(), 'admin.password_changed', 'Account Security', 'Changed their own password.');
 
         return redirect()->route('admin.dashboard')->with('success', 'Password updated. Use your new password next time you log in.');
     }

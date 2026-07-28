@@ -230,7 +230,14 @@
                             @foreach($examList as $i => $exam)
                             @php
                                 $examId = $exam->exam_id ?? $exam->id;
-                                $status = $exam->status ?? 'draft';
+                                // ✅ `exams.status` in the database only ever holds
+                                // 'draft'/'published'/'ended' — it is never the literal
+                                // string 'active' or 'completed'. Use the derived status
+                                // the controller computed (effective_status) so the badge
+                                // and Force End button reflect what's actually happening,
+                                // instead of silently falling through to the default style
+                                // for every single published exam.
+                                $status = $exam->effective_status ?? ($exam->status ?? 'draft');
                                 $stColors = match($status) {
                                     'active'    => ['bg'=>'bg-emerald-50','text'=>'text-emerald-600','border'=>'border-emerald-100'],
                                     'completed','ended' => ['bg'=>'bg-blue-50','text'=>'text-blue-600','border'=>'border-blue-100'],
@@ -303,6 +310,10 @@
                             <div class="flex-1 text-center bg-emerald-50 rounded-lg py-2.5">
                                 <p class="text-lg font-extrabold text-emerald-600 leading-none">{{ $dept->sessions ?? 0 }}</p>
                                 <p class="text-[9px] font-semibold text-emerald-300 mt-1">Active</p>
+                            </div>
+                            <div class="flex-1 text-center {{ ($dept->avg_flag_rate ?? 0) > 0 ? 'bg-rose-50' : 'bg-slate-50' }} rounded-lg py-2.5">
+                                <p class="text-lg font-extrabold {{ ($dept->avg_flag_rate ?? 0) > 0 ? 'text-rose-600' : 'text-slate-400' }} leading-none">{{ $dept->avg_flag_rate ?? 0 }}%</p>
+                                <p class="text-[9px] font-semibold {{ ($dept->avg_flag_rate ?? 0) > 0 ? 'text-rose-300' : 'text-slate-300' }} mt-1">Flag Rate</p>
                             </div>
                         </div>
                     </div>

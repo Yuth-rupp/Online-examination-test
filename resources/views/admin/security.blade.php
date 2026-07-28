@@ -412,15 +412,15 @@
                     class="filter-btn filter-active px-4 py-1.5 rounded-lg text-xs font-semibold transition-all">
                     <i class="fa-solid fa-layer-group mr-1.5"></i>All Activities
                 </button>
-                <button onclick="switchSecurityFilter('created')" id="filter-created"
+                <button onclick="switchSecurityFilter('account')" id="filter-account"
                     class="filter-btn px-4 py-1.5 rounded-lg text-xs font-semibold">
-                    <i class="fa-solid fa-user-shield mr-1.5 text-blue-500"></i>Profile Updates
+                    <i class="fa-solid fa-user-shield mr-1.5 text-blue-500"></i>Logins & Accounts
                 </button>
-                <button onclick="switchSecurityFilter('uploaded')" id="filter-uploaded"
+                <button onclick="switchSecurityFilter('exam')" id="filter-exam"
                     class="filter-btn px-4 py-1.5 rounded-lg text-xs font-semibold">
-                    <i class="fa-solid fa-database mr-1.5 text-emerald-500"></i>Exam Asset Control
+                    <i class="fa-solid fa-database mr-1.5 text-emerald-500"></i>Exam Activity
                 </button>
-                <button onclick="switchSecurityFilter('completed')" id="filter-completed"
+                <button onclick="switchSecurityFilter('flag')" id="filter-flag"
                     class="filter-btn px-4 py-1.5 rounded-lg text-xs font-semibold">
                     <i class="fa-solid fa-flag mr-1.5 text-red-500"></i>Proctor Flags
                 </button>
@@ -553,45 +553,35 @@
     let activeFilterTag    = 'all';
     let totalWarnings      = 0;
 
-    /* ── Event type configs ── */
+    /* ── Event type configs — keyed by real category, not the raw action string ── */
     const EVENT_CFG = {
-        created: {
-            verb: 'modified structure settings for',
+        account: {
+            verb: 'updated account access for',
             icon: `<i class="fa-solid fa-user-shield" style="font-size:9px"></i>`,
             iconBg: 'linear-gradient(135deg,#2563eb,#1d4ed8)',
             glowCls: 'glow-auth',
             badgeCls: 'badge-auth',
-            badgeLabel: 'AUTH',
+            badgeLabel: 'ACCOUNT',
             borderColor: '#bfdbfe',
             cardBg: '#f8fbff'
         },
-        comments: {
-            verb: 'modified configurations of',
-            icon: `<i class="fa-solid fa-wrench" style="font-size:9px"></i>`,
-            iconBg: 'linear-gradient(135deg,#7c3aed,#6d28d9)',
-            glowCls: 'glow-config',
-            badgeCls: 'badge-config',
-            badgeLabel: 'CONFIG',
-            borderColor: '#ddd6fe',
-            cardBg: '#faf8ff'
-        },
-        uploaded: {
-            verb: 'updated active records inside',
+        exam: {
+            verb: 'had exam activity on',
             icon: `<i class="fa-solid fa-database" style="font-size:8px"></i>`,
             iconBg: 'linear-gradient(135deg,#059669,#047857)',
             glowCls: 'glow-data',
             badgeCls: 'badge-data',
-            badgeLabel: 'DATA',
+            badgeLabel: 'EXAM',
             borderColor: '#bbf7d0',
             cardBg: '#f8fffe'
         },
-        completed: {
-            verb: 'triggered critical threshold alert at',
+        flag: {
+            verb: 'triggered a proctor flag on',
             icon: `<i class="fa-solid fa-triangle-exclamation" style="font-size:8px"></i>`,
             iconBg: 'linear-gradient(135deg,#dc2626,#b91c1c)',
             glowCls: 'glow-warning',
             badgeCls: 'badge-warning',
-            badgeLabel: '⚠ WARNING',
+            badgeLabel: '⚠ FLAG',
             borderColor: '#fecdd3',
             cardBg: '#fff8f8'
         }
@@ -725,9 +715,9 @@
                         if (recordedEventIds.size === 0) streamContainer.innerHTML = '';
                         recordedEventIds.add(event.id);
 
-                        if (event.action_type === 'completed') { totalWarnings++; updateWarningMetric(); }
+                        if (event.category === 'flag') { totalWarnings++; updateWarningMetric(); }
 
-                        const cfg      = EVENT_CFG[event.action_type] || DEF_CFG;
+                        const cfg      = EVENT_CFG[event.category] || DEF_CFG;
                         const initials = event.initials || 'SYS';
 
                         const markup = `

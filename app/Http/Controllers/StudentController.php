@@ -641,6 +641,48 @@ class StudentController extends Controller
             'tabSwitchGrace'       => (int) ($rawRules['tab_switch_grace_seconds'] ?? 5),
         ];
 
+        // ✅ REAL-TIME SESSION TRACKING: this is the one place in the whole
+        // app that should mark a student "currently taking an exam". Before
+        // this fix, no row anywhere ever got status = 'in_progress' — the
+        // exam_sessions table only ever received a row at *submission* time,
+        // always stamped 'completed'. That meant Super Admin > Live
+        // Monitoring, the "Total Live Sessions" counter, and the
+        // Teacher/Proctor grid could never show a real number: every query
+        // filtering on status = 'in_progress' was guaranteed to return zero,
+        // no matter how many students were actually mid-exam right now.
+        $user = Auth::user();
+        $existingSessionId = DB::table('exam_sessions')
+            ->where('exam_id', $exam->exam_id)
+            ->where('user_id', $user->user_id)
+            ->where('status', 'in_progress')
+            ->value('id');
+
+        if ($existingSessionId) {
+            DB::table('exam_sessions')->where('id', $existingSessionId)->update([
+                'ip_address' => request()->ip(),
+                'user_agent' => substr((string) request()->userAgent(), 0, 500),
+                'updated_at' => now(),
+            ]);
+        } else {
+            DB::table('exam_sessions')->insert([
+                'exam_id'    => $exam->exam_id,
+                'user_id'    => $user->user_id,
+                'ip_address' => request()->ip(),
+                'user_agent' => substr((string) request()->userAgent(), 0, 500),
+                'status'     => 'in_progress',
+                'joined_at'  => now(),
+                'flag_count' => 0,
+                'is_flagged' => false,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+
+            \App\Services\AuditLogger::record('exam.session_started', 'Exam', $exam->exam_id, [
+                'target_title' => $exam->title,
+                'summary'      => ($user->full_name ?? 'A student') . " started \"{$exam->title}\".",
+            ]);
+        }
+
         return view('student.live-test', compact('exam', 'secondsRemaining', 'examRules'));
     }
 
@@ -651,20 +693,38 @@ class StudentController extends Controller
             'strike'  => 'required|integer',
         ]);
 
-        $user = Auth::user();
+        $user   = Auth::user();
+        $examId = $request->input('exam_id');
+        $strike = (int) $request->input('strike');
 
-        AuditLog::create([
-            'user_id'        => $user->id ?? $user->user_id,
-            'institution_id' => $user->institution_id ?? null,
-            'action'         => 'tab_switch_violation',
-            'model_type'     => 'App\Models\Exam',
-            'model_id'       => $request->input('exam_id'),
-            'payload'        => [
-                'strike_count' => $request->input('strike'),
-                'message'      => "Student shifted window focus away from active browser proctor environment."
-            ],
-            'ip_address'     => $request->ip(),
-            'created_at'     => now(),
+        $examTitle = Exam::where('exam_id', $examId)->value('title') ?? 'this exam';
+
+        // ✅ Real proctor-flag tracking: before this fix, tab-switch
+        // violations were only ever written to the generic audit_logs
+        // table (readable only from Super Admin > Audit Trails) and never
+        // touched exam_sessions at all. That's why "Flags" on the Exams
+        // Oversight table and the Live Monitoring proctor cards always
+        // showed 0 no matter how many violations a student racked up —
+        // those numbers are read straight from exam_sessions.is_flagged /
+        // flag_count, which nothing ever set. This keeps that in sync with
+        // the same warn threshold the exam rules already define.
+        $warnThreshold = (int) (DB::table('system_settings')
+            ->where('key', 'proctor_warn_threshold')->value('value') ?? 2);
+
+        DB::table('exam_sessions')
+            ->where('exam_id', $examId)
+            ->where('user_id', $user->user_id)
+            ->where('status', 'in_progress')
+            ->update([
+                'flag_count' => $strike,
+                'is_flagged' => $strike >= $warnThreshold,
+                'updated_at' => now(),
+            ]);
+
+        \App\Services\AuditLogger::record('proctor.violation', 'Exam', $examId, [
+            'target_title' => $examTitle,
+            'summary'      => ($user->full_name ?? 'A student') . " shifted window focus away from \"{$examTitle}\" (strike {$strike}).",
+            'strike_count' => $strike,
         ]);
 
         return response()->json(['status' => 'success', 'logged' => true]);
@@ -762,17 +822,36 @@ class StudentController extends Controller
         $passMarkPercent = $exam->pass_mark ?? 50;
         $isPassed = !$requiresManualGrading && ($percentage >= $passMarkPercent);
 
-        // Upsert exam_sessions row
+        // Close out the real exam_sessions row that startExamSession()
+        // opened as 'in_progress' — mark it 'completed' and stamp left_at,
+        // instead of blindly upserting by (exam_id, user_id) which used to
+        // silently collapse a student's session history down to a single
+        // row and always forced status straight to 'completed' (so the
+        // student was never counted as "currently taking the exam" while
+        // they were actually mid-exam).
         $activeSessionId = DB::table('exam_sessions')
             ->where('exam_id', $exam->exam_id)
             ->where('user_id', $user->user_id)
+            ->where('status', 'in_progress')
+            ->orderByDesc('id')
             ->value('id');
 
-        if (!$activeSessionId) {
+        if ($activeSessionId) {
+            DB::table('exam_sessions')->where('id', $activeSessionId)->update([
+                'status'     => 'completed',
+                'left_at'    => now(),
+                'updated_at' => now(),
+            ]);
+        } else {
+            // Defensive fallback — e.g. the student's in_progress row was
+            // force-ended/terminated elsewhere in the meantime. Still record
+            // that a submission happened.
             $activeSessionId = DB::table('exam_sessions')->insertGetId([
                 'exam_id'    => $exam->exam_id,
                 'user_id'    => $user->user_id,
                 'status'     => 'completed',
+                'joined_at'  => now(),
+                'left_at'    => now(),
                 'created_at' => now(),
                 'updated_at' => now(),
             ]);
@@ -799,6 +878,11 @@ class StudentController extends Controller
                 ? "Your submission for \"{$exam->title}\" is awaiting manual grading."
                 : "You scored {$percentage}% on \"{$exam->title}\".",
             'type'    => $requiresManualGrading ? 'warn' : 'success',
+        ]);
+
+        \App\Services\AuditLogger::record('exam.submitted', 'Exam', $exam->exam_id, [
+            'target_title' => $exam->title,
+            'summary'      => ($user->full_name ?? 'A student') . " submitted \"{$exam->title}\" — scored {$percentage}%.",
         ]);
 
         // ✅ FIX 3: Save every submitted answer to submission_answers

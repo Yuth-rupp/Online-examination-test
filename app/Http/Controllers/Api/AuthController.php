@@ -259,6 +259,16 @@ class AuthController extends Controller
             // UPDATE TIMESTAMPS: Save the login checkpoint into the active profile
             $user->last_login_at = now();
             $user->save();
+
+            // ✅ Real activity for the Security Audit Center: before this,
+            // no login by any teacher or student was ever written to
+            // audit_logs, so a department Admin's security feed only ever
+            // showed the Admin's own actions. This is what makes logins
+            // show up there in real time.
+            \App\Services\AuditLogger::record('auth.login', 'User', $user->user_id, [
+                'target_title' => 'Login',
+                'summary'      => ($user->full_name ?? $user->email) . ' (' . ucfirst($user->role) . ') logged in.',
+            ]);
             
             $request->session()->regenerate();
 

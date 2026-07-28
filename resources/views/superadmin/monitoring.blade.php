@@ -220,6 +220,37 @@
                     </div>
                 </div>
             </div>
+            {{-- ========== LIVE STUDENTS BY DEPARTMENT ========== --}}
+            <div class="bg-white rounded-2xl border border-slate-100" style="box-shadow:0 1px 4px rgba(148,163,184,0.06);">
+                <div class="flex items-center justify-between px-6 py-4 border-b border-slate-100">
+                    <div class="flex items-center gap-2.5">
+                        <div class="w-8 h-8 rounded-xl bg-emerald-50 flex items-center justify-center">
+                            <i class="fa-solid fa-building-columns text-emerald-500 text-sm"></i>
+                        </div>
+                        <div>
+                            <h3 class="font-bold text-sm text-slate-900">Live Students by Department</h3>
+                            <p class="text-[11px] text-slate-400 font-medium">How many students are currently sitting an exam, and where — no camera feeds</p>
+                        </div>
+                    </div>
+                </div>
+                <div id="dept-live-grid" class="p-6 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+                    @forelse($liveByDepartment ?? [] as $d)
+                    <div class="rounded-xl border border-slate-100 bg-slate-50 p-4 text-center">
+                        <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider truncate mb-2">{{ $d['department'] }}</p>
+                        <p class="text-3xl font-black text-emerald-600 leading-none">{{ $d['live_students'] }}</p>
+                        <p class="text-[9px] text-slate-400 font-semibold mt-1">students live</p>
+                        @if($d['flagged'] > 0)
+                        <p class="text-[10px] text-rose-500 font-bold mt-2"><i class="fa-solid fa-flag mr-1"></i>{{ $d['flagged'] }} flagged</p>
+                        @endif
+                    </div>
+                    @empty
+                    <div style="grid-column:1/-1;" class="flex flex-col items-center justify-center py-10 text-center">
+                        <p class="text-sm font-bold text-slate-400 mb-1">No students currently in an exam</p>
+                        <p class="text-xs text-slate-300">This updates in real time the moment a student starts an exam.</p>
+                    </div>
+                    @endforelse
+                </div>
+            </div>
             {{-- ========== TEACHER / PROCTOR LIVE MONITOR ========== --}}
             <div class="bg-white rounded-2xl border border-slate-100" style="box-shadow:0 1px 4px rgba(148,163,184,0.06);">
                 <div class="flex items-center justify-between px-6 py-4 border-b border-slate-100">
@@ -281,6 +312,7 @@
                         <div class="bg-slate-50 rounded-lg p-2.5 mb-3">
                             <p class="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-0.5">Current Exam</p>
                             <p class="text-xs font-bold text-slate-800 truncate">{{ $proctor['exam'] }}</p>
+                            <p class="text-[10px] text-indigo-500 font-semibold mt-1"><i class="fa-solid fa-building-columns mr-1"></i>{{ $proctor['department'] ?? 'General Academic' }}</p>
                         </div>
                         <div class="flex gap-2.5">
                             <div class="flex-1 text-center bg-emerald-50 rounded-lg py-2">
@@ -485,6 +517,7 @@
             renderNodeTable(data.nodes || []);
             renderTeacherGrid(data.teachers || []);
             renderAlerts(data.alerts || []);
+            renderDeptGrid(data.departments || []);
             setPollMode((m.total_sessions ?? 0) > 0);
         })
         .catch(err => console.error('Monitoring poll failed:', err));
@@ -561,13 +594,30 @@
                     <div class="flex-1 min-w-0"><p class="text-[13px] font-bold text-slate-900 truncate">${esc(t.name)}</p><p class="text-[10px] text-slate-400 font-medium mt-0.5">${esc(t.role||'Proctor')}</p></div>
                     <span class="text-[9px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded-full border flex items-center gap-1 flex-shrink-0" style="background:${s[0]};color:${s[1]};border-color:${s[2]}"><span class="w-1.5 h-1.5 rounded-full inline-block" style="background:${s[3]}"></span>${t.status.charAt(0).toUpperCase()+t.status.slice(1)}</span>
                 </div>
-                <div class="bg-slate-50 rounded-lg p-2.5 mb-3"><p class="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-0.5">Current Exam</p><p class="text-xs font-bold text-slate-800 truncate">${esc(t.exam)}</p></div>
+                <div class="bg-slate-50 rounded-lg p-2.5 mb-3"><p class="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-0.5">Current Exam</p><p class="text-xs font-bold text-slate-800 truncate">${esc(t.exam)}</p><p class="text-[10px] text-indigo-500 font-semibold mt-1"><i class="fa-solid fa-building-columns mr-1"></i>${esc(t.department||'General Academic')}</p></div>
                 <div class="flex gap-2.5">
                     <div class="flex-1 text-center bg-emerald-50 rounded-lg py-2"><p class="text-base font-extrabold text-emerald-600 leading-none">${t.students}</p><p class="text-[9px] font-semibold text-emerald-300 mt-1">Students</p></div>
                     <div class="flex-1 text-center bg-blue-50 rounded-lg py-2"><p class="text-base font-extrabold text-blue-600 leading-none">${t.flags||0}</p><p class="text-[9px] font-semibold text-blue-300 mt-1">Flags</p></div>
                     <div class="flex-1 text-center bg-purple-50 rounded-lg py-2"><p class="text-xs font-extrabold text-purple-600 leading-none font-mono">${esc(t.duration||'--')}</p><p class="text-[9px] font-semibold text-purple-300 mt-1">Running</p></div>
                 </div></div>`;
         }).join('');
+    }
+    function renderDeptGrid(depts) {
+        const grid = document.getElementById('dept-live-grid');
+        if (!grid) return;
+        if (!depts.length) {
+            grid.innerHTML = `<div style="grid-column:1/-1" class="flex flex-col items-center justify-center py-10 text-center">
+                <p class="text-sm font-bold text-slate-400 mb-1">No students currently in an exam</p>
+                <p class="text-xs text-slate-300">This updates in real time the moment a student starts an exam.</p></div>`;
+            return;
+        }
+        grid.innerHTML = depts.map(d => `
+            <div class="rounded-xl border border-slate-100 bg-slate-50 p-4 text-center">
+                <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider truncate mb-2">${esc(d.department)}</p>
+                <p class="text-3xl font-black text-emerald-600 leading-none">${d.live_students}</p>
+                <p class="text-[9px] text-slate-400 font-semibold mt-1">students live</p>
+                ${d.flagged > 0 ? `<p class="text-[10px] text-rose-500 font-bold mt-2"><i class="fa-solid fa-flag mr-1"></i>${d.flagged} flagged</p>` : ''}
+            </div>`).join('');
     }
     function renderAlerts(alerts) {
         const panel = document.getElementById('alerts-panel');
