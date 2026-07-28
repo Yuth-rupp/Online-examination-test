@@ -143,6 +143,12 @@ class SuperAdminController extends Controller
         ));
     }
 
+    public function getActiveProctorsApi()
+    {
+        $iid = auth()->user()->institution_id;
+        return response()->json(['teachers' => $this->getActiveProctors($iid)]);
+    }
+
     public function monitoringApi()
     {
         $iid = auth()->user()->institution_id;
@@ -1323,6 +1329,36 @@ class SuperAdminController extends Controller
         ]);
 
         return response()->json(['status' => 'success']);
+    }
+
+    /**
+     * Permanently delete a single password reset request row.
+     */
+    public function destroyPasswordRequest($id)
+    {
+        $requestRow = \App\Models\AdminPasswordResetRequest::findOrFail($id);
+        $requestRow->delete();
+
+        try {
+            $this->logAction('admin.password_request.delete', 'USER_MANAGEMENT', $id);
+        } catch (\Exception $e) {}
+
+        return response()->json(['status' => 'success', 'id' => (int) $id]);
+    }
+
+    /**
+     * Permanently delete every password reset request row (clean slate).
+     */
+    public function destroyAllPasswordRequests()
+    {
+        $count = \App\Models\AdminPasswordResetRequest::count();
+        \App\Models\AdminPasswordResetRequest::query()->delete();
+
+        try {
+            $this->logAction('admin.password_request.delete_all', 'USER_MANAGEMENT', 0);
+        } catch (\Exception $e) {}
+
+        return response()->json(['status' => 'success', 'deleted' => $count]);
     }
 
     /* ================================================================

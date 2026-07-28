@@ -199,8 +199,8 @@ Route::middleware(['auth', 'role:super_admin', 'audit.capture'])->prefix('super-
     Route::post('/notifications/clear',        [NotificationController::class, 'clearAll'])->name('superadmin.notifications.clear');
 
     Route::get('/monitoring',           [SuperAdminController::class, 'monitoring'])->name('superadmin.monitoring.index');
-    Route::get('/monitoring/teachers',  [SuperAdminController::class, 'teachersMonitoringApi'])->name('superadmin.monitoring.teachers');
-    Route::get('/monitoring/api',       [SuperAdminController::class, 'getMonitoringStatsApi'])->name('superadmin.monitoring.api');
+    Route::get('/monitoring/teachers',  [SuperAdminController::class, 'getActiveProctorsApi'])->name('superadmin.monitoring.teachers');
+    Route::get('/monitoring/api',       [SuperAdminController::class, 'monitoringApi'])->name('superadmin.monitoring.api');
 
     Route::get('/exams',                [SuperAdminController::class, 'exams'])->name('superadmin.exams.index');
     Route::get('/exams/api',            [SuperAdminController::class, 'getExamsDataApi'])->name('superadmin.exams.api');
@@ -246,12 +246,15 @@ Route::middleware(['auth', 'role:super_admin', 'audit.capture'])->prefix('super-
     Route::get('/password-requests',                   [SuperAdminController::class, 'passwordRequests'])->name('superadmin.passwordRequests.index');
     Route::post('/password-requests/{id}/resolve',      [SuperAdminController::class, 'resolvePasswordRequest'])->name('superadmin.passwordRequests.resolve');
     Route::post('/password-requests/{id}/dismiss',      [SuperAdminController::class, 'dismissPasswordRequest'])->name('superadmin.passwordRequests.dismiss');
+    Route::delete('/password-requests/delete-all',      [SuperAdminController::class, 'destroyAllPasswordRequests'])->name('superadmin.passwordRequests.destroyAll');
+    Route::delete('/password-requests/{id}',            [SuperAdminController::class, 'destroyPasswordRequest'])->name('superadmin.passwordRequests.destroy');
 
     Route::get('/departments',                        [DepartmentController::class, 'index'])->name('superadmin.departments.index');
     Route::post('/departments/store',                  [DepartmentController::class, 'store'])->name('superadmin.departments.store');
     Route::put('/departments/{department}/update',     [DepartmentController::class, 'update'])->name('superadmin.departments.update');
     Route::post('/departments/{department}/assign-admin',       [DepartmentController::class, 'assignAdmin'])->name('superadmin.departments.assignAdmin');
     Route::delete('/departments/{department}/admins/{userId}',  [DepartmentController::class, 'removeAdmin'])->name('superadmin.departments.removeAdmin');
+    Route::get('/departments/{department}/teachers',   [DepartmentController::class, 'teachers'])->name('superadmin.departments.teachers');
 
     Route::get('/institutions',                        [InstitutionController::class, 'index'])->name('superadmin.institutions.index');
     Route::post('/institutions/store',                  [InstitutionController::class, 'store'])->name('superadmin.institutions.store');
