@@ -113,6 +113,9 @@
         <a href="{{ route('teacher.settings') }}" class="nav-link">
             <span class="nav-icon"><i class="fa-solid fa-gear"></i></span><span>Settings</span>
         </a>
+        <a href="{{ route('teacher.support') }}" class="nav-link">
+            <span class="nav-icon"><i class="fa-solid fa-life-ring"></i></span><span>Support</span>
+        </a>
     </nav>
 
     <div class="p-3 border-t border-[#E2E8F0]">
