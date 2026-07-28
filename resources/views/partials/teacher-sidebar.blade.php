@@ -37,15 +37,19 @@
         <span class="font-black text-[18px] text-[#0F172A] tracking-tight">ExamSystem</span>
     </a>
 
-    {{-- Department badge: shows every department this teacher is assigned to teach in
-         (home department_id + any extra department_teacher pivot rows), so it's just as
-         clear for a teacher as it already is for a department admin. --}}
+    {{-- Department badge: shows the department(s) this teacher is actually
+         assigned to teach in. The department_teacher roster (managed from
+         the "Teaching Roster" page) is the source of truth. The legacy
+         users.department_id "home" field is only used as a fallback when
+         the teacher has no roster assignment at all — it is never merged
+         on top of a real roster assignment, so a teacher who is only on
+         the Data Science roster shows "Data Science", not "Data Science +1". --}}
     @php
         $__tUser = Auth::user();
         $__tDepts = collect();
         if ($__tUser) {
             $__tDepts = $__tUser->departments()->pluck('name');
-            if ($__tUser->department_id && $__tUser->department && !$__tDepts->contains($__tUser->department->name)) {
+            if ($__tDepts->isEmpty() && $__tUser->department_id && $__tUser->department) {
                 $__tDepts->push($__tUser->department->name);
             }
         }
