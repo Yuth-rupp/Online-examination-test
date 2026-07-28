@@ -108,6 +108,11 @@
             <span class="nav-icon"><i class="fa-solid fa-gear"></i></span>
             <span>Settings</span>
         </a>
+
+        <a href="{{ route('teacher.support') }}" class="nav-link {{ request()->routeIs('teacher.support') ? 'active' : '' }}">
+            <span class="nav-icon"><i class="fa-solid fa-life-ring"></i></span>
+            <span>Support</span>
+        </a>
     </nav>
 
     <!-- User -->

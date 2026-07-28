@@ -1060,4 +1060,86 @@ class TeacherController extends Controller
 
         return response()->json(['alerts' => $alerts, 'last_id' => $lastId]);
     }
+
+    /* --- SUPPORT: TEACHER REPORTS A PROBLEM TO ADMIN --- */
+
+    public function support()
+    {
+        $userEmail = Auth::user()->email;
+
+        $tickets = DB::table('support_tickets')
+            ->where('reporter_email', $userEmail)
+            ->where('user_type', 'teacher')
+            ->orderBy('created_at', 'desc')
+            ->get()
+            ->map(function ($t) {
+                return [
+                    'ticket_id'      => $t->ticket_id,
+                    'ticket_no'      => $t->ticket_no,
+                    'subject'        => $t->issue_category,
+                    'status'         => strtoupper($t->status === 'in_progress' ? 'investigating' : $t->status),
+                    'updated_at'     => \Carbon\Carbon::parse($t->updated_at)->diffForHumans(),
+                    'description'    => $t->description,
+                    'screenshot'     => $t->screenshot,
+                    'admin_comment'  => $t->admin_comment,
+                ];
+            });
+
+        return view('teacher.support', compact('tickets'));
+    }
+
+    public function storeSupportTicket(Request $request)
+    {
+        $validated = $request->validate([
+            'subject'     => 'required|string|max:255',
+            'description' => 'required|string',
+            'priority'    => 'nullable|string|in:low,medium,high',
+            'screenshot'  => 'nullable|image|max:5120',
+        ]);
+
+        $screenshotPath = null;
+        if ($request->hasFile('screenshot')) {
+            $path = $request->file('screenshot')->store('support_attachments', 'public');
+            $screenshotPath = Storage::url($path);
+        }
+
+        $ticketNo = 'SUP-' . rand(4000, 9999);
+        $reporterName  = Auth::user()->full_name ?? Auth::user()->email;
+        $reporterEmail = Auth::user()->email;
+
+        DB::table('support_tickets')->insert([
+            'ticket_no'       => $ticketNo,
+            'reporter_name'   => $reporterName,
+            'reporter_email'  => $reporterEmail,
+            'user_type'       => 'teacher',
+            'issue_category'  => $validated['subject'],
+            'description'     => $validated['description'],
+            'priority'        => $validated['priority'] ?? 'high',
+            'status'          => 'pending',
+            'screenshot'      => $screenshotPath,
+            'admin_comment'   => null,
+            'created_at'      => now(),
+            'updated_at'      => now(),
+        ]);
+
+        return redirect()->route('teacher.support')
+            ->with('success', "Ticket {$ticketNo} submitted — the admin team has been notified.");
+    }
+
+    public function pollSupportNotifications()
+    {
+        $userEmail = Auth::user()->email;
+
+        $notifications = DB::table('support_tickets')
+            ->where('reporter_email', $userEmail)
+            ->where('user_type', 'teacher')
+            ->where('status', 'resolved')
+            ->orderBy('updated_at', 'desc')
+            ->get();
+
+        return response()->json([
+            'count'          => $notifications->count(),
+            'resolved_items' => $notifications,
+        ]);
+    }
 }

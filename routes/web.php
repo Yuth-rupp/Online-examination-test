@@ -92,6 +92,10 @@ Route::middleware(['auth', 'role:teacher'])->group(function () {
     Route::get('/teacher/notifications', [NotificationController::class, 'index'])->name('teacher.notifications');
     Route::post('/teacher/notifications/clear', [NotificationController::class, 'clearAll'])->name('teacher.notifications.clear');
 
+    Route::get('/teacher/support',               [TeacherController::class, 'support'])->name('teacher.support');
+    Route::post('/teacher/support',               [TeacherController::class, 'storeSupportTicket'])->name('teacher.support.store');
+    Route::get('/teacher/support/notifications',  [TeacherController::class, 'pollSupportNotifications'])->name('teacher.support.notifications');
+
     Route::get('/teacher/courses/create',    [TeacherController::class, 'createCourse'])->name('teacher.courses.create');
     Route::post('/teacher/courses/store',    [TeacherController::class, 'storeCourse'])->name('teacher.courses.store');
     Route::delete('/teacher/courses/{id}',   [TeacherController::class, 'destroyCourse'])->name('teacher.courses.destroy');
