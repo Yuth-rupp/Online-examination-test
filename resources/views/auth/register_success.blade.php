@@ -7,9 +7,9 @@
     <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
-<body class="bg-gray-50 font-sans antialiased h-screen">
+<body class="bg-gray-50 font-sans antialiased min-h-screen">
 
-    <div class="flex h-full w-full min-h-screen">
+    <div class="flex w-full min-h-screen items-stretch">
         
         <div class="hidden md:flex md:w-[45%] bg-[#1E4277] text-white p-12 flex-col justify-between relative select-none">
             <div class="flex items-center space-x-2 text-xl font-semibold tracking-wide">

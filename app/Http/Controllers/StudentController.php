@@ -601,7 +601,7 @@ class StudentController extends Controller
             return redirect()->route('student.dashboard')->with('error', 'This assessment session window has closed.');
         }
 
-        $secondsRemaining = $now->diffInSeconds($end, false);
+        $secondsRemaining = (int) round($now->diffInSeconds($end, false));
         if ($secondsRemaining < 0) { $secondsRemaining = 0; }
 
         $ruleKeys = ['proctor_max_switches', 'proctor_warn_threshold', 'block_right_click', 'force_fullscreen', 'webcam_monitor', 'sync_interval', 'tab_switch_grace_seconds'];
