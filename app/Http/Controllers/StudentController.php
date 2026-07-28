@@ -441,6 +441,27 @@ class StudentController extends Controller
                 ->withInput();
         }
 
+        // ✅ FIX: Token-based access never created an Enrollment row, so a
+        // student could take and pass an exam via "Class Token Access"
+        // while every Enrolled counter (Admin Exams, Teacher Dashboard,
+        // Super Admin Oversight) kept showing 0 — those all read straight
+        // from the enrollments table. Auto-enroll the student in the
+        // exam's course the moment their token is validated, so the
+        // roster reflects reality even when they never went through a
+        // manual course-enrollment flow.
+        if ($exam->course_id) {
+            Enrollment::firstOrCreate(
+                [
+                    'user_id'   => Auth::id(),
+                    'course_id' => $exam->course_id,
+                ],
+                [
+                    'enrolled_at' => now(),
+                    'status'      => 'active',
+                ]
+            );
+        }
+
         session()->put('validated_exam_id', $exam->exam_id);
 
         return redirect()->route('student.exam.verification', ['code' => $exam->access_code])
