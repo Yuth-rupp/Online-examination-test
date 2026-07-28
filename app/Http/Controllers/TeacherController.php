@@ -364,7 +364,7 @@ class TeacherController extends Controller
             'access_code' => $cleanSingleUseCode,
             'status'      => 'published',
             'start_time'  => now(),
-            'end_time'    => now()->addMinutes($data['duration']),
+            'end_time'    => now()->addMinutes((int) $data['duration']),
         ]);
 
         $this->notifyEnrolledStudents($exam, $course);
