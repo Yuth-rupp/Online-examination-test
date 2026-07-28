@@ -28,7 +28,7 @@ class SuperAdminController extends Controller
     {
         $iid = auth()->user()->institution_id;
         $totalUsers   = User::when($iid, fn($q) => $q->where('institution_id', $iid))->count();
-        $activeExams  = DB::table('exams')->where('status', 'active')->count();
+        $activeExams  = $this->activeExamsQuery()->count();
         $totalExams   = DB::table('exams')->count();
         $liveSessions = $this->countLiveSessions();
         $flagRate     = $this->computeFlagRate();
@@ -58,7 +58,7 @@ class SuperAdminController extends Controller
             if ($lastBackup) $lastBackupHuman = Carbon::parse($lastBackup)->diffForHumans();
         } catch (\Exception $e) {}
 
-        $stuckExams = DB::table('exams')->where('status', 'active')
+        $stuckExams = $this->activeExamsQuery()
             ->where('updated_at', '<', now()->subMinutes(15))->count();
 
         return view('superadmin.superadmin_dashboard', compact(
@@ -85,7 +85,7 @@ class SuperAdminController extends Controller
 
         $totalUsers  = User::when($iid, fn($q) => $q->where('institution_id', $iid))->count();
         $totalExams  = DB::table('exams')->count();
-        $activeExams = DB::table('exams')->where('status', 'active')->count();
+        $activeExams = $this->activeExamsQuery()->count();
         $liveSessions = $this->countLiveSessions();
         $serverLoad  = $this->getServerLoad();
         $flagRate    = $this->computeFlagRate();
@@ -100,7 +100,7 @@ class SuperAdminController extends Controller
             if ($lb) $lastBackupHuman = Carbon::parse($lb)->diffForHumans();
         } catch (\Exception $e) {}
 
-        $stuckCount = DB::table('exams')->where('status', 'active')
+        $stuckCount = $this->activeExamsQuery()
             ->where('updated_at', '<', now()->subMinutes(15))->count();
 
         return response()->json([
@@ -187,7 +187,7 @@ class SuperAdminController extends Controller
     {
         $iid = auth()->user()->institution_id;
         $totalExams     = DB::table('exams')->count();
-        $activeExams    = DB::table('exams')->where('status', 'active')->count();
+        $activeExams    = $this->activeExamsQuery()->count();
         $completedExams = DB::table('exams')->whereIn('status', ['completed', 'ended'])->count();
         $avgFlagRate    = $this->computeFlagRate();
 
@@ -218,7 +218,12 @@ class SuperAdminController extends Controller
                     'sessions'      => DB::table('exams')
                         ->join('courses', 'exams.course_id', '=', 'courses.id')
                         ->where('courses.department_id', $d->id)
-                        ->where('exams.status', 'active')->count(),
+                        ->where('exams.status', 'published')
+                        ->whereNotNull('exams.start_time')
+                        ->whereNotNull('exams.end_time')
+                        ->where('exams.start_time', '<=', now())
+                        ->where('exams.end_time', '>=', now())
+                        ->count(),
                     'avg_flag_rate' => 0,
                 ];
             });
@@ -230,7 +235,7 @@ class SuperAdminController extends Controller
             ]]);
         }
 
-        $stuckExams = DB::table('exams')->where('status', 'active')
+        $stuckExams = $this->activeExamsQuery()
             ->where('updated_at', '<', now()->subMinutes(15))->get();
 
         return view('superadmin.exams', compact(
@@ -241,10 +246,10 @@ class SuperAdminController extends Controller
     public function examsApi()
     {
         $totalExams     = DB::table('exams')->count();
-        $activeExams    = DB::table('exams')->where('status', 'active')->count();
+        $activeExams    = $this->activeExamsQuery()->count();
         $completedExams = DB::table('exams')->whereIn('status', ['completed', 'ended'])->count();
         $avgFlagRate    = $this->computeFlagRate();
-        $stuckCount     = DB::table('exams')->where('status', 'active')
+        $stuckCount     = $this->activeExamsQuery()
             ->where('updated_at', '<', now()->subMinutes(15))->count();
 
         return response()->json([
@@ -1388,10 +1393,29 @@ class SuperAdminController extends Controller
     /* ================================================================
      *  REAL-TIME HELPERS
      * ================================================================ */
+    /**
+     * An exam row's `status` column only ever holds 'draft' or
+     * 'published' — nothing in this codebase ever writes the literal
+     * string 'active' into it. "Active" is a derived state: published,
+     * with a start/end window, and the current time falls inside it.
+     * Every place that needs "exams currently live" should build on this
+     * instead of querying exams.status = 'active' directly (that query
+     * always returns zero rows).
+     */
+    private function activeExamsQuery()
+    {
+        return DB::table('exams')
+            ->where('status', 'published')
+            ->whereNotNull('start_time')
+            ->whereNotNull('end_time')
+            ->where('start_time', '<=', now())
+            ->where('end_time', '>=', now());
+    }
+
     private function countLiveSessions(): int
     {
         try { return DB::table('exam_sessions')->where('status', 'in_progress')->count(); }
-        catch (\Exception $e) { return DB::table('exams')->where('status', 'active')->count(); }
+        catch (\Exception $e) { return $this->activeExamsQuery()->count(); }
     }
 
     private function computeFlagRate(): float
@@ -1433,7 +1457,7 @@ class SuperAdminController extends Controller
 
     private function getActiveProctors($iid): array
     {
-        $exams = DB::table('exams')->where('status', 'active')->get();
+        $exams = $this->activeExamsQuery()->get();
         $proctors = [];
 
         foreach ($exams as $e) {
@@ -1483,7 +1507,7 @@ class SuperAdminController extends Controller
         if ($load >= 85) $alerts[] = ['severity' => 'critical', 'title' => 'Server Overload', 'message' => "CPU at {$load}%.", 'time' => 'Just now'];
         elseif ($load >= 65) $alerts[] = ['severity' => 'warning', 'title' => 'Server Load Elevated', 'message' => "CPU at {$load}%.", 'time' => 'Just now'];
 
-        $stuck = DB::table('exams')->where('status', 'active')->where('updated_at', '<', now()->subMinutes(15))->count();
+        $stuck = $this->activeExamsQuery()->where('updated_at', '<', now()->subMinutes(15))->count();
         if ($stuck > 0) $alerts[] = ['severity' => 'warning', 'title' => 'Stuck Exams', 'message' => "{$stuck} exam(s) 15+ min without updates.", 'time' => 'Just now'];
 
         $lat = $this->measureDbLatency();

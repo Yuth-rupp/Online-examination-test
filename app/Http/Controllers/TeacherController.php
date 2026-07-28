@@ -444,7 +444,9 @@ class TeacherController extends Controller
                 'pass_mark'   => $request->pass_mark,
                 'created_by'  => $user->user_id,
                 'access_code' => $cleanSingleUseCode,
-                'status'      => 'published'
+                'status'      => 'published',
+                'start_time'  => now(),
+                'end_time'    => now()->addMinutes($request->duration),
             ]);
 
             Question::whereIn('id', $request->question_ids)->update(['exam_id' => $exam->exam_id]);
