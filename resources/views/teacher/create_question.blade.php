@@ -115,54 +115,7 @@
 <!-- ══════════════════════════════════════
      SIDEBAR
 ══════════════════════════════════════ -->
-<aside class="w-[260px] bg-white border-r border-[#E2E8F0] flex flex-col flex-shrink-0 sticky top-0 h-screen z-20">
-    <a href="{{ route('teacher.dashboard') }}"
-       class="h-[72px] flex items-center px-5 gap-3 border-b border-[#E2E8F0] hover:opacity-90 transition-opacity">
-        <div class="w-9 h-9 rounded-xl flex items-center justify-center text-white flex-shrink-0"
-             style="background:linear-gradient(135deg,#2563EB 0%,#1E40AF 100%);box-shadow:0 4px 12px rgba(37,99,235,.35);">
-            <i class="fa-solid fa-graduation-cap text-base"></i>
-        </div>
-        <span class="font-black text-[18px] text-[#0F172A] tracking-tight">ExamSystem</span>
-    </a>
-
-    <nav class="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
-        <p class="text-[10px] font-bold text-[#94A3B8] uppercase tracking-widest px-3 pt-1 pb-2">Main Menu</p>
-        <a href="{{ route('teacher.dashboard') }}" class="nav-link">
-            <span class="nav-icon"><i class="fa-solid fa-house"></i></span><span>Dashboard</span>
-        </a>
-        <a href="{{ route('teacher.question-bank') }}" class="nav-link active">
-            <span class="nav-icon"><i class="fa-solid fa-database"></i></span><span>Question Bank</span>
-        </a>
-        <a href="{{ route('teacher.monitoring.show') }}" class="nav-link">
-            <span class="nav-icon"><i class="fa-solid fa-display"></i></span><span>Monitoring</span>
-        </a>
-        <a href="{{ route('teacher.grading.queue') }}" class="nav-link">
-            <span class="nav-icon"><i class="fa-solid fa-pen-to-square"></i></span>
-            <span>Grading</span>
-            <span class="ml-auto text-[10px] font-bold bg-red-500 text-white rounded-full px-2 py-0.5">45</span>
-        </a>
-        <a href="{{ route('teacher.analytics') }}" class="nav-link">
-            <span class="nav-icon"><i class="fa-solid fa-chart-line"></i></span><span>Analytics</span>
-        </a>
-        <p class="text-[10px] font-bold text-[#94A3B8] uppercase tracking-widest px-3 pt-4 pb-2">Account</p>
-        <a href="{{ route('teacher.settings') }}" class="nav-link">
-            <span class="nav-icon"><i class="fa-solid fa-gear"></i></span><span>Settings</span>
-        </a>
-    </nav>
-
-    <div class="p-3 border-t border-[#E2E8F0]">
-        <a href="{{ route('teacher.settings') }}" class="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-[#F8FAFC] transition-colors">
-            <div class="w-9 h-9 rounded-full overflow-hidden border-2 border-[#E2E8F0] flex-shrink-0">
-                <img src="{{ Auth::user()->avatar_url ?? 'https://api.dicebear.com/7.x/bottts/svg?seed='.(Auth::user()->full_name ?? 'Alex') }}" class="w-full h-full object-cover" alt="Avatar">
-            </div>
-            <div class="flex-1 min-w-0">
-                <p class="text-sm font-bold text-[#0F172A] truncate">{{ Auth::user()->full_name ?? 'Yun Dalin' }}</p>
-                <p class="text-xs text-[#94A3B8] font-medium">Senior Faculty</p>
-            </div>
-            <i class="fa-solid fa-ellipsis-vertical text-[#94A3B8] text-sm"></i>
-        </a>
-    </div>
-</aside>
+@include('partials.teacher-sidebar')
 
 <!-- ══════════════════════════════════════
      MAIN

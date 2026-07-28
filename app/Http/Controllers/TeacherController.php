@@ -792,7 +792,11 @@ class TeacherController extends Controller
             ->orderBy('title', 'asc')
             ->get();
 
-        return view('teacher.create_question', compact('exams'));
+        $pendingGradingCount = Submission::whereIn('exam_id', $exams->pluck('exam_id'))
+            ->where('status', 'pending_grading')
+            ->count();
+
+        return view('teacher.create_question', compact('exams', 'pendingGradingCount'));
     }
 
     /**
@@ -868,7 +872,12 @@ class TeacherController extends Controller
             $q->where('created_by', Auth::user()->user_id);
         })->findOrFail($id);
 
-        return view('teacher.edit_question', compact('question'));
+        $teacherExamIds = Exam::where('created_by', Auth::user()->user_id)->pluck('exam_id');
+        $pendingGradingCount = Submission::whereIn('exam_id', $teacherExamIds)
+            ->where('status', 'pending_grading')
+            ->count();
+
+        return view('teacher.edit_question', compact('question', 'pendingGradingCount'));
     }
 
     /**
