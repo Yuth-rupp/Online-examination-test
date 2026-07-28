@@ -281,6 +281,7 @@ class TeacherController extends Controller
                 'code'           => $generatedCode,
                 'description'    => $data['description'],
                 'institution_id' => $institution->id,
+                'department_id'  => $user->department_id,
                 'teacher_id'     => $user->user_id,
                 'is_active'      => true
             ]);
@@ -407,7 +408,34 @@ class TeacherController extends Controller
             $cleanSingleUseCode = $prefix . '-' . str_pad(random_int(0, 9999), 4, '0', STR_PAD_LEFT);
 
             $defaultCourse = Course::where('teacher_id', $user->user_id)->first();
-            $courseId = $defaultCourse ? $defaultCourse->id : 1; 
+
+            // A teacher who hasn't manually created a course yet (e.g. one who
+            // published straight from the Question Bank modal) previously had
+            // their exam silently attached to a hardcoded course_id of 1 —
+            // which usually belongs to a different department (or doesn't
+            // exist at all). That orphaned the exam from every
+            // department-scoped view (Admin > Exams, Super Admin overview,
+            // Department Schedule & Monitor, Security Audit) since those all
+            // filter through courses.department_id. Auto-provision a real
+            // course in the teacher's own department instead.
+            if (!$defaultCourse) {
+                $institution = Institution::firstOrCreate(
+                    ['id' => 1],
+                    ['name' => 'Main Campus Institution', 'code' => 'MAIN-INST', 'is_active' => true]
+                );
+
+                $defaultCourse = Course::create([
+                    'name'           => $user->full_name . "'s Course",
+                    'code'           => 'GEN-' . random_int(100, 999),
+                    'description'    => 'Auto-generated default course.',
+                    'institution_id' => $institution->id,
+                    'department_id'  => $user->department_id,
+                    'teacher_id'     => $user->user_id,
+                    'is_active'      => true,
+                ]);
+            }
+
+            $courseId = $defaultCourse->id;
 
             $exam = Exam::create([
                 'title'       => $request->title,
