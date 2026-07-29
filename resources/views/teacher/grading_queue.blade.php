@@ -219,10 +219,10 @@
                     <span class="text-[10px] font-bold bg-[#EDE9FE] text-[#6D28D9] px-2 py-0.5 rounded-full">Avg</span>
                 </div>
                 <p class="text-[10px] font-bold text-[#94A3B8] uppercase tracking-widest mb-1">Avg Score</p>
-                <p class="text-3xl font-black text-[#8B5CF6] leading-none tabular-nums" x-text="avgScore + ' / 40'"></p>
+                <p class="text-3xl font-black text-[#8B5CF6] leading-none tabular-nums" x-text="avgScore + '%'"></p>
                 <div class="mt-3 h-1 bg-[#E2E8F0] rounded-full overflow-hidden">
                     <div class="h-full rounded-full bar-fill"
-                         :style="`width:${Math.round(avgScore/40*100)}%;background:linear-gradient(90deg,#8B5CF6,#A78BFA);`"></div>
+                         :style="`width:${avgScore}%;background:linear-gradient(90deg,#8B5CF6,#A78BFA);`"></div>
                 </div>
             </div>
         </div>
@@ -397,6 +397,10 @@ function showToast(msg,type='info'){
 // ── ALPINE APP ────────────────────────────────
 function queueApp(){
     return {
+        init(){
+            this.initLiveRefresh();
+        },
+
         searchQuery: '',
         statusFilter: 'All',
 
@@ -404,22 +408,31 @@ function queueApp(){
             @if(isset($submissions) && count($submissions) > 0)
                 @foreach($submissions as $sub)
                 @php
-                    // FIX: real max points for this exam, instead of a
-                    // hardcoded "/40" that ignored what the teacher
-                    // actually configured per question.
+                    // FIX: real max points for this exam (sum of each question's
+                    // points, falling back to the exam's own total field, then a
+                    // per-question default) instead of a hardcoded "/40" that
+                    // ignored what the teacher actually configured. Averaging is
+                    // then done as a % of each submission's own max — mixing raw
+                    // totals from exams with different point scales isn't a valid
+                    // "class average" (e.g. 30/40 and 60/100 aren't comparable
+                    // as raw numbers, but both come out to a fair 75%).
                     $subQuestions = $sub->exam->questions ?? collect();
-                    $subTotalMax  = $subQuestions->sum('points') ?: ($subQuestions->count() * 5) ?: 40;
+                    $subTotalMax  = $subQuestions->sum('points')
+                        ?: $sub->exam?->total_marks
+                        ?: $sub->exam?->max_score
+                        ?: ($subQuestions->count() * 5)
+                        ?: 100;
                 @endphp
                 {
                     id: '{{ $sub->id }}',
-                    student_name: '{{ addslashes($sub->student->full_name ?? "You Phatyuth") }}',
-                    institutional_id: '{{ $sub->student->institutional_id ?? "STU-1122-3344" }}',
-                    subject_title: '{{ addslashes($sub->exam->title ?? "Database") }}',
-                    course_code: '{{ addslashes($sub->exam->course->code ?? "DAT-464") }}',
-                    clean_exam_id: '{{ substr($sub->exam_id, 0, 8) }}',
+                    student_name: '{{ addslashes($sub->student->full_name ?? "Unknown Student") }}',
+                    institutional_id: '{{ $sub->student->institutional_id ?? "—" }}',
+                    subject_title: '{{ addslashes($sub->exam?->title ?? "Untitled Exam") }}',
+                    course_code: '{{ addslashes($sub->exam?->course?->code ?? "—") }}',
+                    clean_exam_id: '{{ $sub->exam_id ? substr($sub->exam_id, 0, 8) : "—" }}',
                     status: '{{ $sub->status }}',
-                    total_score: {{ $sub->total_score ?? 0 }},
-                    total_max: {{ $subTotalMax }},
+                    total_score: {{ (float) ($sub->total_score ?? 0) }},
+                    total_max: {{ (float) $subTotalMax }},
                 },
                 @endforeach
             @else
@@ -441,10 +454,46 @@ function queueApp(){
 
         get pendingCount(){ return this.submissions.filter(s => s.status !== 'graded').length; },
         get gradedCount(){  return this.submissions.filter(s => s.status === 'graded').length; },
+
+        // FIX: this used to average raw total_score and hardcode a "/ 40"
+        // label on it, which only made sense for an exam actually worth 40
+        // points — every other exam's average showed a meaningless number.
+        // Instead, average each graded submission's OWN percentage
+        // (total_score / total_max), so 30/40 and 60/100 both fairly
+        // contribute a 75% to the class average, and display it as a %.
         get avgScore(){
-            const graded = this.submissions.filter(s => s.status === 'graded');
+            const graded = this.submissions.filter(s => s.status === 'graded' && (s.total_max||0) > 0);
             if(!graded.length) return 0;
-            return Math.round(graded.reduce((a,s) => a + (s.total_score||0), 0) / graded.length);
+            const pctSum = graded.reduce((a,s) => a + (s.total_score / s.total_max * 100), 0);
+            return Math.round(pctSum / graded.length);
+        },
+
+        // ── LIVE REFRESH ──────────────────────────────────────────────
+        // Polls the queue's JSON endpoint on an interval AND refetches
+        // instantly the moment a grading-related push comes in over Echo
+        // (dispatched as 'examsystem:live-update' by the notification
+        // script below) — the same "poll + instant event" pattern used on
+        // the Analytics page, so a submission that just landed, or a grade
+        // that was just saved, updates this queue (and the Avg Score card)
+        // without a manual page refresh.
+        liveRefreshInFlight: false,
+        async refreshSubmissions(){
+            if (this.liveRefreshInFlight) return;
+            this.liveRefreshInFlight = true;
+            try{
+                const res = await fetch('{{ route('teacher.grading.queue.live') }}', { headers: { 'Accept': 'application/json' } });
+                if(!res.ok) return;
+                const data = await res.json();
+                this.submissions = data.submissions || [];
+            }catch(e){
+                console.warn('[Grading Queue] Live refresh failed', e);
+            }finally{
+                this.liveRefreshInFlight = false;
+            }
+        },
+        initLiveRefresh(){
+            setInterval(() => this.refreshSubmissions(), 8000);
+            window.addEventListener('examsystem:live-update', () => this.refreshSubmissions());
         },
 
         // ── AVATAR HELPERS ──
@@ -461,5 +510,7 @@ function queueApp(){
     };
 }
 </script>
+
+@include('partials.teacher-notification-realtime')
 </body>
 </html>

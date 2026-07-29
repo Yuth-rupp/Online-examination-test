@@ -34,6 +34,60 @@ class GradingController extends Controller
     }
 
     /**
+     * JSON endpoint the Grading Queue page polls (and refetches instantly on
+     * an 'examsystem:live-update' push) so newly-submitted papers and freshly
+     * saved grades — including the Avg Score card — show up without a manual
+     * page refresh, the same "LIVE" pattern used by the Analytics page.
+     */
+    public function queueLiveData(Request $request)
+    {
+        $user = $request->user() ?? Auth::user();
+        $teacherExamIds = Exam::where('created_by', $user->user_id)->pluck('exam_id');
+
+        $submissions = Submission::with(['student', 'exam.course', 'exam.questions'])
+            ->whereIn('exam_id', $teacherExamIds)
+            ->orderBy('created_at', 'desc')
+            ->get();
+
+        return response()->json([
+            'submissions'  => $submissions->map(fn ($sub) => $this->serializeSubmissionForQueue($sub))->values(),
+            'generated_at' => now()->toIso8601String(),
+        ]);
+    }
+
+    /**
+     * Shape a submission for the Grading Queue's Alpine dataset.
+     *
+     * FIX: total_max is each EXAM's real sum of question points (or the
+     * exam's own total_marks/max_score, or a per-question default) instead
+     * of a hardcoded 40 — a teacher whose exam is out of 25, 50, or 100
+     * points was previously always compared against "/ 40".
+     */
+    private function serializeSubmissionForQueue(Submission $sub): array
+    {
+        $exam = $sub->exam;
+        $questions = $exam?->questions ?? collect();
+
+        $totalMax = $questions->sum('points')
+            ?: $exam?->total_marks
+            ?: $exam?->max_score
+            ?: ($questions->count() * 5)
+            ?: 100;
+
+        return [
+            'id'               => $sub->id,
+            'student_name'     => $sub->student->full_name ?? 'Unknown Student',
+            'institutional_id' => $sub->student->institutional_id ?? '—',
+            'subject_title'    => $exam?->title ?? 'Untitled Exam',
+            'course_code'      => $exam?->course?->code ?? '—',
+            'clean_exam_id'    => $sub->exam_id ? substr($sub->exam_id, 0, 8) : '—',
+            'status'           => $sub->status,
+            'total_score'      => (float) ($sub->total_score ?? 0),
+            'total_max'        => (float) $totalMax,
+        ];
+    }
+
+    /**
      * Display the individual student evaluation paper workspace.
      *
      * FIX: Now loads submission_answers so the blade can show what
