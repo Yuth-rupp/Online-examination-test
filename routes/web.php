@@ -113,6 +113,7 @@ Route::middleware(['auth', 'role:teacher'])->group(function () {
     Route::get('/teacher/monitoring/cheat-alerts', [TeacherController::class, 'getCheatAlerts'])->name('teacher.monitoring.cheatAlerts');
 
     Route::get('/teacher/grading',                  [GradingController::class, 'queueIndex'])->name('teacher.grading.queue');
+    Route::get('/teacher/grading/live',              [GradingController::class, 'queueLiveData'])->name('teacher.grading.queue.live');
     Route::get('/teacher/grading/evaluate/{student_id}', [GradingController::class, 'show'])->name('teacher.grading.show');
     Route::post('/teacher/grading/store/{submission_id}',[GradingController::class, 'store'])->name('teacher.grading.store');
     Route::get('/teacher/grading/success/{submission_id}',[GradingController::class, 'success'])->name('teacher.grading.success');
