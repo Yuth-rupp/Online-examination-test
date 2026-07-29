@@ -212,10 +212,10 @@ Route::middleware(['auth', 'role:super_admin', 'audit.capture'])->prefix('super-
     Route::post('/exams/{id}/force-end',[SuperAdminController::class, 'forceEndExam'])->name('superadmin.exams.forceEnd');
 
     Route::get('/reports',              [SuperAdminController::class, 'reports'])->name('superadmin.reports.index');
-    Route::get('/reports/api',          [SuperAdminController::class, 'getReportsAnalyticsDataApi'])->name('superadmin.reports.api');
+    Route::get('/reports/api',          [SuperAdminController::class, 'reportsChartApi'])->name('superadmin.reports.api');
     Route::get('/reports/chart',        [SuperAdminController::class, 'reportsChartApi'])->name('superadmin.reports.chart');
-    Route::get('/reports/departments',  [SuperAdminController::class, 'getReportsDepartmentDataApi'])->name('superadmin.reports.departments');
-    Route::get('/reports/live',         [SuperAdminController::class, 'getReportsLiveCountersApi'])->name('superadmin.reports.live');
+    Route::get('/reports/departments',  [SuperAdminController::class, 'reportsChartApi'])->name('superadmin.reports.departments');
+    Route::get('/reports/live',         [SuperAdminController::class, 'reportsLiveApi'])->name('superadmin.reports.live');
 
     Route::get('/backups',                          [SuperAdminController::class, 'backups'])->name('superadmin.backups.index');
     Route::get('/backups/api',                      [SuperAdminController::class, 'backupApi'])->name('superadmin.backup.api');

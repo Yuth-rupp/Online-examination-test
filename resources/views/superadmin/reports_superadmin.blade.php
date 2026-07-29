@@ -465,15 +465,24 @@
         fetch('{{ route("superadmin.reports.live") }}', {
             headers: { 'Accept': 'application/json', 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content, 'X-Requested-With': 'XMLHttpRequest' }
         })
-        .then(r => r.json())
+        .then(r => {
+            if (!r.ok) throw new Error('Live counters request failed with status ' + r.status);
+            return r.json();
+        })
         .then(d => {
+            // Only trust the payload if it actually looks like our expected shape.
+            // This prevents an error response (e.g. {message: "..."}) from silently
+            // resetting real numbers to 0 via the `?? 0` fallback.
+            if (typeof d.today_exams === 'undefined' || typeof d.today_users === 'undefined') {
+                throw new Error('Unexpected live counters payload');
+            }
             setMetric('today-exams', d.today_exams ?? 0);
             setMetric('today-users', d.today_users ?? 0);
             setMetric('active-now', d.active_now ?? 0);
             setMetric('avg-flag-live', (d.avg_flag_rate ?? 0) + '%');
             updateFlagBarLive(d.avg_flag_rate ?? 0);
         })
-        .catch(err => console.error('Reports poll failed:', err));
+        .catch(err => console.error('Reports poll failed, keeping last known values:', err));
     }
     // ============ Range selector ============
     window.setRange = function(days, btn) {
