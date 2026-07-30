@@ -11,6 +11,11 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
     <meta name="csrf-token" content="{{ csrf_token() }}">
 
+    <!-- KaTeX: renders $...$ / $$...$$ math in the Live Preview -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/contrib/auto-render.min.js"></script>
+
     <style>
         *, *::before, *::after { box-sizing: border-box; }
         body { font-family: 'Inter', system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
@@ -256,22 +261,26 @@
 
                 <!-- Rich Text Toolbar -->
                 <div class="flex items-center gap-0.5 px-4 py-2.5 border-b border-[#F1F5F9] bg-[#FAFCFF]">
-                    <button type="button" class="tb-btn" title="Bold"><i class="fa-solid fa-bold"></i></button>
-                    <button type="button" class="tb-btn" title="Italic"><i class="fa-solid fa-italic"></i></button>
-                    <button type="button" class="tb-btn" title="Underline"><i class="fa-solid fa-underline"></i></button>
-                    <button type="button" class="tb-btn" title="Bullet list"><i class="fa-solid fa-list-ul"></i></button>
+                    <button type="button" class="tb-btn" title="Bold" onclick="wrapSelection('**','**','bold text')"><i class="fa-solid fa-bold"></i></button>
+                    <button type="button" class="tb-btn" title="Italic" onclick="wrapSelection('*','*','italic text')"><i class="fa-solid fa-italic"></i></button>
+                    <button type="button" class="tb-btn" title="Underline" onclick="wrapSelection('__','__','underlined text')"><i class="fa-solid fa-underline"></i></button>
+                    <button type="button" class="tb-btn" title="Bullet list" onclick="insertBulletList()"><i class="fa-solid fa-list-ul"></i></button>
                     <div class="tb-sep"></div>
-                    <button type="button" class="tb-btn" title="Superscript"><i class="fa-solid fa-superscript"></i></button>
-                    <button type="button" class="tb-btn" title="Subscript"><i class="fa-solid fa-subscript"></i></button>
+                    <button type="button" class="tb-btn" title="Superscript (e.g. x^(2))" onclick="wrapSelection('^(',')','2')"><i class="fa-solid fa-superscript"></i></button>
+                    <button type="button" class="tb-btn" title="Subscript (e.g. x_(n))" onclick="wrapSelection('_(',')','n')"><i class="fa-solid fa-subscript"></i></button>
                     <div class="tb-sep"></div>
                     <button type="button" onclick="triggerImageUpload()" class="tb-btn hover:text-[#2563EB]" title="Attach image">
                         <i class="fa-regular fa-image"></i>
                     </button>
                     <input type="file" name="attachment_media" id="media_file_input" class="hidden" accept="image/*" onchange="handleImagePreview(this)">
-                    <button type="button" class="flex items-center gap-1.5 h-8 px-2.5 rounded-lg text-[#64748B] hover:bg-white hover:text-[#8B5CF6] text-[11px] font-bold transition-all border-none bg-none cursor-pointer">
+                    <button type="button" onclick="insertLatex()" class="flex items-center gap-1.5 h-8 px-2.5 rounded-lg text-[#64748B] hover:bg-white hover:text-[#8B5CF6] text-[11px] font-bold transition-all border-none bg-none cursor-pointer" title="Insert LaTeX equation">
                         <i class="fa-solid fa-square-root-variable"></i> LaTeX
                     </button>
                 </div>
+                <p class="px-5 pt-2 text-[10px] text-[#94A3B8]">
+                    Formatting cheatsheet: <code>**bold**</code> · <code>*italic*</code> · <code>__underline__</code> ·
+                    <code>- bullet</code> · <code>^(sup)</code> · <code>_(sub)</code> · <code>$x^2+y^2=z^2$</code> for LaTeX
+                </p>
 
                 <!-- Image preview -->
                 <div id="image_preview_container" class="hidden px-5 pt-4">
@@ -546,7 +555,7 @@
                             <span id="preview-pts">5</span> pts
                         </span>
                     </div>
-                    <p class="text-xs font-medium text-[#1E293B] leading-relaxed" id="preview-q">What is Database?</p>
+                    <div class="text-xs font-medium text-[#1E293B] leading-relaxed" id="preview-q">What is Database?</div>
                 </div>
             </div>
 
@@ -591,11 +600,144 @@ function showToast(msg, type = 'info') {
     setTimeout(() => { t.style.transition='all .3s'; t.style.opacity='0'; t.style.transform='translateY(8px)'; setTimeout(()=>t.remove(),300); }, 3000);
 }
 
+// ── FORMATTING TOOLBAR ────────────────────────────────────
+function getQuestionTextarea() {
+    return document.getElementById('question-textarea');
+}
+
+// Wraps the current selection with `before`/`after` markers (or inserts
+// `placeholder` if nothing is selected), then re-selects the inserted text
+// so the user can immediately type over it.
+function wrapSelection(before, after, placeholder) {
+    const ta = getQuestionTextarea();
+    if (!ta) return;
+    ta.focus();
+    const start = ta.selectionStart;
+    const end = ta.selectionEnd;
+    const value = ta.value;
+    const selected = value.substring(start, end) || placeholder;
+
+    ta.value = value.substring(0, start) + before + selected + after + value.substring(end);
+
+    const selStart = start + before.length;
+    const selEnd = selStart + selected.length;
+    ta.setSelectionRange(selStart, selEnd);
+
+    syncCharCountAndPreview(ta);
+}
+
+// Prefixes each selected line (or a single placeholder line) with "- ".
+function insertBulletList() {
+    const ta = getQuestionTextarea();
+    if (!ta) return;
+    ta.focus();
+    const start = ta.selectionStart;
+    const end = ta.selectionEnd;
+    const value = ta.value;
+    const selected = value.substring(start, end) || 'List item';
+
+    const bulleted = selected
+        .split('\n')
+        .map(line => line.trim().length ? `- ${line.replace(/^-\s*/, '')}` : line)
+        .join('\n');
+
+    ta.value = value.substring(0, start) + bulleted + value.substring(end);
+    ta.setSelectionRange(start, start + bulleted.length);
+
+    syncCharCountAndPreview(ta);
+}
+
+// Prompts for a LaTeX snippet and inserts it wrapped in $...$ (inline) or
+// $$...$$ (block/display) at the cursor.
+function insertLatex() {
+    const ta = getQuestionTextarea();
+    if (!ta) return;
+    const start = ta.selectionStart;
+    const end = ta.selectionEnd;
+    const value = ta.value;
+    const selected = value.substring(start, end);
+
+    const code = window.prompt(
+        'Enter LaTeX code (no $ signs needed):\ne.g.  x^2 + y^2 = z^2   or   \\frac{a}{b}',
+        selected || 'x^2 + y^2 = z^2'
+    );
+    if (code === null || code.trim() === '') return; // cancelled / empty
+
+    const asBlock = window.confirm('Display as a centered block equation?\n\nOK = block ($$...$$)\nCancel = inline ($...$)');
+    const snippet = asBlock ? `$$${code}$$` : `$${code}$`;
+
+    ta.focus();
+    ta.value = value.substring(0, start) + snippet + value.substring(end);
+    const cursorPos = start + snippet.length;
+    ta.setSelectionRange(cursorPos, cursorPos);
+
+    syncCharCountAndPreview(ta);
+}
+
+function syncCharCountAndPreview(ta) {
+    const count = document.getElementById('char-count');
+    if (count) count.textContent = ta.value.length;
+    updatePreview();
+}
+
 // ── LIVE PREVIEW ──────────────────────────────────────────
+function escapeHtml(str) {
+    return str
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+}
+
+// Converts the lightweight markup used by the toolbar above into safe HTML:
+//   **bold**  *italic*  __underline__  - bullet  ^(sup)  _(sub)
+// LaTeX delimiters ($...$ / $$...$$) are left untouched so KaTeX can render them.
+function renderQuestionContent(raw) {
+    if (!raw || !raw.trim()) return 'Your question will appear here…';
+
+    const escaped = escapeHtml(raw);
+    const lines = escaped.split('\n');
+    let html = '';
+    let inList = false;
+
+    lines.forEach(line => {
+        const bullet = line.match(/^-\s+(.*)$/);
+        if (bullet) {
+            if (!inList) { html += '<ul class="list-disc pl-4 space-y-0.5">'; inList = true; }
+            html += `<li>${bullet[1]}</li>`;
+        } else {
+            if (inList) { html += '</ul>'; inList = false; }
+            html += line + '<br>';
+        }
+    });
+    if (inList) html += '</ul>';
+
+    html = html
+        .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')   // bold
+        .replace(/\*(.+?)\*/g, '<em>$1</em>')                 // italic
+        .replace(/__(.+?)__/g, '<u>$1</u>')                   // underline
+        .replace(/\^\((.+?)\)/g, '<sup>$1</sup>')             // superscript
+        .replace(/_\((.+?)\)/g, '<sub>$1</sub>');             // subscript
+
+    return html;
+}
+
 function updatePreview() {
     const ta = document.getElementById('question-textarea');
     const el = document.getElementById('preview-q');
-    if (ta && el) el.textContent = ta.value.trim() || 'Your question will appear here…';
+    if (!ta || !el) return;
+
+    el.innerHTML = renderQuestionContent(ta.value);
+
+    // Render any $...$ / $$...$$ LaTeX inside the preview.
+    if (window.renderMathInElement) {
+        renderMathInElement(el, {
+            delimiters: [
+                { left: '$$', right: '$$', display: true },
+                { left: '$', right: '$', display: false }
+            ],
+            throwOnError: false
+        });
+    }
 }
 updatePreview();
 
