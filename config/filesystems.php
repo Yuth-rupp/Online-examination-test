@@ -30,13 +30,14 @@ return [
 
     'disks' => [
 
-        // NOTE: On Vercel, storage_path() is forced to /tmp (see api/index.php),
-        // which is wiped after every request/cold start. Anything saved to the
-        // 'local' or 'public' disks (profile photos, exam screenshots, backups)
-        // would vanish immediately. Set FILESYSTEM_LOCAL_DRIVER=s3 and
-        // FILESYSTEM_PUBLIC_DRIVER=s3 in Vercel's env vars to route these disks
-        // to Cloudflare R2 (or any S3-compatible bucket) instead. Local dev is
-        // unaffected since those env vars default to 'local'.
+        // NOTE: Railway's container filesystem is ephemeral — anything written to
+        // local disk is wiped on every restart/redeploy (crash, redeploy, scale
+        // event, etc). Anything saved to the 'local' or 'public' disks (profile
+        // photos, exam screenshots, backups) would be lost. Set
+        // FILESYSTEM_LOCAL_DRIVER=s3 and FILESYSTEM_PUBLIC_DRIVER=s3 in Railway's
+        // service variables to route these disks to a Railway Bucket (or any
+        // S3-compatible storage) instead. Local dev is unaffected since those
+        // env vars default to 'local'.
         'local' => [
             'driver' => env('FILESYSTEM_LOCAL_DRIVER', 'local'),
             'root' => env('FILESYSTEM_LOCAL_DRIVER', 'local') === 's3'
