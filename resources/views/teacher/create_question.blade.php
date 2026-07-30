@@ -112,6 +112,19 @@
         /* ── FADE UP ── */
         @keyframes fadeUp { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
         .fade-up { animation: fadeUp .3s ease both; }
+
+        /* ── RICH TEXT EDITOR ── */
+        .rt-editor:empty:before {
+            content: attr(data-placeholder);
+            color: #94A3B8;
+            pointer-events: none;
+        }
+        .rt-editor:focus {
+            outline: none;
+            border-color: #A78BFA;
+            box-shadow: 0 0 0 3px rgba(139,92,246,0.12);
+        }
+        .rt-editor .latex-chip { display: inline-block; vertical-align: middle; margin: 0 2px; }
     </style>
 </head>
 
@@ -261,13 +274,13 @@
 
                 <!-- Rich Text Toolbar -->
                 <div class="flex items-center gap-0.5 px-4 py-2.5 border-b border-[#F1F5F9] bg-[#FAFCFF]">
-                    <button type="button" class="tb-btn" title="Bold" onclick="wrapSelection('**','**','bold text')"><i class="fa-solid fa-bold"></i></button>
-                    <button type="button" class="tb-btn" title="Italic" onclick="wrapSelection('*','*','italic text')"><i class="fa-solid fa-italic"></i></button>
-                    <button type="button" class="tb-btn" title="Underline" onclick="wrapSelection('__','__','underlined text')"><i class="fa-solid fa-underline"></i></button>
-                    <button type="button" class="tb-btn" title="Bullet list" onclick="insertBulletList()"><i class="fa-solid fa-list-ul"></i></button>
+                    <button type="button" class="tb-btn" title="Bold" onclick="formatDoc('bold')"><i class="fa-solid fa-bold"></i></button>
+                    <button type="button" class="tb-btn" title="Italic" onclick="formatDoc('italic')"><i class="fa-solid fa-italic"></i></button>
+                    <button type="button" class="tb-btn" title="Underline" onclick="formatDoc('underline')"><i class="fa-solid fa-underline"></i></button>
+                    <button type="button" class="tb-btn" title="Bullet list" onclick="formatDoc('insertUnorderedList')"><i class="fa-solid fa-list-ul"></i></button>
                     <div class="tb-sep"></div>
-                    <button type="button" class="tb-btn" title="Superscript (e.g. x^(2))" onclick="wrapSelection('^(',')','2')"><i class="fa-solid fa-superscript"></i></button>
-                    <button type="button" class="tb-btn" title="Subscript (e.g. x_(n))" onclick="wrapSelection('_(',')','n')"><i class="fa-solid fa-subscript"></i></button>
+                    <button type="button" class="tb-btn" title="Superscript" onclick="formatDoc('superscript')"><i class="fa-solid fa-superscript"></i></button>
+                    <button type="button" class="tb-btn" title="Subscript" onclick="formatDoc('subscript')"><i class="fa-solid fa-subscript"></i></button>
                     <div class="tb-sep"></div>
                     <button type="button" onclick="triggerImageUpload()" class="tb-btn hover:text-[#2563EB]" title="Attach image">
                         <i class="fa-regular fa-image"></i>
@@ -277,10 +290,6 @@
                         <i class="fa-solid fa-square-root-variable"></i> LaTeX
                     </button>
                 </div>
-                <p class="px-5 pt-2 text-[10px] text-[#94A3B8]">
-                    Formatting cheatsheet: <code>**bold**</code> · <code>*italic*</code> · <code>__underline__</code> ·
-                    <code>- bullet</code> · <code>^(sup)</code> · <code>_(sub)</code> · <code>$x^2+y^2=z^2$</code> for LaTeX
-                </p>
 
                 <!-- Image preview -->
                 <div id="image_preview_container" class="hidden px-5 pt-4">
@@ -293,12 +302,16 @@
                     </div>
                 </div>
 
-                <!-- Textarea -->
+                <!-- Rich-text editor (contenteditable). A hidden textarea named "content"
+                     is kept in sync with its HTML on every input, since that's what the
+                     backend form actually submits. -->
                 <div class="px-5 py-4">
-                    <textarea name="content" id="question-textarea" rows="6" required
-                              placeholder="Type your question here… Be clear and specific."
-                              oninput="document.getElementById('char-count').textContent=this.value.length; updatePreview();"
-                              class="form-input w-full bg-[#F8FAFC] border border-[#E2E8F0] rounded-xl p-4 text-sm text-[#1E293B] font-medium placeholder-[#94A3B8] resize-none leading-relaxed">What is Database?</textarea>
+                    <div id="question-editor" contenteditable="true"
+                         data-placeholder="Type your question here… Be clear and specific."
+                         oninput="handleEditorInput()"
+                         class="rt-editor form-input w-full bg-[#F8FAFC] border border-[#E2E8F0] rounded-xl p-4 text-sm text-[#1E293B] font-medium leading-relaxed"
+                         style="min-height:140px; overflow-y:auto;">What is Database?</div>
+                    <textarea name="content" id="question-textarea" class="hidden"></textarea>
                 </div>
             </div>
 
@@ -600,146 +613,106 @@ function showToast(msg, type = 'info') {
     setTimeout(() => { t.style.transition='all .3s'; t.style.opacity='0'; t.style.transform='translateY(8px)'; setTimeout(()=>t.remove(),300); }, 3000);
 }
 
-// ── FORMATTING TOOLBAR ────────────────────────────────────
-function getQuestionTextarea() {
-    return document.getElementById('question-textarea');
+// ── FORMATTING TOOLBAR (real WYSIWYG, contenteditable) ─────
+function getEditor() {
+    return document.getElementById('question-editor');
 }
 
-// Wraps the current selection with `before`/`after` markers (or inserts
-// `placeholder` if nothing is selected), then re-selects the inserted text
-// so the user can immediately type over it.
-function wrapSelection(before, after, placeholder) {
-    const ta = getQuestionTextarea();
-    if (!ta) return;
-    ta.focus();
-    const start = ta.selectionStart;
-    const end = ta.selectionEnd;
-    const value = ta.value;
-    const selected = value.substring(start, end) || placeholder;
-
-    ta.value = value.substring(0, start) + before + selected + after + value.substring(end);
-
-    const selStart = start + before.length;
-    const selEnd = selStart + selected.length;
-    ta.setSelectionRange(selStart, selEnd);
-
-    syncCharCountAndPreview(ta);
+function focusEditor() {
+    const ed = getEditor();
+    if (ed) ed.focus();
 }
 
-// Prefixes each selected line (or a single placeholder line) with "- ".
-function insertBulletList() {
-    const ta = getQuestionTextarea();
-    if (!ta) return;
-    ta.focus();
-    const start = ta.selectionStart;
-    const end = ta.selectionEnd;
-    const value = ta.value;
-    const selected = value.substring(start, end) || 'List item';
-
-    const bulleted = selected
-        .split('\n')
-        .map(line => line.trim().length ? `- ${line.replace(/^-\s*/, '')}` : line)
-        .join('\n');
-
-    ta.value = value.substring(0, start) + bulleted + value.substring(end);
-    ta.setSelectionRange(start, start + bulleted.length);
-
-    syncCharCountAndPreview(ta);
+// Bold / Italic / Underline / bullet list / superscript / subscript all use
+// the browser's native rich-text commands, so the formatting is applied
+// visually right in the box - no raw markup, no symbols.
+function formatDoc(command) {
+    focusEditor();
+    document.execCommand(command, false, null);
+    handleEditorInput();
 }
 
-// Prompts for a LaTeX snippet and inserts it wrapped in $...$ (inline) or
-// $$...$$ (block/display) at the cursor.
+// Prompts for a LaTeX snippet, renders it with KaTeX, and inserts the actual
+// rendered math (not source text) at the cursor as a non-editable chip.
 function insertLatex() {
-    const ta = getQuestionTextarea();
-    if (!ta) return;
-    const start = ta.selectionStart;
-    const end = ta.selectionEnd;
-    const value = ta.value;
-    const selected = value.substring(start, end);
+    const ed = getEditor();
+    if (!ed) return;
+    ed.focus();
 
+    const selection = window.getSelection();
+    const selectedText = (selection && selection.toString()) || '';
     const code = window.prompt(
         'Enter LaTeX code (no $ signs needed):\ne.g.  x^2 + y^2 = z^2   or   \\frac{a}{b}',
-        selected || 'x^2 + y^2 = z^2'
+        selectedText || 'x^2 + y^2 = z^2'
     );
     if (code === null || code.trim() === '') return; // cancelled / empty
 
-    const asBlock = window.confirm('Display as a centered block equation?\n\nOK = block ($$...$$)\nCancel = inline ($...$)');
-    const snippet = asBlock ? `$$${code}$$` : `$${code}$`;
+    const asBlock = window.confirm('Display as a centered block equation?\n\nOK = block\nCancel = inline');
 
-    ta.focus();
-    ta.value = value.substring(0, start) + snippet + value.substring(end);
-    const cursorPos = start + snippet.length;
-    ta.setSelectionRange(cursorPos, cursorPos);
+    let mathHtml;
+    try {
+        mathHtml = katex.renderToString(code, { throwOnError: false, displayMode: asBlock });
+    } catch (e) {
+        showToast('error', "Couldn't render that LaTeX — check the syntax.");
+        return;
+    }
 
-    syncCharCountAndPreview(ta);
+    const safeCode = escapeHtmlAttr(code);
+    const chip = `<span contenteditable="false" class="latex-chip" data-latex="${safeCode}" data-display="${asBlock ? 1 : 0}">${mathHtml}</span>&nbsp;`;
+    document.execCommand('insertHTML', false, chip);
+    handleEditorInput();
 }
 
-function syncCharCountAndPreview(ta) {
-    const count = document.getElementById('char-count');
-    if (count) count.textContent = ta.value.length;
-    updatePreview();
-}
-
-// ── LIVE PREVIEW ──────────────────────────────────────────
-function escapeHtml(str) {
+function escapeHtmlAttr(str) {
     return str
         .replace(/&/g, '&amp;')
+        .replace(/"/g, '&quot;')
         .replace(/</g, '&lt;')
         .replace(/>/g, '&gt;');
 }
 
-// Converts the lightweight markup used by the toolbar above into safe HTML:
-//   **bold**  *italic*  __underline__  - bullet  ^(sup)  _(sub)
-// LaTeX delimiters ($...$ / $$...$$) are left untouched so KaTeX can render them.
-function renderQuestionContent(raw) {
-    if (!raw || !raw.trim()) return 'Your question will appear here…';
+// Keeps the hidden <textarea name="content"> (what the form actually submits)
+// in sync with the editor's HTML, updates the char count, and refreshes the
+// Live Preview panel.
+function handleEditorInput() {
+    const ed = getEditor();
+    const hidden = document.getElementById('question-textarea');
+    const count = document.getElementById('char-count');
+    if (!ed || !hidden) return;
 
-    const escaped = escapeHtml(raw);
-    const lines = escaped.split('\n');
-    let html = '';
-    let inList = false;
-
-    lines.forEach(line => {
-        const bullet = line.match(/^-\s+(.*)$/);
-        if (bullet) {
-            if (!inList) { html += '<ul class="list-disc pl-4 space-y-0.5">'; inList = true; }
-            html += `<li>${bullet[1]}</li>`;
-        } else {
-            if (inList) { html += '</ul>'; inList = false; }
-            html += line + '<br>';
-        }
-    });
-    if (inList) html += '</ul>';
-
-    html = html
-        .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')   // bold
-        .replace(/\*(.+?)\*/g, '<em>$1</em>')                 // italic
-        .replace(/__(.+?)__/g, '<u>$1</u>')                   // underline
-        .replace(/\^\((.+?)\)/g, '<sup>$1</sup>')             // superscript
-        .replace(/_\((.+?)\)/g, '<sub>$1</sub>');             // subscript
-
-    return html;
+    hidden.value = ed.innerHTML;
+    if (count) count.textContent = ed.innerText.trim().length;
+    updatePreview();
 }
 
+// ── LIVE PREVIEW ──────────────────────────────────────────
+// The editor already stores real, rendered HTML (bold/italic/lists/sup/sub
+// via execCommand, LaTeX via pre-rendered KaTeX chips), so the preview is
+// just a direct mirror - no markup parsing needed.
 function updatePreview() {
-    const ta = document.getElementById('question-textarea');
+    const ed = getEditor();
     const el = document.getElementById('preview-q');
-    if (!ta || !el) return;
+    if (!ed || !el) return;
 
-    el.innerHTML = renderQuestionContent(ta.value);
-
-    // Render any $...$ / $$...$$ LaTeX inside the preview.
-    if (window.renderMathInElement) {
-        renderMathInElement(el, {
-            delimiters: [
-                { left: '$$', right: '$$', display: true },
-                { left: '$', right: '$', display: false }
-            ],
-            throwOnError: false
-        });
-    }
+    const html = ed.innerHTML;
+    el.innerHTML = html && ed.innerText.trim() ? html : 'Your question will appear here…';
 }
-updatePreview();
+
+// Initialize on load: sync hidden field + char count + preview from whatever
+// starting content is in the editor.
+handleEditorInput();
+
+// The real "content" field is now hidden (a plain <textarea required> can't be
+// validated by the browser once hidden), so validate it manually on submit and
+// focus the visible editor instead of a field the user can't see.
+document.getElementById('questionWorkspaceForm').addEventListener('submit', function (e) {
+    const ed = getEditor();
+    if (!ed || !ed.innerText.trim()) {
+        e.preventDefault();
+        showToast('error', 'Question content is required.');
+        if (ed) ed.focus();
+    }
+});
 
 // ── POINTS SYNC ───────────────────────────────────────────
 function syncPoints(v) {
