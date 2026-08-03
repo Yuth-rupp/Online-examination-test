@@ -731,11 +731,16 @@
     }
     // ── Update infrastructure status card ───────────────────────
     function updateInfraCard(data) {
-        const metrics = data.examsMetrics || {};
-        setText('infra-total-exams', metrics.total ?? 0);
+        setText('infra-total-exams', data.totalExams ?? 0);
         setText('infra-stuck', data.stuckExams ?? 0);
-        setText('infra-flag-rate', (metrics.flagRate ?? 0) + '%');
+        setText('infra-flag-rate', (data.flagRate ?? 0) + '%');
         setText('infra-backup', data.lastBackupHuman ?? 'No backups yet');
+
+        const stuckVal = data.stuckExams ?? 0;
+        const stuckEl = document.getElementById('infra-stuck');
+        if (stuckEl) {
+            stuckEl.className = 'font-bold font-mono' + (stuckVal > 0 ? ' text-amber-300' : '');
+        }
     }
     function setText(id, val) {
         const el = document.getElementById(id);
