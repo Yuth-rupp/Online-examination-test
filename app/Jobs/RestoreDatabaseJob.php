@@ -11,6 +11,7 @@ use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use App\Models\AuditLog;
 
 class RestoreDatabaseJob implements ShouldQueue
@@ -30,32 +31,57 @@ class RestoreDatabaseJob implements ShouldQueue
 
     public function handle(): void
     {
-        $backupDir = storage_path('app/backups');
-        $filename  = $this->snapshotId . '.sql';
-        $filepath  = $backupDir . DIRECTORY_SEPARATOR . $filename;
+        $filename = $this->snapshotId . '.sql';
+
+        // Restore CLI tools (mysql/psql/sqlite3) need a local file to read from,
+        // so we pull the snapshot down from the durable 'backups' disk
+        // (S3/Railway Bucket in prod) into a scratch file first.
+        $tmpDir = storage_path('app/tmp-backups');
+        if (!is_dir($tmpDir)) {
+            mkdir($tmpDir, 0755, true);
+        }
+        $filepath = $tmpDir . DIRECTORY_SEPARATOR . $filename;
 
         try {
             // ── Step 1: Broadcast start ──
             broadcast(new RestoreStarted($this->snapshotId, $this->triggeredBy));
 
-            // ── Step 2: Validate file exists ──
-            if (!file_exists($filepath)) {
-                throw new \RuntimeException("Snapshot file not found: {$filename}");
+            // ── Step 2: Validate the snapshot actually exists on the backups disk ──
+            if (!Storage::disk('backups')->exists($filename)) {
+                throw new \RuntimeException("Snapshot not found on the backups disk: {$filename}");
             }
 
-            // ── Step 3: Perform restore ──
+            // ── Step 3: Download it to the local scratch path ──
+            $stream = Storage::disk('backups')->readStream($filename);
+            if ($stream === null) {
+                throw new \RuntimeException("Failed to read snapshot from the backups disk: {$filename}");
+            }
+            file_put_contents($filepath, stream_get_contents($stream));
+            fclose($stream);
+
+            if (!file_exists($filepath) || filesize($filepath) === 0) {
+                throw new \RuntimeException("Downloaded snapshot is empty: {$filename}");
+            }
+
+            // ── Step 4: Perform restore against the local scratch file ──
             $this->performRestore($filepath);
 
-            // ── Step 4: Log to audit trail ──
+            // ── Step 5: Log to audit trail ──
             $this->logAction('backup.restore.completed', 'DATABASE_RESTORE', $this->snapshotId);
 
-            // ── Step 5: Broadcast completion ──
+            // ── Step 6: Broadcast completion ──
             broadcast(new RestoreCompleted($this->snapshotId));
 
         } catch (\Throwable $e) {
             $this->logAction('backup.restore.failed', 'DATABASE_RESTORE', $this->snapshotId);
             broadcast(new RestoreFailed($this->snapshotId, 'Restoration failed: ' . $e->getMessage()));
             throw $e;
+        } finally {
+            // Always clean up the scratch copy — the source of truth stays on
+            // the 'backups' disk.
+            if (file_exists($filepath)) {
+                @unlink($filepath);
+            }
         }
     }
 

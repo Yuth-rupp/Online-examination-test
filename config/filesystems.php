@@ -103,6 +103,31 @@ return [
             'report' => false,
         ],
 
+        // Dedicated disk for Super Admin database backup snapshots.
+        // Same S3-toggle pattern as 'local'/'public' above: defaults to the
+        // container's local disk (fine for local dev), but set
+        // FILESYSTEM_BACKUPS_DRIVER=s3 in Railway to route backups to the
+        // same Railway Bucket / S3-compatible storage — otherwise every
+        // snapshot is wiped the next time the container restarts or
+        // redeploys, and delete/restore will fail with "not found" because
+        // the file genuinely no longer exists.
+        'backups' => [
+            'driver' => env('FILESYSTEM_BACKUPS_DRIVER', 'local'),
+            'root' => env('FILESYSTEM_BACKUPS_DRIVER', 'local') === 's3'
+                ? 'backups'
+                : storage_path('app/backups'),
+            // Unlike avatars, a silently-failed backup write is unacceptable —
+            // we need to know immediately if a snapshot failed to persist.
+            'throw' => true,
+            'report' => false,
+            'key' => env('AWS_ACCESS_KEY_ID'),
+            'secret' => env('AWS_SECRET_ACCESS_KEY'),
+            'region' => env('AWS_DEFAULT_REGION', 'auto'),
+            'bucket' => env('AWS_BUCKET'),
+            'endpoint' => env('AWS_ENDPOINT'),
+            'use_path_style_endpoint' => env('AWS_USE_PATH_STYLE_ENDPOINT', true),
+        ],
+
     ],
 
     /*

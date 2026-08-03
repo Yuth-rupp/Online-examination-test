@@ -34,27 +34,42 @@ class CreateBackupJob implements ShouldQueue
     {
         $snapshotId = 'SNAP-' . now()->format('Y-m-d-His');
         $filename   = $snapshotId . '.sql';
-        $backupDir  = storage_path('app/backups');
 
-        // Ensure backup directory exists
-        if (!is_dir($backupDir)) {
-            mkdir($backupDir, 0755, true);
+        // Database dump CLI tools (mysqldump/pg_dump/sqlite3) can only write to a
+        // local path — never straight to S3 — so we always dump to a scratch
+        // file first, then push the finished file to the durable 'backups' disk.
+        // The scratch file is deleted in finally{} either way.
+        $tmpDir  = storage_path('app/tmp-backups');
+        if (!is_dir($tmpDir)) {
+            mkdir($tmpDir, 0755, true);
         }
-
-        $filepath = $backupDir . DIRECTORY_SEPARATOR . $filename;
+        $tmpPath = $tmpDir . DIRECTORY_SEPARATOR . $filename;
 
         try {
             // ── Step 1: Broadcast start ──
             broadcast(new BackupStarted($this->triggeredBy, $this->type));
 
-            // ── Step 2: Perform database dump ──
-            $this->performDatabaseDump($filepath);
+            // ── Step 2: Perform database dump to the local scratch file ──
+            $this->performDatabaseDump($tmpPath);
 
-            // ── Step 3: Calculate file size ──
-            $sizeMb = 0;
-            if (file_exists($filepath)) {
-                $sizeMb = round(filesize($filepath) / 1024 / 1024, 2);
+            if (!file_exists($tmpPath) || filesize($tmpPath) === 0) {
+                throw new \RuntimeException('Backup produced an empty file.');
             }
+
+            // ── Step 3: Push the finished dump to the durable 'backups' disk ──
+            // (S3/Railway Bucket in production — see config/filesystems.php.
+            // This is what makes the snapshot survive a container restart.)
+            $stream = fopen($tmpPath, 'r');
+            $stored = Storage::disk('backups')->put($filename, $stream);
+            if (is_resource($stream)) {
+                fclose($stream);
+            }
+
+            if ($stored === false) {
+                throw new \RuntimeException('Failed to persist snapshot to the backups disk.');
+            }
+
+            $sizeMb = round(Storage::disk('backups')->size($filename) / 1024 / 1024, 2);
 
             // ── Step 4: Log to audit trail ──
             $this->logAction(
@@ -79,17 +94,18 @@ class CreateBackupJob implements ShouldQueue
             broadcast(new BackupCompleted($snapshot, $storageUsed, $lastBackupHuman));
 
         } catch (\Throwable $e) {
-            // Clean up partial file
-            if (file_exists($filepath)) {
-                @unlink($filepath);
-            }
-
             // Log failure
             $this->logAction('backup.failed', 'DATABASE_BACKUP', $snapshotId);
 
             broadcast(new BackupFailed('Backup failed: ' . $e->getMessage()));
 
             throw $e; // Let the queue system handle retry/failure
+        } finally {
+            // Always clean up the local scratch file — the durable copy (if any)
+            // now lives on the 'backups' disk, not on ephemeral container disk.
+            if (file_exists($tmpPath)) {
+                @unlink($tmpPath);
+            }
         }
     }
 

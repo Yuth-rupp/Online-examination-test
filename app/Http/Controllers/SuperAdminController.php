@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Artisan;
 use App\Models\User;
 use App\Models\AuditLog;
@@ -771,12 +772,19 @@ class SuperAdminController extends Controller
             ], 422);
         }
 
-        $filepath = storage_path('app/backups/' . $snapshotId . '.sql');
-        if (!file_exists($filepath)) {
+        $filename = $snapshotId . '.sql';
+        try {
+            if (!Storage::disk('backups')->exists($filename)) {
+                return response()->json([
+                    'status'  => 'error',
+                    'message' => 'Snapshot file not found on the backups disk.',
+                ], 404);
+            }
+        } catch (\Exception $e) {
             return response()->json([
                 'status'  => 'error',
-                'message' => 'Snapshot file not found on disk.',
-            ], 404);
+                'message' => 'Could not reach the backups disk: ' . $e->getMessage(),
+            ], 500);
         }
 
         $user = auth()->user();
@@ -796,13 +804,18 @@ class SuperAdminController extends Controller
 
     public function deleteBackup($snapshotId)
     {
-        $filepath = storage_path('app/backups/' . $snapshotId . '.sql');
+        $filename = $snapshotId . '.sql';
 
-        if (!file_exists($filepath)) {
-            return response()->json(['status' => 'error', 'message' => 'Snapshot not found.'], 404);
+        try {
+            if (!Storage::disk('backups')->exists($filename)) {
+                return response()->json(['status' => 'error', 'message' => 'Snapshot not found.'], 404);
+            }
+
+            Storage::disk('backups')->delete($filename);
+        } catch (\Exception $e) {
+            return response()->json(['status' => 'error', 'message' => 'Failed to delete snapshot: ' . $e->getMessage()], 500);
         }
 
-        @unlink($filepath);
         $this->logAction('backup.snapshot.deleted', 'DATABASE_BACKUP', $snapshotId);
 
         return response()->json(['status' => 'success', 'message' => 'Snapshot deleted.']);
@@ -810,22 +823,29 @@ class SuperAdminController extends Controller
 
     private function getSnapshotsFromDisk(): array
     {
-        $backupDir = storage_path('app/backups');
-
-        if (!is_dir($backupDir)) {
+        try {
+            $files = collect(Storage::disk('backups')->files())
+                ->filter(fn($f) => str_ends_with($f, '.sql') && str_starts_with(basename($f), 'SNAP-'));
+        } catch (\Exception $e) {
+            // Backups disk unreachable (e.g. S3 misconfigured) — fall back to
+            // audit-log-derived rows so the page still renders something useful,
+            // but these rows won't support delete/restore since no file backs them.
             return $this->getSnapshotsFromAuditLogs();
         }
 
-        $files = glob($backupDir . DIRECTORY_SEPARATOR . 'SNAP-*.sql');
-
-        if (empty($files)) {
+        if ($files->isEmpty()) {
             return $this->getSnapshotsFromAuditLogs();
         }
 
         $snapshots = [];
         foreach ($files as $file) {
-            $basename   = pathinfo($file, PATHINFO_FILENAME);
-            $sizeMb     = round(filesize($file) / 1024 / 1024, 2);
+            $basename = pathinfo($file, PATHINFO_FILENAME);
+
+            try {
+                $sizeMb = round(Storage::disk('backups')->size($file) / 1024 / 1024, 2);
+            } catch (\Exception $e) {
+                $sizeMb = 0;
+            }
 
             $dateStr = str_replace('SNAP-', '', $basename);
             $parts   = explode('-', $dateStr);
@@ -835,7 +855,11 @@ class SuperAdminController extends Controller
                 $timeFormatted = substr($timePart, 0, 2) . ':' . substr($timePart, 2, 2) . ':' . substr($timePart, 4, 2);
                 $createdAt = "{$parts[0]}-{$parts[1]}-{$parts[2]} {$timeFormatted}";
             } else {
-                $createdAt = date('Y-m-d H:i:s', filemtime($file));
+                try {
+                    $createdAt = date('Y-m-d H:i:s', Storage::disk('backups')->lastModified($file));
+                } catch (\Exception $e) {
+                    $createdAt = now()->toDateTimeString();
+                }
             }
 
             $type = 'automated';
