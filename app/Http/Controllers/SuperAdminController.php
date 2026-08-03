@@ -831,28 +831,62 @@ class SuperAdminController extends Controller
 
     private function getSnapshotsFromDisk(): array
     {
+        // We deliberately do NOT call Storage::disk('backups')->files() here.
+        // That method calls ListObjectsV2 under the hood, which requires
+        // bucket-level "List" permission on the R2/S3 token. Many R2 tokens
+        // are scoped to object-level read/write only, so files() throws (or
+        // silently returns empty) even though every individual object is
+        // perfectly readable via exists()/size() (HeadObject), which only
+        // needs object-level permission.
+        //
+        // Instead, we use audit_logs as the index of "snapshots that should
+        // exist" (we already trust this table — it's how getSnapshotsFromAuditLogs
+        // works), and confirm each one against the disk individually. This
+        // avoids ListBucket entirely, so a List-less token still gets full
+        // size/date/restore/delete info instead of falling back to '—' rows.
         try {
-            $files = collect(Storage::disk('backups')->files())
-                ->filter(fn($f) => str_ends_with($f, '.sql') && str_starts_with(basename($f), 'SNAP-'));
+            $dismissed = DB::table('dismissed_backup_snapshots')->pluck('snapshot_id')->all();
+
+            $logs = DB::table('audit_logs')
+                ->where('action', 'like', '%backup%')
+                // 'backup.manual.triggered' fires at dispatch time with
+                // model_id '0', before the job has created a real snapshot —
+                // it isn't a snapshot itself and has no file behind it.
+                ->where('action', 'not like', '%triggered%')
+                ->orderBy('created_at', 'desc')
+                ->take(40)
+                ->get();
         } catch (\Exception $e) {
-            // Backups disk unreachable (e.g. S3 misconfigured) — fall back to
-            // audit-log-derived rows so the page still renders something useful,
-            // but these rows won't support delete/restore since no file backs them.
-            return $this->getSnapshotsFromAuditLogs();
+            return [];
         }
 
-        if ($files->isEmpty()) {
+        if ($logs->isEmpty()) {
             return $this->getSnapshotsFromAuditLogs();
         }
 
         $snapshots = [];
-        foreach ($files as $file) {
-            $basename = pathinfo($file, PATHINFO_FILENAME);
+        $sawAnyFile = false;
+
+        foreach ($logs as $log) {
+            $basename = $log->model_id ?: ('SNAP-' . Carbon::parse($log->created_at)->format('Y-m-d-His'));
+
+            if (in_array($basename, $dismissed, true)) {
+                continue;
+            }
+
+            $filename = $basename . '.sql';
+            $hasFile  = false;
+            $sizeMb   = '—';
 
             try {
-                $sizeMb = round(Storage::disk('backups')->size($file) / 1024 / 1024, 2);
+                if (Storage::disk('backups')->exists($filename)) {
+                    $hasFile    = true;
+                    $sawAnyFile = true;
+                    $sizeMb     = round(Storage::disk('backups')->size($filename) / 1024 / 1024, 2);
+                }
             } catch (\Exception $e) {
-                $sizeMb = 0;
+                // Object-level call failed too (genuinely missing/unreachable) —
+                // leave as a fileless row rather than erroring the whole page.
             }
 
             $dateStr = str_replace('SNAP-', '', $basename);
@@ -863,35 +897,25 @@ class SuperAdminController extends Controller
                 $timeFormatted = substr($timePart, 0, 2) . ':' . substr($timePart, 2, 2) . ':' . substr($timePart, 4, 2);
                 $createdAt = "{$parts[0]}-{$parts[1]}-{$parts[2]} {$timeFormatted}";
             } else {
-                try {
-                    $createdAt = date('Y-m-d H:i:s', Storage::disk('backups')->lastModified($file));
-                } catch (\Exception $e) {
-                    $createdAt = now()->toDateTimeString();
-                }
+                $createdAt = Carbon::parse($log->created_at)->toDateTimeString();
             }
-
-            $type = 'automated';
-            try {
-                $log = DB::table('audit_logs')
-                    ->where('model_id', $basename)
-                    ->where('action', 'like', '%backup%')
-                    ->first();
-
-                if ($log && str_contains($log->action, 'manual')) {
-                    $type = 'manual';
-                }
-            } catch (\Exception $e) {}
 
             $snapshots[] = [
                 'id'         => $basename,
                 'created_at' => $createdAt,
                 'size_mb'    => $sizeMb,
-                'type'       => $type,
+                'type'       => str_contains($log->action, 'manual') ? 'manual' : 'automated',
                 'status'     => 'completed',
-                'filename'   => $basename . '.sql',
-                // A real file backs this row, so restore/delete will work.
-                'has_file'   => true,
+                'filename'   => $hasFile ? $filename : null,
+                'has_file'   => $hasFile,
             ];
+        }
+
+        // If not a single row resolved to a real file, the disk itself is
+        // genuinely unreachable (bad credentials/endpoint/bucket) rather than
+        // a permissions-scope quirk — fall back to the plain audit-log view.
+        if (!$sawAnyFile) {
+            return $this->getSnapshotsFromAuditLogs();
         }
 
         usort($snapshots, fn($a, $b) => strcmp($b['created_at'], $a['created_at']));
@@ -919,6 +943,7 @@ class SuperAdminController extends Controller
 
             return DB::table('audit_logs')
                 ->where('action', 'like', '%backup%')
+                ->where('action', 'not like', '%triggered%')
                 ->orderBy('created_at', 'desc')
                 ->take(10 + count($dismissed)) // pull extra so dismissed rows don't shrink the visible page below 10
                 ->get()
