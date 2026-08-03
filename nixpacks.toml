@@ -1,5 +1,5 @@
 [phases.setup]
-nixPkgs = ["php82", "php82Packages.composer", "nodejs_20", "cacert"]
+nixPkgs = ["php82", "php82Packages.composer", "nodejs_20", "cacert", "mariadb"]
 
 [phases.install]
 cmds = [
