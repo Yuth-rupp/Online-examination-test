@@ -937,6 +937,7 @@ function renderSnapshots() {
 
     tbody.innerHTML = snap.map((s, i) => {
         const isManual = s.type === 'manual';
+        const hasFile = s.has_file !== false; // default true for older cached rows
         const delay = i * 40;
         return `
         <tr class="row-hover fade-in" style="animation-delay:${delay}ms;transition:background 0.12s;border-bottom:1px solid #f8fafc;">
@@ -969,7 +970,14 @@ function renderSnapshots() {
                 </span>
             </td>
             <td style="padding:14px 16px;text-align:right;">
-                <div style="display:flex;gap:6px;justify-content:flex-end;">
+                <div style="display:flex;gap:6px;justify-content:flex-end;align-items:center;">
+                    ${!hasFile ? `
+                    <span title="This entry was reconstructed from the audit log only — the actual backup file is missing (likely lost on a container restart)."
+                          style="font-size:10px;font-weight:700;padding:4px 9px;border-radius:7px;
+                                 background:#fffbeb;color:#b45309;border:1px solid #fde68a;cursor:help;">
+                        <i class="fa-solid fa-triangle-exclamation" style="margin-right:4px;font-size:9px;"></i>File unavailable
+                    </span>
+                    ` : `
                     <button onclick="openRestoreModal('${s.id}')"
                             style="font-size:11px;font-weight:800;padding:6px 14px;border-radius:8px;
                                    border:1px solid #fecdd3;background:#fff1f2;color:#e11d48;cursor:pointer;
@@ -987,6 +995,7 @@ function renderSnapshots() {
                             title="Delete snapshot">
                         <i class="fa-solid fa-trash-can" style="font-size:10px;"></i>
                     </button>
+                    `}
                 </div>
             </td>
         </tr>`;

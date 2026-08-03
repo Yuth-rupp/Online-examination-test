@@ -777,7 +777,10 @@ class SuperAdminController extends Controller
             if (!Storage::disk('backups')->exists($filename)) {
                 return response()->json([
                     'status'  => 'error',
-                    'message' => 'Snapshot file not found on the backups disk.',
+                    'message' => 'This snapshot has no backup file on disk, so it can\'t be restored. '
+                        . 'This usually means it was lost when the app container restarted before '
+                        . 'persistent storage (R2) was configured for backups — the audit log entry '
+                        . 'survived, but the .sql file did not.',
                 ], 404);
             }
         } catch (\Exception $e) {
@@ -808,7 +811,12 @@ class SuperAdminController extends Controller
 
         try {
             if (!Storage::disk('backups')->exists($filename)) {
-                return response()->json(['status' => 'error', 'message' => 'Snapshot not found.'], 404);
+                return response()->json([
+                    'status'  => 'error',
+                    'message' => 'No backup file exists for this snapshot, so there\'s nothing to delete. '
+                        . 'It was likely lost on a container restart before persistent storage (R2) was '
+                        . 'configured — only the audit log record remains.',
+                ], 404);
             }
 
             Storage::disk('backups')->delete($filename);
@@ -881,6 +889,8 @@ class SuperAdminController extends Controller
                 'type'       => $type,
                 'status'     => 'completed',
                 'filename'   => $basename . '.sql',
+                // A real file backs this row, so restore/delete will work.
+                'has_file'   => true,
             ];
         }
 
@@ -889,6 +899,19 @@ class SuperAdminController extends Controller
         return array_slice($snapshots, 0, 20);
     }
 
+    /**
+     * Fallback rows reconstructed purely from audit_logs.
+     *
+     * IMPORTANT: These rows do NOT correspond to a real file on the
+     * 'backups' disk (this path is only reached when the disk is
+     * unreachable or empty — e.g. the backup was written to Railway's
+     * ephemeral local storage and lost on a container restart, while
+     * the audit log entry survived in the persistent database).
+     *
+     * Because there is no file behind them, they must never be treated
+     * as restorable/deletable snapshots by the UI — mark them clearly
+     * with has_file => false so the view can disable those actions.
+     */
     private function getSnapshotsFromAuditLogs(): array
     {
         try {
@@ -903,6 +926,8 @@ class SuperAdminController extends Controller
                     'size_mb'    => '—',
                     'type'       => str_contains($l->action, 'manual') ? 'manual' : 'automated',
                     'status'     => 'completed',
+                    'filename'   => null,
+                    'has_file'   => false,
                 ])
                 ->toArray();
         } catch (\Exception $e) {
