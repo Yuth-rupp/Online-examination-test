@@ -578,14 +578,11 @@ let storageUsed  = {{ $storageUsed ?? 14 }};
 //  LARAVEL ECHO — REAL-TIME WEBSOCKET CONNECTION
 // ============================================================
 const echo = new Echo({
-    broadcaster: 'reverb',
-    key: '{{ env("REVERB_APP_KEY", "your-reverb-app-key") }}',
-    wsHost: '{{ env("REVERB_HOST", request()->getHost()) }}',
-    wsPort: {{ env('REVERB_PORT', 8080) }},
-    wssPort: {{ env('REVERB_PORT', 443) }},
-    forceTLS: {{ env('REVERB_SCHEME', 'http') === 'https' ? 'true' : 'false' }},
-    enabledTransports: ['ws', 'wss'],
-    authEndpoint: '/broadcasting/auth',
+    broadcaster: 'pusher',
+    key: '{{ config('broadcasting.connections.pusher.key') ?: 'examsystemkeyabc123' }}',
+    cluster: '{{ config('broadcasting.connections.pusher.options.cluster') ?: 'mt1' }}',
+    forceTLS: true,
+    authEndpoint: '{{ url('/broadcasting/auth') }}',
     auth: {
         headers: {
             'X-CSRF-TOKEN': CSRF,
