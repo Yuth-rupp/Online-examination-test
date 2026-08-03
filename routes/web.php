@@ -222,6 +222,7 @@ Route::middleware(['auth', 'role:super_admin', 'audit.capture'])->prefix('super-
     Route::post('/backups/trigger',                 [SuperAdminController::class, 'triggerBackup'])->name('superadmin.backup.trigger');
     Route::post('/backups/{snapshotId}/restore',    [SuperAdminController::class, 'restoreBackup'])->name('superadmin.backup.restore');
     Route::delete('/backups/{snapshotId}',          [SuperAdminController::class, 'deleteBackup'])->name('superadmin.backup.delete');
+    Route::delete('/backups/{snapshotId}/dismiss',  [SuperAdminController::class, 'dismissBackupSnapshot'])->name('superadmin.backup.dismiss');
 
     Route::get('/audit-logs',           [SuperAdminController::class, 'auditLogs'])->name('superadmin.audit-logs.index');
     Route::get('/audit-logs/api',       [SuperAdminController::class, 'auditLogsApi'])->name('superadmin.audit-logs.api');

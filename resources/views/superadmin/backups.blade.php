@@ -977,6 +977,15 @@ function renderSnapshots() {
                                  background:#fffbeb;color:#b45309;border:1px solid #fde68a;cursor:help;">
                         <i class="fa-solid fa-triangle-exclamation" style="margin-right:4px;font-size:9px;"></i>File unavailable
                     </span>
+                    <button onclick="dismissSnapshot('${s.id}')"
+                            style="font-size:11px;font-weight:700;padding:6px 10px;border-radius:8px;
+                                   border:1px solid #e2e8f0;background:#f8fafc;color:#94a3b8;cursor:pointer;
+                                   transition:all 0.2s;"
+                            onmouseenter="this.style.background='#fee2e2';this.style.borderColor='#fca5a5';this.style.color='#e11d48'"
+                            onmouseleave="this.style.background='#f8fafc';this.style.borderColor='#e2e8f0';this.style.color='#94a3b8'"
+                            title="Remove this row from the list (audit history is never touched)">
+                        <i class="fa-solid fa-trash-can" style="font-size:10px;"></i>
+                    </button>
                     ` : `
                     <button onclick="openRestoreModal('${s.id}')"
                             style="font-size:11px;font-weight:800;padding:6px 14px;border-radius:8px;
@@ -1086,6 +1095,47 @@ function resetBackupButton() {
     text.textContent = 'Trigger Backup';
 }
 
+
+// ============================================================
+//  DISMISS FILELESS SNAPSHOT (audit-log-only row, no real file)
+// ============================================================
+async function dismissSnapshot(id) {
+    function escapeHtml(str) {
+        const div = document.createElement('div');
+        div.appendChild(document.createTextNode(str));
+        return div.innerHTML;
+    }
+    if (!confirm(`Remove ${id} from this list? This only hides the row — audit history is never affected, and nothing is un-recoverable because there was no file backing it anyway.`)) return;
+
+    try {
+        const res = await fetch(`/super-admin/backups/${id}/dismiss`, {
+            method: 'DELETE',
+            headers: { 'X-CSRF-TOKEN': CSRF, 'Accept': 'application/json' }
+        });
+
+        if (res.ok) {
+            allSnapshots = allSnapshots.filter(s => s.id !== id);
+            renderSnapshots();
+            showToast(`
+                <i class="fa-solid fa-trash-can" style="color:#94a3b8;font-size:13px;"></i>
+                <span style="margin-left:8px;">Removed ${id} from the list.</span>
+            `);
+        } else {
+            const err = await res.json().catch(() => ({}));
+            console.error('[Backup Dismiss] HTTP', res.status, err);
+            showToast(`
+                <i class="fa-solid fa-circle-xmark" style="color:#f87171;font-size:13px;"></i>
+                <span style="margin-left:8px;">${escapeHtml(err.message || ('Failed to remove row (HTTP ' + res.status + ').'))}</span>
+            `);
+        }
+    } catch (e) {
+        console.error('[Backup Dismiss] Network error', e);
+        showToast(`
+            <i class="fa-solid fa-circle-xmark" style="color:#f87171;font-size:13px;"></i>
+            <span style="margin-left:8px;">Network error.</span>
+        `);
+    }
+}
 
 // ============================================================
 //  DELETE SNAPSHOT

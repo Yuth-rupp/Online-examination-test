@@ -915,10 +915,12 @@ class SuperAdminController extends Controller
     private function getSnapshotsFromAuditLogs(): array
     {
         try {
+            $dismissed = DB::table('dismissed_backup_snapshots')->pluck('snapshot_id')->all();
+
             return DB::table('audit_logs')
                 ->where('action', 'like', '%backup%')
                 ->orderBy('created_at', 'desc')
-                ->take(10)
+                ->take(10 + count($dismissed)) // pull extra so dismissed rows don't shrink the visible page below 10
                 ->get()
                 ->map(fn($l) => [
                     'id'         => 'SNAP-' . Carbon::parse($l->created_at)->format('Y-m-d-His'),
@@ -929,10 +931,50 @@ class SuperAdminController extends Controller
                     'filename'   => null,
                     'has_file'   => false,
                 ])
+                ->reject(fn($s) => in_array($s['id'], $dismissed, true))
+                ->take(10)
+                ->values()
                 ->toArray();
         } catch (\Exception $e) {
             return [];
         }
+    }
+
+    /**
+     * "Delete" for a fileless (audit-log-only) snapshot row. There is no
+     * file to remove, so this just records the ID as dismissed so it stops
+     * being reconstructed into the list. The originating audit_logs rows
+     * are never touched — the forensic trail stays intact.
+     */
+    public function dismissBackupSnapshot($snapshotId)
+    {
+        $filename = $snapshotId . '.sql';
+
+        try {
+            if (Storage::disk('backups')->exists($filename)) {
+                return response()->json([
+                    'status'  => 'error',
+                    'message' => 'This snapshot has a real backup file — use Delete, not dismiss.',
+                ], 422);
+            }
+        } catch (\Exception $e) {
+            // Disk unreachable — treat as fileless and allow dismissal.
+        }
+
+        DB::table('dismissed_backup_snapshots')->updateOrInsert(
+            ['snapshot_id' => $snapshotId],
+            [
+                'dismissed_by' => auth()->id(),
+                'dismissed_at' => now(),
+            ]
+        );
+
+        $this->logAction('backup.snapshot.dismissed', 'DATABASE_BACKUP', $snapshotId);
+
+        return response()->json([
+            'status'  => 'success',
+            'message' => 'Removed from the snapshot list. Audit history is unchanged.',
+        ]);
     }
 
     /* ================================================================
