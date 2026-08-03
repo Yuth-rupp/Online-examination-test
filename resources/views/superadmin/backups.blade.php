@@ -1082,6 +1082,11 @@ function resetBackupButton() {
 //  DELETE SNAPSHOT
 // ============================================================
 async function deleteSnapshot(id) {
+    function escapeHtml(str) {
+        const div = document.createElement('div');
+        div.appendChild(document.createTextNode(str));
+        return div.innerHTML;
+    }
     if (!confirm(`Delete snapshot ${id}? This only removes the backup file — audit logs are never affected.`)) return;
 
     try {
@@ -1098,12 +1103,15 @@ async function deleteSnapshot(id) {
                 <span style="margin-left:8px;">Snapshot ${id} deleted.</span>
             `);
         } else {
+            const err = await res.json().catch(() => ({}));
+            console.error('[Backup Delete] HTTP', res.status, err);
             showToast(`
                 <i class="fa-solid fa-circle-xmark" style="color:#f87171;font-size:13px;"></i>
-                <span style="margin-left:8px;">Failed to delete snapshot.</span>
+                <span style="margin-left:8px;">${escapeHtml(err.message || ('Failed to delete snapshot (HTTP ' + res.status + ').'))}</span>
             `);
         }
     } catch (e) {
+        console.error('[Backup Delete] Network error', e);
         showToast(`
             <i class="fa-solid fa-circle-xmark" style="color:#f87171;font-size:13px;"></i>
             <span style="margin-left:8px;">Network error.</span>
