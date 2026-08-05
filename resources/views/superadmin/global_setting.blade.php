@@ -930,11 +930,22 @@
                 'X-Requested-With': 'XMLHttpRequest'
             }
         })
-        .then(r => r.json().catch(() => ({ status: 'success' })))
-        .then(data => {
-            showToast('Old audit logs purged. Action logged as CRITICAL.', 'success');
-            closePurgeModal();
+        .then(r => r.json().then(data => ({ ok: r.ok, data })))
+        .then(({ ok, data }) => {
             btn.innerHTML = '<i class="fa-solid fa-trash-can mr-1.5"></i> Purge Now';
+
+            // The backend only deletes entries OLDER than the configured
+            // retention window (see SuperAdminController::purgeSystemAuditLogs).
+            // Recent entries are expected to remain — that's not a bug, so
+            // surface the real server message/count instead of a canned one.
+            if (!ok || data.status === 'error') {
+                showToast(data.message || 'Purge failed. Check server logs.', 'error');
+                btn.disabled = false;
+                return;
+            }
+
+            showToast(data.message || 'Old audit logs purged. Action logged as CRITICAL.', 'success');
+            closePurgeModal();
         })
         .catch(() => {
             showToast('Purge failed. Check server logs.', 'error');
