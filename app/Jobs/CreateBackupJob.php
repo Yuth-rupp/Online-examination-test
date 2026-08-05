@@ -140,6 +140,15 @@ class CreateBackupJob implements ShouldQueue
 
     private function dumpMysql(array $config, string $filepath): void
     {
+        // Some production containers (e.g. Railway's Octane/FrankenPHP runtime)
+        // don't have the mysqldump CLI on PATH even when the nixpacks build
+        // installed it. Rather than hard-failing the whole backup, detect that
+        // up front and fall back to the pure-PHP dumper, which needs no binary.
+        if (!$this->commandExists('mysqldump')) {
+            $this->dumpViaPhp($filepath);
+            return;
+        }
+
         $host     = $config['host'] ?? '127.0.0.1';
         $port     = $config['port'] ?? 3306;
         $database = $config['database'];
@@ -159,6 +168,14 @@ class CreateBackupJob implements ShouldQueue
 
         exec($cmd, $output, $returnCode);
 
+        // Even if commandExists() passed, still fall back on a 127 (not
+        // found) or 126 (found but not executable) instead of failing the
+        // whole backup — belt and braces for flaky container environments.
+        if (in_array($returnCode, [126, 127], true)) {
+            $this->dumpViaPhp($filepath);
+            return;
+        }
+
         if ($returnCode !== 0) {
             throw new \RuntimeException('mysqldump failed (code ' . $returnCode . '): ' . implode("\n", $output));
         }
@@ -166,6 +183,17 @@ class CreateBackupJob implements ShouldQueue
         if (!file_exists($filepath) || filesize($filepath) === 0) {
             throw new \RuntimeException('mysqldump produced an empty file.');
         }
+    }
+
+    /**
+     * Check whether a CLI binary is available on PATH before we try to shell
+     * out to it. Cheap way to avoid a guaranteed exit-127 exec() call.
+     */
+    private function commandExists(string $binary): bool
+    {
+        $which = stripos(PHP_OS, 'WIN') === 0 ? 'where' : 'which';
+        exec(sprintf('%s %s 2>/dev/null', $which, escapeshellarg($binary)), $output, $code);
+        return $code === 0 && !empty($output);
     }
 
     private function dumpSqlite(array $config, string $filepath): void
