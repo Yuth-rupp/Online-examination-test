@@ -32,7 +32,14 @@ class CreateBackupJob implements ShouldQueue
 
     public function handle(): void
     {
-        $snapshotId = 'SNAP-' . now()->format('Y-m-d-His');
+        // Second-precision timestamps alone can collide when two backups
+        // fire within the same second (e.g. an automated backup landing at
+        // the same moment as a manual "Trigger Backup" click, or a
+        // double-submitted click). A collision means the second write
+        // silently overwrites the first one's file on the 'backups' disk —
+        // so we always append a short unique suffix to guarantee every
+        // snapshot gets its own filename, even multiple in the same second.
+        $snapshotId = 'SNAP-' . now()->format('Y-m-d-His') . '-' . substr(uniqid(), -6);
         $filename   = $snapshotId . '.sql';
 
         // Database dump CLI tools (mysqldump/pg_dump/sqlite3) can only write to a
