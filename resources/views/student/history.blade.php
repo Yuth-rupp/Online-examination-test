@@ -655,7 +655,19 @@
                 score: {{ $sub->total_score ?? 0 }},
                 maxScore: {{ $sub->max_score ?? 100 }},
                 percentage: {{ $sub->status === 'pending_grading' ? 0 : round($sub->percentage ?? 0) }},
-                grade: {{ $sub->status === 'pending_grading' ? 'null' : "'" . ($sub->percentage >= 85 ? 'A' : ($sub->percentage >= 70 ? 'B+' : 'C')) . "'" }},
+                {{-- ✅ FIX: {{ }} HTML-escapes its output, so the quotes this
+                     expression deliberately builds around 'A'/'B+'/'C' were
+                     coming out as the literal text &#039;A&#039; — which is
+                     not valid JavaScript. That single broken line threw a
+                     syntax error in this <script> block, so Alpine.data
+                     ('historyApp', ...) never registered at all, and
+                     x-data="historyApp" above silently failed — which is
+                     why every stat card and the whole results table stayed
+                     blank even for a student with real graded submissions.
+                     {!! !!} outputs the value unescaped; it's safe here
+                     because the value only ever comes from the fixed set
+                     null/'A'/'B+'/'C', never from user input. --}}
+                grade: {!! $sub->status === 'pending_grading' ? 'null' : "'" . ($sub->percentage >= 85 ? 'A' : ($sub->percentage >= 70 ? 'B+' : 'C')) . "'" !!},
                 percentile: '{{ $sub->percentage >= 85 ? "Top 5%" : ($sub->percentage >= 70 ? "Top 12%" : "Top 26%") }}',
                 submittedAt: '{{ \Carbon\Carbon::parse($sub->created_at)->format("M d, Y") }}'
               },
