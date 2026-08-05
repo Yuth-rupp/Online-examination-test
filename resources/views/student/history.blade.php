@@ -311,7 +311,7 @@
         </div>
 
         <!-- Chart or empty state -->
-        <template x-if="submissions.length > 0">
+        <template x-if="gradedSubmissions.length > 0">
           <div class="relative">
             <div class="flex gap-4">
               <!-- Y-axis labels -->
@@ -350,7 +350,7 @@
                   <path :d="'M ' + svgPoints" fill="none" stroke="#4F6EF7" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
 
                   <!-- Data points -->
-                  <template x-for="(sub, idx) in submissions" :key="sub.id">
+                  <template x-for="(sub, idx) in gradedSubmissions" :key="sub.id">
                     <g class="cursor-pointer"
                        @click="modalTitle = '📊 ' + sub.title; modalBody = buildScoreModal(sub); modalOpen = true">
                       <!-- Outer ring -->
@@ -367,7 +367,7 @@
 
                 <!-- X-axis labels -->
                 <div class="flex justify-between text-[10px] font-bold text-slate-400 pt-2 px-0">
-                  <template x-for="sub in submissions" :key="sub.id">
+                  <template x-for="sub in gradedSubmissions" :key="sub.id">
                     <span class="truncate text-center flex-1 max-w-[100px]" x-text="sub.title"></span>
                   </template>
                 </div>
@@ -398,7 +398,7 @@
         </template>
 
         <!-- Chart empty state -->
-        <template x-if="submissions.length === 0">
+        <template x-if="gradedSubmissions.length === 0">
           <div class="h-44 flex items-center justify-center">
             <div class="text-center">
               <i data-lucide="bar-chart-2" class="w-10 h-10 text-slate-200 dark:text-slate-800 mx-auto mb-2"></i>
@@ -436,6 +436,7 @@
               <option value="A">Grade A (≥85%)</option>
               <option value="B+">Grade B+ (≥70%)</option>
               <option value="C">Grade C (&lt;70%)</option>
+              <option value="Pending">Pending Grading</option>
             </select>
 
             <!-- Sort -->
@@ -492,46 +493,66 @@
 
                     <!-- Score -->
                     <td class="px-5 py-4">
-                      <p class="text-sm font-black" :class="darkMode ? 'text-white' : 'text-slate-900'" x-text="sub.score + '/' + sub.maxScore"></p>
-                      <p class="text-[11px] text-slate-400 font-medium" x-text="sub.percentage + '%'"></p>
+                      <template x-if="!sub.isPending">
+                        <div>
+                          <p class="text-sm font-black" :class="darkMode ? 'text-white' : 'text-slate-900'" x-text="sub.score + '/' + sub.maxScore"></p>
+                          <p class="text-[11px] text-slate-400 font-medium" x-text="sub.percentage + '%'"></p>
+                        </div>
+                      </template>
+                      <template x-if="sub.isPending">
+                        <p class="text-[11px] text-slate-400 font-semibold italic">Not yet graded</p>
+                      </template>
                     </td>
 
                     <!-- Grade Badge -->
                     <td class="px-5 py-4">
-                      <span class="inline-flex items-center justify-center w-12 py-1 rounded-lg text-xs font-black"
-                            :class="{
-                              'bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400': sub.grade === 'A',
-                              'bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400': sub.grade === 'B+',
-                              'bg-amber-50 dark:bg-amber-500/10 text-amber-600 dark:text-amber-400': sub.grade === 'C'
-                            }"
-                            x-text="sub.grade"></span>
+                      <template x-if="!sub.isPending">
+                        <span class="inline-flex items-center justify-center w-12 py-1 rounded-lg text-xs font-black"
+                              :class="{
+                                'bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400': sub.grade === 'A',
+                                'bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400': sub.grade === 'B+',
+                                'bg-amber-50 dark:bg-amber-500/10 text-amber-600 dark:text-amber-400': sub.grade === 'C'
+                              }"
+                              x-text="sub.grade"></span>
+                      </template>
+                      <template x-if="sub.isPending">
+                        <span class="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-black uppercase tracking-wide bg-amber-50 dark:bg-amber-500/10 text-amber-600 dark:text-amber-400">
+                          <i data-lucide="clock" class="w-3 h-3"></i>
+                          Pending
+                        </span>
+                      </template>
                     </td>
 
                     <!-- Score Progress Bar -->
                     <td class="px-5 py-4 hidden md:table-cell">
-                      <div class="flex items-center gap-2 min-w-[120px]">
-                        <div class="flex-1 h-2 rounded-full overflow-hidden"
-                             :class="darkMode ? 'bg-slate-800' : 'bg-slate-100'">
-                          <div class="h-full rounded-full score-bar"
-                               :class="{
-                                 'bg-gradient-to-r from-emerald-400 to-teal-400': sub.grade === 'A',
-                                 'bg-gradient-to-r from-blue-400 to-indigo-400': sub.grade === 'B+',
-                                 'bg-gradient-to-r from-amber-400 to-orange-400': sub.grade === 'C'
-                               }"
-                               :style="'width: ' + sub.percentage + '%'"></div>
+                      <template x-if="!sub.isPending">
+                        <div class="flex items-center gap-2 min-w-[120px]">
+                          <div class="flex-1 h-2 rounded-full overflow-hidden"
+                               :class="darkMode ? 'bg-slate-800' : 'bg-slate-100'">
+                            <div class="h-full rounded-full score-bar"
+                                 :class="{
+                                   'bg-gradient-to-r from-emerald-400 to-teal-400': sub.grade === 'A',
+                                   'bg-gradient-to-r from-blue-400 to-indigo-400': sub.grade === 'B+',
+                                   'bg-gradient-to-r from-amber-400 to-orange-400': sub.grade === 'C'
+                                 }"
+                                 :style="'width: ' + sub.percentage + '%'"></div>
+                          </div>
+                          <span class="text-[11px] font-black text-slate-400 w-8 text-right" x-text="sub.percentage + '%'"></span>
                         </div>
-                        <span class="text-[11px] font-black text-slate-400 w-8 text-right" x-text="sub.percentage + '%'"></span>
-                      </div>
+                      </template>
+                      <template x-if="sub.isPending">
+                        <span class="text-[11px] text-slate-400 font-medium">Awaiting teacher review</span>
+                      </template>
                     </td>
 
                     <!-- Percentile -->
                     <td class="px-5 py-4 hidden lg:table-cell">
-                      <span class="text-xs font-bold text-slate-400" x-text="sub.percentile"></span>
+                      <span class="text-xs font-bold text-slate-400" x-text="sub.isPending ? '—' : sub.percentile"></span>
                     </td>
 
                     <!-- Action -->
                     <td class="px-5 py-4 text-right">
-                      <div class="flex items-center justify-end gap-2">
+                      <div class="flex items-center justify-end gap-2" x-show="!sub.isPending">
                         <button @click="modalTitle = '📊 ' + sub.title; modalBody = buildScoreModal(sub); modalOpen = true"
                                 class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer"
                                 :class="darkMode ? 'bg-slate-800 border border-slate-700 text-slate-300 hover:bg-indigo-500/10 hover:text-indigo-400 hover:border-indigo-500/30' : 'bg-slate-50 border border-slate-200 text-slate-600 hover:bg-indigo-50 hover:text-indigo-600 hover:border-indigo-200'">
@@ -544,6 +565,7 @@
                           Review
                         </button>
                       </div>
+                      <span class="text-[11px] text-slate-400 font-semibold italic" x-show="sub.isPending">Awaiting grade</span>
                     </td>
                   </tr>
                 </template>
@@ -628,10 +650,12 @@
                 id: '{{ $sub->id }}',
                 title: '{{ addslashes($sub->exam->title) }}',
                 code: '{{ addslashes($sub->exam->course->code ?? "") }}',
+                status: '{{ $sub->status }}',
+                isPending: {{ $sub->status === 'pending_grading' ? 'true' : 'false' }},
                 score: {{ $sub->total_score ?? 0 }},
                 maxScore: {{ $sub->max_score ?? 100 }},
-                percentage: {{ round($sub->percentage ?? 0) }},
-                grade: '{{ $sub->percentage >= 85 ? "A" : ($sub->percentage >= 70 ? "B+" : "C") }}',
+                percentage: {{ $sub->status === 'pending_grading' ? 0 : round($sub->percentage ?? 0) }},
+                grade: {{ $sub->status === 'pending_grading' ? 'null' : "'" . ($sub->percentage >= 85 ? 'A' : ($sub->percentage >= 70 ? 'B+' : 'C')) . "'" }},
                 percentile: '{{ $sub->percentage >= 85 ? "Top 5%" : ($sub->percentage >= 70 ? "Top 12%" : "Top 26%") }}',
                 submittedAt: '{{ \Carbon\Carbon::parse($sub->created_at)->format("M d, Y") }}'
               },
@@ -642,27 +666,39 @@
 
         // ─── COMPUTED PROPERTIES ───────────────────────
 
+        // Submissions still awaiting teacher grading have no real score yet
+        // (the essay portion hasn't been marked) — they must never feed into
+        // averages, best score, the trend chart, or grade counts, or a
+        // student sees a "final" percentage before the teacher has actually
+        // finished grading their paper.
+        get gradedSubmissions() {
+          return this.submissions.filter(s => !s.isPending);
+        },
+
         get averagePerformance() {
-          if (this.submissions.length === 0) return '0%';
-          const total = this.submissions.reduce((s, x) => s + x.percentage, 0);
-          return (total / this.submissions.length).toFixed(1) + '%';
+          const graded = this.gradedSubmissions;
+          if (graded.length === 0) return '0%';
+          const total = graded.reduce((s, x) => s + x.percentage, 0);
+          return (total / graded.length).toFixed(1) + '%';
         },
 
         get avgRaw() {
-          if (this.submissions.length === 0) return 0;
-          return this.submissions.reduce((s, x) => s + x.percentage, 0) / this.submissions.length;
+          const graded = this.gradedSubmissions;
+          if (graded.length === 0) return 0;
+          return graded.reduce((s, x) => s + x.percentage, 0) / graded.length;
         },
 
         get bestScore() {
-          if (this.submissions.length === 0) return 0;
-          return Math.max(...this.submissions.map(s => s.percentage));
+          const graded = this.gradedSubmissions;
+          if (graded.length === 0) return 0;
+          return Math.max(...graded.map(s => s.percentage));
         },
 
         get gradeCounts() {
           return {
-            A: this.submissions.filter(s => s.grade === 'A').length,
-            Bplus: this.submissions.filter(s => s.grade === 'B+').length,
-            C: this.submissions.filter(s => s.grade === 'C').length,
+            A: this.gradedSubmissions.filter(s => s.grade === 'A').length,
+            Bplus: this.gradedSubmissions.filter(s => s.grade === 'B+').length,
+            C: this.gradedSubmissions.filter(s => s.grade === 'C').length,
           };
         },
 
@@ -677,7 +713,9 @@
           let result = this.submissions.filter(sub => {
             const matchSearch = sub.title.toLowerCase().includes(this.searchQuery.toLowerCase()) ||
                                 (sub.code || '').toLowerCase().includes(this.searchQuery.toLowerCase());
-            const matchGrade = this.gradeFilter === 'All' || sub.grade === this.gradeFilter;
+            const matchGrade = this.gradeFilter === 'All'
+              || (this.gradeFilter === 'Pending' && sub.isPending)
+              || sub.grade === this.gradeFilter;
             return matchSearch && matchGrade;
           });
           this.$nextTick(() => lucide.createIcons());
@@ -689,7 +727,7 @@
         // ─── SVG CHART HELPERS ────────────────────────
 
         getX(idx) {
-          const n = this.submissions.length;
+          const n = this.gradedSubmissions.length;
           if (n <= 1) return 500;
           return 30 + (idx * 940 / (n - 1));
         },
@@ -699,13 +737,15 @@
         },
 
         get svgPoints() {
-          if (this.submissions.length === 0) return '30,220';
-          return this.submissions.map((s, i) => `${this.getX(i)},${this.getY(s.percentage)}`).join(' ');
+          const graded = this.gradedSubmissions;
+          if (graded.length === 0) return '30,220';
+          return graded.map((s, i) => `${this.getX(i)},${this.getY(s.percentage)}`).join(' ');
         },
 
         get svgGradientPoints() {
-          if (this.submissions.length === 0) return '30,220 30,230';
-          const lastX = this.getX(this.submissions.length - 1);
+          const graded = this.gradedSubmissions;
+          if (graded.length === 0) return '30,220 30,230';
+          const lastX = this.getX(graded.length - 1);
           return `30,230 ${this.svgPoints} ${lastX},230`;
         },
 
@@ -803,6 +843,10 @@
           csv += `${'─'.repeat(55)}\n`;
 
           this.submissions.forEach((sub, i) => {
+            if (sub.isPending) {
+              csv += `${i + 1},"${sub.title}","${sub.code || '—'}","Pending","Pending","Pending","Pending Grading","Awaiting teacher review","—","${sub.submittedAt || '—'}"\n`;
+              return;
+            }
             const perfLevel = gradeLabel[sub.grade] || sub.grade;
             csv += `${i + 1},"${sub.title}","${sub.code || '—'}",${sub.score},${sub.maxScore},${sub.percentage}%,"${sub.grade}","${perfLevel}","${sub.percentile}","${sub.submittedAt || '—'}"\n`;
           });
@@ -839,15 +883,18 @@
             this.submissions = (data || [])
               .filter(s => s.exam)
               .map(s => {
-                const pct = Math.round(s.percentage || 0);
+                const isPending = s.status === 'pending_grading';
+                const pct = isPending ? 0 : Math.round(s.percentage || 0);
                 return {
                   id: String(s.id),
                   title: s.exam.title,
                   code: (s.exam.course && s.exam.course.code) || '',
+                  status: s.status,
+                  isPending: isPending,
                   score: s.total_score || 0,
                   maxScore: s.max_score || 100,
                   percentage: pct,
-                  grade: pct >= 85 ? 'A' : (pct >= 70 ? 'B+' : 'C'),
+                  grade: isPending ? null : (pct >= 85 ? 'A' : (pct >= 70 ? 'B+' : 'C')),
                   percentile: pct >= 85 ? 'Top 5%' : (pct >= 70 ? 'Top 12%' : 'Top 26%'),
                   submittedAt: new Date(s.created_at).toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' })
                 };
