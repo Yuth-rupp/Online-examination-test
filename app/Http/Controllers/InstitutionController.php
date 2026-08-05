@@ -3,17 +3,14 @@
 namespace App\Http\Controllers;
 
 use App\Models\Institution;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
 
 /**
  * Super Admin: Institution / University directory.
- *
- * This is what onboards a new school onto the platform. AuthController::register()
- * refuses self-registration unless the student/teacher's email domain matches an
- * `institutions.domain` row with `is_active = true` — until a university is added
- * here, nobody with that email domain can create an account.
  */
 class InstitutionController extends Controller
 {
@@ -25,15 +22,20 @@ class InstitutionController extends Controller
     {
         $institutions = Institution::withCount('users')
             ->orderBy('name')
-            ->get();
+            ->get()
+            ->map(function ($institution) {
+                // If domain is '@', set users_count to total system users
+                if ($institution->domain === '@' || empty($institution->domain)) {
+                    $institution->users_count = User::count();
+                }
+                return $institution;
+            });
 
         return view('superadmin.institutions', compact('institutions'));
     }
 
     /**
-     * Onboard a new university by registering its email domain. From this
-     * moment on, anyone with an @that-domain email can self-register as a
-     * student or teacher.
+     * Onboard a new university by registering its email domain.
      */
     public function store(Request $request)
     {
@@ -42,10 +44,14 @@ class InstitutionController extends Controller
             'domain' => 'required|string|max:255|unique:institutions,domain',
         ]);
 
-        // Normalize the same way AuthController::register() reads it back
-        // (lowercase, no leading "@", no stray whitespace) so a domain
-        // typed as "@RUPP.edu.kh" still matches "student@rupp.edu.kh".
-        $validated['domain'] = strtolower(trim($validated['domain'], " \t\n\r\0\x0B@"));
+        // Keep '@' intact for system fallback; otherwise, normalize domain
+        $rawDomain = trim($validated['domain']);
+        if ($rawDomain === '@') {
+            $validated['domain'] = '@';
+        } else {
+            $validated['domain'] = strtolower(trim($rawDomain, " \t\n\r\0\x0B@"));
+        }
+
         $validated['is_active'] = true;
 
         $institution = Institution::create($validated);
@@ -56,7 +62,7 @@ class InstitutionController extends Controller
         ]);
 
         return redirect()->route('superadmin.institutions.index')
-            ->with('success', "{$institution->name} can now self-register with @{$institution->domain} emails.");
+            ->with('success', "{$institution->name} onboarded successfully.");
     }
 
     /**
@@ -66,10 +72,20 @@ class InstitutionController extends Controller
     {
         $validated = $request->validate([
             'name'   => 'required|string|max:255',
-            'domain' => 'required|string|max:255|unique:institutions,domain,' . $institution->id,
+            'domain' => [
+                'required',
+                'string',
+                'max:255',
+                Rule::unique('institutions', 'domain')->ignore($institution->id),
+            ],
         ]);
 
-        $validated['domain'] = strtolower(trim($validated['domain'], " \t\n\r\0\x0B@"));
+        $rawDomain = trim($validated['domain']);
+        if ($rawDomain === '@') {
+            $validated['domain'] = '@';
+        } else {
+            $validated['domain'] = strtolower(trim($rawDomain, " \t\n\r\0\x0B@"));
+        }
 
         $institution->update($validated);
 
@@ -82,9 +98,7 @@ class InstitutionController extends Controller
     }
 
     /**
-     * Flip a university active/inactive. Deactivating it immediately blocks
-     * new self-registrations from that domain (existing accounts are
-     * untouched — this only guards the registration form).
+     * Flip a university active/inactive.
      */
     public function toggleStatus(Institution $institution)
     {
@@ -97,16 +111,20 @@ class InstitutionController extends Controller
         ]);
 
         return redirect()->route('superadmin.institutions.index')
-            ->with('success', $institution->name . ($institution->is_active ? ' reactivated.' : ' deactivated — new self-registrations from that domain are now blocked.'));
+            ->with('success', $institution->name . ($institution->is_active ? ' reactivated.' : ' deactivated.'));
     }
 
     /**
-     * Permanently remove a university from the directory. Blocked if it
-     * still has users or departments attached — those must be reassigned
-     * or removed first, otherwise this would silently orphan real data.
+     * Permanently remove a university from the directory.
      */
     public function destroy(Institution $institution)
     {
+        // Protect system fallback institution
+        if ($institution->domain === '@') {
+            return redirect()->route('superadmin.institutions.index')
+                ->with('error', "Can't delete the primary system fallback institution (@).");
+        }
+
         $userCount = \App\Models\User::where('institution_id', $institution->id)->count();
         $deptCount = \App\Models\Department::where('institution_id', $institution->id)->count();
 

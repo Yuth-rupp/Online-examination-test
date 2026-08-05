@@ -6,7 +6,6 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use App\Models\User;
 use App\Models\Course;
-// use App\Models\Exam; // only if needed
 
 class Institution extends Model
 {
@@ -27,5 +26,19 @@ class Institution extends Model
 
     public function courses() {
         return $this->hasMany(Course::class);
+    }
+
+    /**
+     * Override or complement users_count.
+     * If domain is '@' or empty, return total count of all users across the system.
+     */
+    public function getUsersCountAttribute()
+    {
+        if ($this->domain === '@' || empty($this->domain)) {
+            return User::count();
+        }
+
+        // Return the relationship count if loaded, or query it
+        return $this->attributes['users_count'] ?? $this->users()->count();
     }
 }
