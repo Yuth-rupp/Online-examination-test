@@ -6,6 +6,7 @@ use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Request;
 use Illuminate\Console\Scheduling\Schedule;
 use App\Jobs\CreateBackupJob;
+use App\Http\Middleware\SharePlatformIdentity;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -40,6 +41,15 @@ return Application::configure(basePath: dirname(__DIR__))
             'role'                 => \App\Http\Middleware\RoleMiddleware::class,
             'audit.capture'        => \App\Http\Middleware\CaptureSuperAdminActivity::class,
             'force.password.change' => \App\Http\Middleware\ForcePasswordChange::class,
+        ]);
+
+        // Share the platform name with every request, on every worker —
+        // must run for both web and api, so push onto both stacks.
+        $middleware->web(append: [
+            SharePlatformIdentity::class,
+        ]);
+        $middleware->api(append: [
+            SharePlatformIdentity::class,
         ]);
 
         // Exclude the live proctoring frame stream route from CSRF protection
