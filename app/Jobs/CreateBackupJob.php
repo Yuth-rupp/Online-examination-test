@@ -298,7 +298,14 @@ class CreateBackupJob implements ShouldQueue
                 'created_at'     => now(),
             ]);
         } catch (\Exception $e) {
-            // Silently fail if audit_logs table doesn't exist
+            // Was previously a bare silent catch — that's exactly how the
+            // model_id VARCHAR/BIGINT mismatch went unnoticed for so long.
+            // A backup can still be considered successful even if this one
+            // write fails, so we don't rethrow, but it must show up in the
+            // logs instead of disappearing without a trace.
+            \Illuminate\Support\Facades\Log::warning(
+                'CreateBackupJob: failed to write audit log entry for "' . $action . '": ' . $e->getMessage()
+            );
         }
     }
 }
