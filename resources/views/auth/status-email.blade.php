@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Online Exam - Check Your Email</title>
+    <title>{{ $platformName }} - Check Your Email</title>
     <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
@@ -14,14 +14,14 @@
         <div class="hidden md:flex md:w-[45%] bg-[#1E4277] text-white p-12 flex-col justify-between relative select-none">
             <div class="flex items-center space-x-2 text-xl font-semibold tracking-wide">
                 <i class="fas fa-user-graduate"></i>
-                <span>Online Exam</span>
+                <span>{{ $platformName }}</span>
             </div>
 
             <div class="flex flex-col items-center justify-center text-center space-y-4 my-auto">
                 <div class="bg-white/10 p-5 rounded-2xl border border-white/10 shadow-lg">
                     <i class="fas fa-shield-alt text-4xl text-white"></i>
                 </div>
-                <h1 class="text-3xl font-bold tracking-tight mt-2">OnlineExam</h1>
+                <h1 class="text-3xl font-bold tracking-tight mt-2">{{ $platformName }}</h1>
                 <p class="text-blue-200 text-sm max-w-xs font-light">Empowering Academic Integrity</p>
             </div>
 

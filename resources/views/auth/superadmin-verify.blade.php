@@ -13,7 +13,7 @@
         <!-- Left Banner Pane -->
         <div class="hidden lg:flex lg:w-1/2 bg-[#1e5fa7] text-white flex-col justify-between p-12 md:p-16 relative">
             <div class="flex items-center gap-3 text-xl font-bold tracking-wide uppercase">
-                <i class="fa-solid fa-graduation-cap text-2xl"></i> Online Exam
+                <i class="fa-solid fa-graduation-cap text-2xl"></i> {{ $platformName }}
             </div>
             
             <div class="max-w-md my-auto">

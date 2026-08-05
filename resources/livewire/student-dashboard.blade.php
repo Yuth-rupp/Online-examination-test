@@ -8,7 +8,7 @@
           <i data-lucide="graduation-cap" class="w-6 h-6"></i>
         </div>
         <div>
-          <h1 class="font-bold text-base text-[#0F172A] leading-tight">ExamSystem</h1>
+          <h1 class="font-bold text-base text-[#0F172A] leading-tight">{{ $platformName }}</h1>
           <p class="text-xs text-[#64748B]">Student Portal</p>
         </div>
       </div>

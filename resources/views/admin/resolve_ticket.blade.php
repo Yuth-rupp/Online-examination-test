@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="Resolve support ticket — ExamSystem Admin Panel">
-    <title>Resolve Ticket #{{ $ticket->ticket_no }} — ExamSystem Admin</title>
+    <meta name="description" content="Resolve support ticket — {{ $platformName }} Admin Panel">
+    <title>Resolve Ticket #{{ $ticket->ticket_no }} — {{ $platformName }} Admin</title>
     <meta name="csrf-token" content="{{ csrf_token() }}">
 
     <!-- Anti-flash dark mode (matches the dashboard) -->
@@ -27,7 +27,7 @@
 
     <style>
         /* ═══════════════════════════════════════════════
-           DESIGN SYSTEM — matches all ExamSystem pages
+           DESIGN SYSTEM — matches all {{ $platformName }} pages
         ═══════════════════════════════════════════════ */
         :root {
             --sidebar-w      : 256px;

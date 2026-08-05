@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>End Exam Confirmation | ExamSystem</title>
+    <title>End Exam Confirmation | {{ $platformName }}</title>
     <!-- Tailwind CSS v4 CDN -->
     <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
     <!-- Google Fonts Inter -->
@@ -25,7 +25,7 @@
                 <i class="fa-solid fa-graduation-cap text-lg"></i>
             </div>
             <div>
-                <span class="font-bold text-lg tracking-wide block">ExamSystem</span>
+                <span class="font-bold text-lg tracking-wide block">{{ $platformName }}</span>
                 <span class="text-xs text-slate-400">Live Proctoring Panel</span>
             </div>
         </div>
@@ -125,7 +125,7 @@
 
     <!-- Professional Footer -->
     <footer class="py-4 text-center text-xs text-slate-400 border-t border-slate-200 bg-white">
-        &copy; 2026 ExamSystem Interactive Proctoring Modules. All rights reserved.
+        &copy; 2026 {{ $platformName }} Interactive Proctoring Modules. All rights reserved.
     </footer>
 
 </body>

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Forgot Password - Online Exam</title>
+    <title>Forgot Password - {{ $platformName }}</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
@@ -18,7 +18,7 @@
 
             <div class="flex items-center space-x-3 z-10">
                 <i class="fa-solid fa-graduation-cap text-2xl"></i>
-                <span class="text-xl font-bold tracking-wide">Online Exam</span>
+                <span class="text-xl font-bold tracking-wide">{{ $platformName }}</span>
             </div>
 
             <div class="max-w-xl my-auto z-10">

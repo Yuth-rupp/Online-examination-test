@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Online Exam - Login</title>
+    <title>{{ $platformName }} - Login</title>
     <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
@@ -14,7 +14,7 @@
         <div class="hidden md:flex md:w-[45%] bg-[#1E4277] text-white p-12 flex-col justify-between relative select-none">
             <div class="flex items-center space-x-2 text-xl font-semibold tracking-wide">
                 <i class="fas fa-user-graduate"></i>
-                <span>Online Exam</span>
+                <span>{{ $platformName }}</span>
             </div>
 
             <div class="flex flex-col items-center justify-center text-center space-y-5 my-auto">

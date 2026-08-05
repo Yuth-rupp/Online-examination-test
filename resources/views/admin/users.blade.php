@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>User Management | ExamSystem</title>
-    <meta name="description" content="Manage platform user accounts, roles, and access levels in ExamSystem Admin Console.">
+    <title>User Management | {{ $platformName }}</title>
+    <meta name="description" content="Manage platform user accounts, roles, and access levels in {{ $platformName }} Admin Console.">
     <!-- Anti-flash dark mode (matches Dashboard) -->
     <script>
       (function () {

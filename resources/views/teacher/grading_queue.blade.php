@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ExamSystem – Grading Queue</title>
+    <title>{{ $platformName }} – Grading Queue</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -87,7 +87,7 @@
              style="background:linear-gradient(135deg,#2563EB,#1E40AF);box-shadow:0 4px 12px rgba(37,99,235,.35);">
             <i class="fa-solid fa-graduation-cap text-base"></i>
         </div>
-        <span class="font-black text-[18px] text-[#0F172A] tracking-tight">ExamSystem</span>
+        <span class="font-black text-[18px] text-[#0F172A] tracking-tight">{{ $platformName }}</span>
     </a>
 
     <nav class="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">

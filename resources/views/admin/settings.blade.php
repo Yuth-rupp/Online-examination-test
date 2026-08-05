@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="Admin Settings — ExamSystem Console">
-    <title>Settings — ExamSystem Admin</title>
+    <meta name="description" content="Admin Settings — {{ $platformName }} Console">
+    <title>Settings — {{ $platformName }} Admin</title>
     <meta name="csrf-token" content="{{ csrf_token() }}">
 
     <!-- Anti-flash dark mode (matches the dashboard) -->
@@ -27,7 +27,7 @@
 
     <style>
         /* ═══════════════════════════════════════════
-           DESIGN SYSTEM — ExamSystem Admin Console
+           DESIGN SYSTEM — {{ $platformName }} Admin Console
         ═══════════════════════════════════════════ */
         :root {
             --sidebar-w  : 256px; /* Exactly matching dashboard.blade.php sidebar size */

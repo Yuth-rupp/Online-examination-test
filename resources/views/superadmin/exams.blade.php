@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>Exams Oversight — ExamSystem</title>
+    <title>Exams Oversight — {{ $platformName }}</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
@@ -36,7 +36,7 @@
         <div class="h-16 flex items-center px-5 gap-3 border-b border-slate-100 flex-shrink-0">
             <div class="w-9 h-9 bg-blue-600 rounded-xl flex items-center justify-center flex-shrink-0" style="box-shadow:0 4px 14px rgba(59,130,246,0.45);"><i class="fa-solid fa-graduation-cap text-white text-sm"></i></div>
             <div>
-                <h1 class="font-extrabold text-slate-900 text-sm tracking-tight leading-none">ExamSystem</h1>
+                <h1 class="font-extrabold text-slate-900 text-sm tracking-tight leading-none">{{ $platformName }}</h1>
                 <div class="flex items-center gap-1.5 mt-1"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block"></span><span class="text-[10px] text-slate-400 font-semibold uppercase tracking-widest">Super Admin</span></div>
             </div>
         </div>
@@ -323,7 +323,7 @@
             @endif
         </div>
         <footer class="px-8 py-4 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-300">
-            <span>© {{ date('Y') }} ExamSystem — Exams Oversight</span>
+            <span>© {{ date('Y') }} {{ $platformName }} — Exams Oversight</span>
             <span class="font-mono">Real-time · 15s polling</span>
         </footer>
     </main>

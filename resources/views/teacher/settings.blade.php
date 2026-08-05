@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>ExamSystem – Settings</title>
+    <title>{{ $platformName }} – Settings</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
@@ -153,7 +153,7 @@
 
                     <div>
                         <p class="text-sm font-black text-slate-900 mb-1">{{ Auth::user()->full_name ?? 'Yun Dalin' }}</p>
-                        <p class="text-[11px] text-slate-400 mb-3">Senior Faculty · ExamSystem</p>
+                        <p class="text-[11px] text-slate-400 mb-3">Senior Faculty · {{ $platformName }}</p>
                         <div class="flex gap-2">
                             <button type="button" onclick="document.getElementById('avatarInput').click()"
                                     class="flex items-center gap-1.5 text-[11px] font-black px-3 py-2 rounded-xl transition-all"
@@ -541,7 +541,7 @@
             </div>
             <div class="flex-1">
                 <h3 id="mTitle" class="text-[13px] font-black text-slate-900">Title</h3>
-                <p class="text-[9px] font-bold text-blue-600 uppercase tracking-widest mt-0.5">ExamSystem Document</p>
+                <p class="text-[9px] font-bold text-blue-600 uppercase tracking-widest mt-0.5">{{ $platformName }} Document</p>
             </div>
             <button onclick="closeModal()" class="w-7 h-7 rounded-lg flex items-center justify-center text-slate-400 hover:bg-slate-100 transition-colors">
                 <i class="fa-solid fa-xmark text-sm"></i>

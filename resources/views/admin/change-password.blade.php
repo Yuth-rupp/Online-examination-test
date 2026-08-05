@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="Change Password — ExamSystem Admin Console">
-    <title>{{ $forced ? 'Set a New Password' : 'Change Password' }} — ExamSystem Admin</title>
+    <meta name="description" content="Change Password — {{ $platformName }} Admin Console">
+    <title>{{ $forced ? 'Set a New Password' : 'Change Password' }} — {{ $platformName }} Admin</title>
     <meta name="csrf-token" content="{{ csrf_token() }}">
 
     <script>
@@ -147,7 +147,7 @@
                 <h1 class="font-black text-lg" style="color:var(--text-1)">
                     {{ $forced ? 'Set a New Password' : 'Change Password' }}
                 </h1>
-                <p class="text-xs" style="color:var(--text-2)">ExamSystem Admin Console</p>
+                <p class="text-xs" style="color:var(--text-2)">{{ $platformName }} Admin Console</p>
             </div>
         </div>
 

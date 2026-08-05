@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>ExamSystem - Pre-Exam Verification</title>
+  <title>{{ $platformName }} - Pre-Exam Verification</title>
   <meta name="description" content="Complete identity and environment verification before entering your exam.">
 
   <script src="https://cdn.tailwindcss.com"></script>

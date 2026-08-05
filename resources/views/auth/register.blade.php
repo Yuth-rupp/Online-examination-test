@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Online Exam - Create Account</title>
+    <title>{{ $platformName }} - Create Account</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
@@ -16,7 +16,7 @@
                 <div class="text-white text-8xl mb-6 filter drop-shadow-md animate-fade-in">
                     <i class="fa-solid fa-graduation-cap"></i>
                 </div>
-                <h1 class="text-5xl font-extrabold tracking-tight mb-4">OnlineExam</h1>
+                <h1 class="text-5xl font-extrabold tracking-tight mb-4">{{ $platformName }}</h1>
                 <p class="text-lg text-blue-100 font-light max-w-md tracking-wide">Empowering Academic Integrity</p>
                 <div class="w-16 h-[3px] bg-white/30 rounded-full mt-8"></div>
             </div>

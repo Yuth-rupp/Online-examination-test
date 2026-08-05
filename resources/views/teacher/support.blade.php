@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>ExamSystem - Support & Help</title>
-  <meta name="description" content="Get help and submit support tickets on ExamSystem Teacher Portal.">
+  <title>{{ $platformName }} - Support & Help</title>
+  <meta name="description" content="Get help and submit support tickets on {{ $platformName }} Teacher Portal.">
   <meta name="csrf-token" content="{{ csrf_token() }}">
 
   <script src="https://cdn.tailwindcss.com"></script>

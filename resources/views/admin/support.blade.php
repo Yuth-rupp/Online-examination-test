@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Support Desk | ExamSystem Admin</title>
-    <meta name="description" content="Manage and resolve student and instructor support tickets in ExamSystem.">
+    <title>Support Desk | {{ $platformName }} Admin</title>
+    <meta name="description" content="Manage and resolve student and instructor support tickets in {{ $platformName }}.">
     <meta name="csrf-token" content="{{ csrf_token() }}">
 
     <!-- Anti-flash dark mode (matches the dashboard) -->

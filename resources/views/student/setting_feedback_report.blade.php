@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>ExamSystem - Feedback Report</title>
+  <title>{{ $platformName }} - Feedback Report</title>
   
   <!-- Anti-Flash Script -->
   <script>
@@ -50,7 +50,7 @@
           <i data-lucide="graduation-cap" class="w-6 h-6"></i>
         </div>
         <div>
-          <h1 class="font-bold text-base leading-tight" :class="darkMode ? 'text-white' : 'text-[#0F172A]'">ExamSystem</h1>
+          <h1 class="font-bold text-base leading-tight" :class="darkMode ? 'text-white' : 'text-[#0F172A]'">{{ $platformName }}</h1>
           <p class="text-xs text-[#64748B]">Student Portal</p>
         </div>
       </div>

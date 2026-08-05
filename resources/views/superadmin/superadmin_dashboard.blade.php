@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>Command Center | ExamSystem</title>
+    <title>Command Center | {{ $platformName }}</title>
     {{-- Tailwind CSS v3 --}}
     <script src="https://cdn.tailwindcss.com"></script>
     {{-- FontAwesome Icons --}}
@@ -74,7 +74,7 @@
                 <i class="fa-solid fa-graduation-cap text-white text-sm"></i>
             </div>
             <div>
-                <h1 class="font-extrabold text-slate-900 text-sm tracking-tight leading-none">ExamSystem</h1>
+                <h1 class="font-extrabold text-slate-900 text-sm tracking-tight leading-none">{{ $platformName }}</h1>
                 <div class="flex items-center gap-1.5 mt-1">
                     <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block"></span>
                     <span class="text-[10px] text-slate-400 font-semibold uppercase tracking-widest">Super Admin</span>
@@ -539,7 +539,7 @@
         </div>
         {{-- Footer --}}
         <footer class="px-8 py-4 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-300">
-            <span>© {{ date('Y') }} ExamSystem — Super Admin Console</span>
+            <span>© {{ date('Y') }} {{ $platformName }} — Super Admin Console</span>
             <span class="font-mono">v2.0 · Real-time Engine Active</span>
         </footer>
     </main>

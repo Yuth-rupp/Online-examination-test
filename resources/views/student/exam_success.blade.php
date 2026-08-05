@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Exam Submitted — ExamSystem</title>
-  <meta name="description" content="Your exam has been submitted successfully on ExamSystem.">
+  <title>Exam Submitted — {{ $platformName }}</title>
+  <meta name="description" content="Your exam has been submitted successfully on {{ $platformName }}.">
 
   <!-- Anti-flash dark mode -->
   <script>

@@ -64,7 +64,7 @@
           @endif
         </div>
         <div>
-          <p class="text-white font-black text-sm leading-tight">{{ $institution->name ?? 'ExamSystem Academy' }}</p>
+          <p class="text-white font-black text-sm leading-tight">{{ $institution->name ?? '{{ $platformName }} Academy' }}</p>
           <p class="text-indigo-100 text-[10px] font-bold uppercase tracking-widest">Examination Hall Ticket</p>
         </div>
       </div>

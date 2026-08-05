@@ -13,7 +13,7 @@
           <i data-lucide="graduation-cap" class="w-5 h-5 text-white"></i>
         </div>
         <div>
-          <h1 class="font-black text-sm leading-tight" :class="darkMode ? 'text-white' : 'text-slate-900'">ExamSystem</h1>
+          <h1 class="font-black text-sm leading-tight" :class="darkMode ? 'text-white' : 'text-slate-900'">{{ $platformName }}</h1>
           <p class="text-[11px] font-medium text-slate-400">Admin Console</p>
         </div>
       </div>

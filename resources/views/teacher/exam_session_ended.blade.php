@@ -20,7 +20,7 @@
             <div class="w-8 h-8 bg-[#1D4ED8] rounded-lg flex items-center justify-center text-white shadow-sm">
                 <i class="fa-solid fa-graduation-cap text-sm"></i>
             </div>
-            <span class="font-bold text-lg text-[#0F172A] tracking-tight">ExamSystem</span>
+            <span class="font-bold text-lg text-[#0F172A] tracking-tight">{{ $platformName }}</span>
         </div>
         <div class="flex items-center gap-4 text-slate-500">
             <button onclick="triggerNotificationAlert()" class="p-2 hover:bg-slate-50 rounded-full cursor-pointer transition-colors relative">

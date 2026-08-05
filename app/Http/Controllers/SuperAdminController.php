@@ -18,6 +18,7 @@ use App\Mail\AdminPasswordReset;
 use App\Services\BrevoMailer;
 use Carbon\Carbon;
 use App\Jobs\CreateBackupJob;
+use App\Support\Platform;
 use App\Jobs\RestoreDatabaseJob;
 
 class SuperAdminController extends Controller
@@ -1041,6 +1042,13 @@ class SuperAdminController extends Controller
         });
 
         Artisan::call('config:clear');
+
+        // If the platform/site name changed, bust its cache immediately —
+        // every role (Admin/Teacher/Student/Super Admin) picks up the new
+        // name on their very next page load, no restart required.
+        if (array_key_exists('site_name', $fields)) {
+            Platform::forget();
+        }
 
         if ($request->expectsJson() || $request->ajax()) {
             return response()->json([

@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>ExamSystem - Support & Help</title>
-  <meta name="description" content="Get help and submit support tickets on ExamSystem Student Portal.">
+  <title>{{ $platformName }} - Support & Help</title>
+  <meta name="description" content="Get help and submit support tickets on {{ $platformName }} Student Portal.">
   <meta name="csrf-token" content="{{ csrf_token() }}">
 
   <!-- Anti-Flash Dark Mode -->
@@ -96,7 +96,7 @@
           <i data-lucide="graduation-cap" class="w-5 h-5 text-white"></i>
         </div>
         <div>
-          <h1 class="font-black text-sm leading-tight" :class="darkMode ? 'text-white' : 'text-slate-900'">ExamSystem</h1>
+          <h1 class="font-black text-sm leading-tight" :class="darkMode ? 'text-white' : 'text-slate-900'">{{ $platformName }}</h1>
           <p class="text-[11px] font-medium text-slate-400">Student Portal</p>
         </div>
       </div>

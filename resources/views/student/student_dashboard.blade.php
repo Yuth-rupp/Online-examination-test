@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>ExamSystem - Student Dashboard</title>
-  <meta name="description" content="ExamSystem student portal — view your exams, track performance, and access assessment tools.">
+  <title>{{ $platformName }} - Student Dashboard</title>
+  <meta name="description" content="{{ $platformName }} student portal — view your exams, track performance, and access assessment tools.">
   <meta name="csrf-token" content="{{ csrf_token() }}">
 
   <!-- Anti-Flash Dark Mode Script -->
@@ -96,7 +96,7 @@
           <i data-lucide="graduation-cap" class="w-5 h-5 text-white"></i>
         </div>
         <div>
-          <h1 class="font-black text-sm leading-tight" :class="darkMode ? 'text-white' : 'text-slate-900'">ExamSystem</h1>
+          <h1 class="font-black text-sm leading-tight" :class="darkMode ? 'text-white' : 'text-slate-900'">{{ $platformName }}</h1>
           <p class="text-[11px] font-medium text-slate-400">Student Portal</p>
           <p class="text-[11px] font-bold text-indigo-500 mt-0.5 flex items-center gap-1" x-show="department" x-cloak>
             <i data-lucide="building-2" class="w-3 h-3"></i>

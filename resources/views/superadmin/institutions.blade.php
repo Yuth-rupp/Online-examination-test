@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Institutions | ExamSystem</title>
+    <title>Institutions | {{ $platformName }}</title>
     <script>
       (function () {
         if (localStorage.getItem('darkMode') === 'true') {
@@ -38,7 +38,7 @@
                 <i class="fa-solid fa-graduation-cap text-white text-sm"></i>
             </div>
             <div>
-                <h1 class="font-extrabold text-slate-900 text-sm tracking-tight leading-none">ExamSystem</h1>
+                <h1 class="font-extrabold text-slate-900 text-sm tracking-tight leading-none">{{ $platformName }}</h1>
                 <div class="flex items-center gap-1.5 mt-1">
                     <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block"></span>
                     <span class="text-[10px] text-slate-400 font-semibold uppercase tracking-widest">Super Admin</span>

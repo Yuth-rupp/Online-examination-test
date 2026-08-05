@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Security Audit Center | ExamSystem</title>
-    <meta name="description" content="Real-time security audit center and infrastructure monitoring for ExamSystem administrators.">
+    <title>Security Audit Center | {{ $platformName }}</title>
+    <meta name="description" content="Real-time security audit center and infrastructure monitoring for {{ $platformName }} administrators.">
     <meta name="csrf-token" content="{{ csrf_token() }}">
 
     <!-- Anti-flash dark mode (matches the dashboard) -->

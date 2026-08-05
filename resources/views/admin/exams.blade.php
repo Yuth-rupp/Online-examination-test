@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Department Schedule & Monitor | ExamSystem Admin</title>
-    <meta name="description" content="Monitor live exam status, teacher/course assignments, and submission counts for your department in ExamSystem.">
+    <title>Department Schedule & Monitor | {{ $platformName }} Admin</title>
+    <meta name="description" content="Monitor live exam status, teacher/course assignments, and submission counts for your department in {{ $platformName }}.">
     <meta name="csrf-token" content="{{ csrf_token() }}">
 
     <!-- Anti-flash dark mode (matches the dashboard) -->

@@ -16,7 +16,7 @@
 
         <div class="hidden lg:flex lg:w-1/2 bg-[#255296] text-white flex-col justify-between p-12 relative">
             <div class="flex items-center gap-3 text-2xl font-bold tracking-wide">
-                <i class="fa-solid fa-graduation-cap"></i> Online Exam
+                <i class="fa-solid fa-graduation-cap"></i> {{ $platformName }}
             </div>
 
             <div class="flex flex-col gap-10 mt-20 max-w-md">
