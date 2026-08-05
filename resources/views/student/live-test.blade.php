@@ -9,6 +9,7 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <script>tailwind.config = { darkMode: 'class' }</script>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.css">
   <script src="https://unpkg.com/lucide@latest"></script>
   <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
 
@@ -281,7 +282,7 @@
                   @endif
                 </div>
                 <h2 class="text-xl font-black text-slate-900 leading-snug">
-                  {{ $qText }}
+                  {!! $qText !!}
                 </h2>
 
                 @if(!empty($question->media_url))
@@ -312,7 +313,7 @@
                     </div>
                     <span class="text-sm font-semibold leading-snug"
                           :class="answers[{{ $index }}] === '{{ $optKey }}' ? 'text-indigo-900' : 'text-slate-700'">
-                      {{ $optionText }}
+                      {!! $optionText !!}
                     </span>
                     <div class="ml-auto flex-shrink-0 w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all"
                          :class="answers[{{ $index }}] === '{{ $optKey }}'
