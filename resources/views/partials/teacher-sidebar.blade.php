@@ -34,7 +34,10 @@
              style="background:linear-gradient(135deg,#2563EB 0%,#1E40AF 100%);box-shadow:0 4px 12px rgba(37,99,235,.35);">
             <i class="fa-solid fa-graduation-cap text-base"></i>
         </div>
-        <span class="font-black text-[18px] text-[#0F172A] tracking-tight">{{ $platformName }}</span>
+        <div class="leading-tight">
+            <span class="block font-black text-[18px] text-[#0F172A] tracking-tight">{{ $platformName }}</span>
+            <span class="block text-[11px] font-medium text-slate-400">Teacher Console</span>
+        </div>
     </a>
 
     {{-- Department badge: shows the department(s) this teacher is actually
