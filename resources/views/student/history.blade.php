@@ -921,7 +921,12 @@
           this.updateClock();
           setInterval(() => this.updateClock(), 1000);
 
-          // Poll for newly graded submissions every 15s
+          // ✅ FIX: this used to only sync every 15s and never on load, so a
+          // student who just got graded and clicked through to History had
+          // to sit on a stale page for up to 15 seconds (or reload) before
+          // their new result appeared, even though the server already had
+          // it. Sync immediately on load, then keep polling every 15s.
+          this.syncSubmissionsFromServer();
           setInterval(() => this.syncSubmissionsFromServer(), 15000);
 
           lucide.createIcons();

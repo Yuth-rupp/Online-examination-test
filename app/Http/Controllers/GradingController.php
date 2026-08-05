@@ -197,17 +197,31 @@ class GradingController extends Controller
         $essayMaxPts = $essayQs->sum('points') ?: ($essayQs->count() ? 25 : 0);
         $rubricMax   = RubricSplitter::split((int) $essayMaxPts);
 
+        // ✅ FIX: accuracy/depth/clarity used to be "required" unconditionally,
+        // but evaluate.blade.php only renders those rubric sliders inside
+        // `@if($hasEssay)`. For an auto-graded-only exam (no essay question)
+        // the form simply never contains those fields — so validate() threw,
+        // Laravel silently redirected back to the same page (the blade never
+        // displays $errors), and the teacher saw "nothing happens" on Save
+        // Assessment / Save & Next: no redirect, and the submission's status
+        // never actually flipped from pending_grading to graded (which is
+        // also why it never showed up on the student's History page).
+        // Only require the rubric fields when the exam actually has an
+        // essay portion to grade; otherwise default them to 0.
+        $hasEssayQuestions = $essayQs->isNotEmpty();
+        $rubricRule = $hasEssayQuestions ? 'required' : 'nullable';
+
         $validated = $request->validate([
-            'accuracy' => "required|integer|min:0|max:{$rubricMax['accuracy']}",
-            'depth'    => "required|integer|min:0|max:{$rubricMax['depth']}",
-            'clarity'  => "required|integer|min:0|max:{$rubricMax['clarity']}",
+            'accuracy' => "{$rubricRule}|integer|min:0|max:{$rubricMax['accuracy']}",
+            'depth'    => "{$rubricRule}|integer|min:0|max:{$rubricMax['depth']}",
+            'clarity'  => "{$rubricRule}|integer|min:0|max:{$rubricMax['clarity']}",
             'feedback' => 'nullable|string',
         ]);
 
         // Read the hidden auto_score calculated inside the view layout context
         $autoScore = (int)$request->input('auto_score', 0);
-        
-        $manualScore = (int)$validated['accuracy'] + (int)$validated['depth'] + (int)$validated['clarity'];
+
+        $manualScore = (int)($validated['accuracy'] ?? 0) + (int)($validated['depth'] ?? 0) + (int)($validated['clarity'] ?? 0);
         $finalScore = $autoScore + $manualScore;
 
         // Real total possible points for THIS exam — the same calculation
@@ -231,9 +245,9 @@ class GradingController extends Controller
 
         // Synchronize rubric metrics and save notes directly to feedback column
         $submission->update([
-            'accuracy_score'   => $validated['accuracy'],
-            'depth_score'      => $validated['depth'],
-            'clarity_score'    => $validated['clarity'],
+            'accuracy_score'   => $validated['accuracy'] ?? 0,
+            'depth_score'      => $validated['depth'] ?? 0,
+            'clarity_score'    => $validated['clarity'] ?? 0,
             'total_score'      => $finalScore,
             'percentage'       => $percentage,
             'is_passed'        => $isPassed,

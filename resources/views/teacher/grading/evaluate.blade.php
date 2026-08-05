@@ -174,6 +174,23 @@
           {{ $claMax }}
       )">
 
+{{-- ✅ FIX: validation errors used to fail completely silently — Laravel
+     redirects back to this same page on a failed validate(), but nothing
+     here ever read $errors, so a teacher clicking Save Assessment/Save &
+     Next just saw the page "do nothing" with no indication why. --}}
+@if ($errors->any())
+<div class="fixed top-4 left-1/2 -translate-x-1/2 z-[9999] max-w-md w-full mx-4">
+    <div class="rounded-xl px-4 py-3 shadow-lg" style="background:#FEF2F2;border:1.5px solid #FCA5A5">
+        <p class="text-xs font-black text-red-700 mb-1"><i class="fa-solid fa-triangle-exclamation"></i> Couldn't save assessment</p>
+        <ul class="text-[11px] text-red-600 list-disc pl-4 space-y-0.5">
+            @foreach ($errors->all() as $error)
+                <li>{{ $error }}</li>
+            @endforeach
+        </ul>
+    </div>
+</div>
+@endif
+
 <form action="{{ route('teacher.grading.store', $submission->id) }}" method="POST" id="GF">
 @csrf
 <input type="hidden" name="action"     id="FA"  value="save">
