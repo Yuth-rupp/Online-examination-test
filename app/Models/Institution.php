@@ -29,16 +29,36 @@ class Institution extends Model
     }
 
     /**
-     * Override or complement users_count.
-     * If domain is '@' or empty, return total count of all users across the system.
+     * Get the accurate user count for this institution without duplicates.
      */
     public function getUsersCountAttribute()
     {
-        if ($this->domain === '@' || empty($this->domain)) {
-            return User::count();
+        // For specific email domains (e.g. gmail.com)
+        if ($this->domain !== '@' && !empty($this->domain)) {
+            $cleanDomain = ltrim(strtolower(trim($this->domain)), '@');
+            
+            return User::where(function ($q) use ($cleanDomain) {
+                $q->where('email', 'LIKE', "%@{$cleanDomain}")
+                  ->orWhere('institution_id', $this->id);
+            })->count();
         }
 
-        // Return the relationship count if loaded, or query it
-        return $this->attributes['users_count'] ?? $this->users()->count();
+        // For the Fallback Main Campus Institution (@)
+        // Count users assigned directly to this institution OR users whose domain isn't in any registered institution
+        $otherDomains = Institution::where('domain', '!=', '@')
+            ->whereNotNull('domain')
+            ->pluck('domain')
+            ->map(fn($d) => ltrim(strtolower(trim($d)), '@'))
+            ->filter()
+            ->values()
+            ->toArray();
+
+        return User::where('institution_id', $this->id)
+            ->orWhere(function ($query) use ($otherDomains) {
+                $query->whereNull('institution_id');
+                foreach ($otherDomains as $domain) {
+                    $query->where('email', 'NOT LIKE', "%@{$domain}");
+                }
+            })->count();
     }
 }

@@ -15,19 +15,38 @@ use Illuminate\Validation\Rule;
 class InstitutionController extends Controller
 {
     /**
-     * List every university/institution currently onboarded, with a quick
-     * count of how many users belong to each.
+     * List every university/institution currently onboarded with accurate user counts.
      */
     public function index()
     {
-        $institutions = Institution::withCount('users')
-            ->orderBy('name')
+        $otherDomains = Institution::where('domain', '!=', '@')
+            ->whereNotNull('domain')
+            ->pluck('domain')
+            ->map(fn($d) => ltrim(strtolower(trim($d)), '@'))
+            ->filter()
+            ->values()
+            ->toArray();
+
+        $institutions = Institution::orderBy('name')
             ->get()
-            ->map(function ($institution) {
-                // If domain is '@', set users_count to total system users
+            ->map(function ($institution) use ($otherDomains) {
                 if ($institution->domain === '@' || empty($institution->domain)) {
-                    $institution->users_count = User::count();
+                    // Main Campus Fallback (@): Count users linked directly OR not belonging to specific domains
+                    $institution->users_count = User::where('institution_id', $institution->id)
+                        ->orWhere(function ($query) use ($otherDomains) {
+                            $query->whereNull('institution_id');
+                            foreach ($otherDomains as $domain) {
+                                $query->where('email', 'NOT LIKE', "%@{$domain}");
+                            }
+                        })->count();
+                } else {
+                    // Domain specific (e.g. gmail.com)
+                    $cleanDomain = ltrim(strtolower(trim($institution->domain)), '@');
+                    $institution->users_count = User::where('email', 'LIKE', "%@{$cleanDomain}")
+                        ->orWhere('institution_id', $institution->id)
+                        ->count();
                 }
+
                 return $institution;
             });
 
@@ -44,7 +63,6 @@ class InstitutionController extends Controller
             'domain' => 'required|string|max:255|unique:institutions,domain',
         ]);
 
-        // Keep '@' intact for system fallback; otherwise, normalize domain
         $rawDomain = trim($validated['domain']);
         if ($rawDomain === '@') {
             $validated['domain'] = '@';
@@ -119,7 +137,6 @@ class InstitutionController extends Controller
      */
     public function destroy(Institution $institution)
     {
-        // Protect system fallback institution
         if ($institution->domain === '@') {
             return redirect()->route('superadmin.institutions.index')
                 ->with('error', "Can't delete the primary system fallback institution (@).");
@@ -130,7 +147,7 @@ class InstitutionController extends Controller
 
         if ($userCount > 0 || $deptCount > 0) {
             return redirect()->route('superadmin.institutions.index')
-                ->with('error', "Can't delete {$institution->name} — it still has {$userCount} user(s) and {$deptCount} department(s) attached. Reassign or remove those first.");
+                ->with('error', "Can't delete {$institution->name} — it still has {$userCount} user(s) and {$deptCount} department(s) attached.");
         }
 
         $name = $institution->name;
