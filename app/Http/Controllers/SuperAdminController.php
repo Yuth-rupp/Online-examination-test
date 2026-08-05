@@ -1018,12 +1018,11 @@ class SuperAdminController extends Controller
             $lastUpdated = DB::table('system_settings')->max('updated_at');
         } catch (\Exception $e) {}
 
-        $smtpConfigured = !empty($settings['mail_host']) && !empty($settings['mail_password']);
         $lockdownEnforced = ($settings['proctor_lockdown'] ?? '1') === '1';
         $auditRetentionDays = $settings['audit_retention_days'] ?? '90';
 
         return view('superadmin.global_setting', compact(
-            'settings', 'configCount', 'lastUpdated', 'smtpConfigured', 'lockdownEnforced', 'auditRetentionDays'
+            'settings', 'configCount', 'lastUpdated', 'lockdownEnforced', 'auditRetentionDays'
         ));
     }
 
@@ -1059,19 +1058,6 @@ class SuperAdminController extends Controller
 
         return redirect()->route('superadmin.settings.index')
             ->with('success', 'Global settings updated — applied to all departments.');
-    }
-
-    public function testSmtpConnectionApi(Request $request)
-    {
-        $addr = $request->input('email', auth()->user()->email);
-        try {
-            Mail::raw("SMTP test — " . now()->toDateTimeString(), fn($m) => $m->to($addr)->subject('SMTP Test'));
-            $this->logAction('settings.smtp.test.success', 'SYSTEM_CONFIG', '0');
-            return response()->json(['status' => 'success', 'message' => "Sent to {$addr}."]);
-        } catch (\Throwable $e) {
-            $this->logAction('settings.smtp.test.failure', 'SYSTEM_CONFIG', '0');
-            return response()->json(['status' => 'error', 'message' => 'SMTP failed: ' . $e->getMessage()], 422);
-        }
     }
 
     public function clearDatabaseCache()

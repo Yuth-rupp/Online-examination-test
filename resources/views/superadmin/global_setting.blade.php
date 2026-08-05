@@ -194,7 +194,7 @@
         <div class="p-8 flex-1">
 
             {{-- ========== METRIC CARDS ========== --}}
-            <div class="grid grid-cols-2 xl:grid-cols-4 gap-4 mb-6">
+            <div class="grid grid-cols-2 xl:grid-cols-3 gap-4 mb-6">
                 @php
                     $metricCards = [
                         [
@@ -204,14 +204,6 @@
                             'gradient' => '#eff6ff,#dbeafe',
                             'iconColor' => 'text-blue-500',
                             'valueColor' => 'text-slate-900',
-                        ],
-                        [
-                            'label' => 'SMTP Gateway',
-                            'value' => ($smtpConfigured ?? false) ? 'Configured' : 'Incomplete',
-                            'icon' => 'fa-envelope-circle-check',
-                            'gradient' => ($smtpConfigured ?? false) ? '#f0fdf4,#dcfce7' : '#fff1f2,#ffe4e6',
-                            'iconColor' => ($smtpConfigured ?? false) ? 'text-emerald-500' : 'text-rose-500',
-                            'valueColor' => ($smtpConfigured ?? false) ? 'text-emerald-600' : 'text-rose-600',
                         ],
                         [
                             'label' => 'Proctoring Floor',
@@ -284,9 +276,6 @@
                     <button type="button" class="stab active mb-0.5" data-tab="identity" onclick="switchTab('identity',this)">
                         <span class="stab-icon"><i class="fa-solid fa-passport"></i></span>Platform Identity
                     </button>
-                    <button type="button" class="stab mb-0.5" data-tab="smtp" onclick="switchTab('smtp',this)">
-                        <span class="stab-icon"><i class="fa-solid fa-envelope-open-text"></i></span>SMTP / Email
-                    </button>
                     <button type="button" class="stab mb-0.5" data-tab="proctoring" onclick="switchTab('proctoring',this)">
                         <span class="stab-icon"><i class="fa-solid fa-shield-halved"></i></span>Proctoring Rules
                     </button>
@@ -334,49 +323,6 @@
                                 <p class="text-[10px] text-slate-400 font-medium mt-1.5">Sets the UI language floor for all users.</p>
                             </div>
                         </div>
-                    </div>
-
-                    {{-- ===== SMTP ===== --}}
-                    <div id="tab-smtp" class="settings-panel" style="display:none;">
-                        <div class="flex items-center justify-between mb-5 pb-4 border-b border-slate-100 flex-wrap gap-3">
-                            <div class="flex items-center gap-3">
-                                <div class="w-9 h-9 rounded-xl bg-blue-50 flex items-center justify-center"><i class="fa-solid fa-envelope-open-text text-blue-600"></i></div>
-                                <div>
-                                    <h3 class="font-bold text-sm text-slate-900">SMTP / Email Gateway</h3>
-                                    <p class="text-[11px] text-slate-400 font-medium">Single platform-wide mail routing — no per-department SMTP</p>
-                                </div>
-                            </div>
-                            <button type="button" id="smtp-test-btn" onclick="testSmtp()"
-                                    class="flex items-center gap-2 text-xs font-bold px-3.5 py-2 rounded-xl transition-all"
-                                    style="background:#0f172a;color:#fff;box-shadow:0 3px 10px rgba(15,23,42,0.20);">
-                                <i id="smtp-test-icon" class="fa-solid fa-vial text-xs"></i>
-                                <span id="smtp-test-text">Test Connection</span>
-                            </button>
-                        </div>
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
-                            <div>
-                                <label class="f-label">SMTP Host</label>
-                                <input type="text" name="mail_host" class="f-input mono" value="{{ $settings['mail_host'] ?? 'smtp.gmail.com' }}" oninput="markDirty()">
-                            </div>
-                            <div>
-                                <label class="f-label">SMTP Port</label>
-                                <input type="number" name="mail_port" class="f-input" value="{{ $settings['mail_port'] ?? 587 }}" oninput="markDirty()">
-                            </div>
-                            <div>
-                                <label class="f-label">Mail From Address</label>
-                                <input type="email" name="mail_from" class="f-input" value="{{ $settings['mail_from'] ?? '' }}" placeholder="noreply@school.edu" oninput="markDirty()">
-                            </div>
-                            <div>
-                                <label class="f-label">App Password / Secret</label>
-                                <div style="position:relative;">
-                                    <input id="smtp-pw" type="password" name="mail_password" class="f-input" value="{{ $settings['mail_password'] ?? '' }}" style="padding-right:40px;" oninput="markDirty()">
-                                    <button type="button" onclick="toggleSmtpPw()" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:#94a3b8;">
-                                        <i id="smtp-pw-eye" class="fa-solid fa-eye text-xs"></i>
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                        <div id="smtp-result" class="mt-4" style="display:none;"></div>
                     </div>
 
                     {{-- ===== PROCTORING ===== --}}
@@ -838,63 +784,6 @@
             btn.disabled = false;
             btn.style.opacity = '1';
         });
-    };
-
-
-    // ============================================================
-    //  SMTP TEST — AJAX
-    // ============================================================
-    window.testSmtp = function() {
-        const btn = document.getElementById('smtp-test-btn');
-        const icon = document.getElementById('smtp-test-icon');
-        const text = document.getElementById('smtp-test-text');
-        const result = document.getElementById('smtp-result');
-
-        icon.className = 'fa-solid fa-spinner animate-spin text-xs';
-        text.textContent = 'Testing...';
-        btn.disabled = true;
-
-        fetch('{{ route("superadmin.settings.smtp.test") }}', {
-            method: 'POST',
-            headers: {
-                'Accept': 'application/json',
-                'Content-Type': 'application/json',
-                'X-CSRF-TOKEN': CSRF,
-                'X-Requested-With': 'XMLHttpRequest'
-            }
-        })
-        .then(r => r.json())
-        .then(data => {
-            const ok = data.status === 'success';
-            result.style.display = 'block';
-            result.innerHTML = `
-                <div class="flex items-center gap-2.5 ${ok ? 'bg-emerald-50 border-emerald-200' : 'bg-rose-50 border-rose-200'} border rounded-xl p-3.5">
-                    <i class="fa-solid ${ok ? 'fa-check-circle text-emerald-500' : 'fa-times-circle text-rose-500'} text-sm"></i>
-                    <p class="text-xs font-semibold ${ok ? 'text-emerald-700' : 'text-rose-700'}">${data.message || (ok ? 'SMTP connection successful!' : 'SMTP test failed.')}</p>
-                </div>`;
-            showToast(ok ? 'SMTP test passed!' : 'SMTP test failed.', ok ? 'success' : 'error');
-
-            icon.className = 'fa-solid fa-vial text-xs';
-            text.textContent = 'Test Connection';
-            btn.disabled = false;
-        })
-        .catch(() => {
-            result.style.display = 'block';
-            result.innerHTML = `<div class="flex items-center gap-2.5 bg-rose-50 border border-rose-200 rounded-xl p-3.5">
-                <i class="fa-solid fa-times-circle text-rose-500 text-sm"></i>
-                <p class="text-xs font-semibold text-rose-700">Network error — could not reach server.</p>
-            </div>`;
-            icon.className = 'fa-solid fa-vial text-xs';
-            text.textContent = 'Test Connection';
-            btn.disabled = false;
-        });
-    };
-
-    window.toggleSmtpPw = function() {
-        const pw = document.getElementById('smtp-pw');
-        const eye = document.getElementById('smtp-pw-eye');
-        if (pw.type === 'password') { pw.type = 'text'; eye.className = 'fa-solid fa-eye-slash text-xs'; }
-        else { pw.type = 'password'; eye.className = 'fa-solid fa-eye text-xs'; }
     };
 
 

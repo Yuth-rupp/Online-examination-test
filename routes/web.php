@@ -231,7 +231,6 @@ Route::middleware(['auth', 'role:super_admin', 'audit.capture'])->prefix('super-
     Route::get('/settings',                    [SuperAdminController::class, 'settings'])->name('superadmin.settings.index');
     Route::post('/settings',                   [SuperAdminController::class, 'updateSettings'])->name('superadmin.settings.update');
     Route::post('/settings/profile',           [SuperAdminController::class, 'updateProfile'])->name('superadmin.settings.profile');
-    Route::post('/settings/smtp-test',         [SuperAdminController::class, 'testSmtpConnectionApi'])->name('superadmin.settings.smtp.test');
     Route::post('/settings/clear-cache',       [SuperAdminController::class, 'clearDatabaseCache'])->name('superadmin.settings.clearCache');
     Route::post('/settings/optimize-db',       [SuperAdminController::class, 'optimizeDatabaseTables'])->name('superadmin.settings.optimizeDb');
     Route::post('/settings/clear-logs',        [SuperAdminController::class, 'clearSystemLogs'])->name('superadmin.settings.clearLogs');
